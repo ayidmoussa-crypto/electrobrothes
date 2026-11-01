@@ -1,3 +1,4 @@
+import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import type { OrderStatus } from "@/lib/order-rules";
@@ -47,25 +48,32 @@ export function PageHeader({ title, description, actions }: { title: string; des
 
 export function Panel({ title, children, className = "" }: { title?: string; children: ReactNode; className?: string }) {
   return (
-    <section className={`rounded-xl border border-warm-200 bg-white p-4 ${className}`}>
+    <section className={`admin-card p-4 md:p-5 ${className}`}>
       {title ? <h2 className="mb-3 text-base">{title}</h2> : null}
       {children}
     </section>
   );
 }
 
-/** A KPI tile: label, hero number, optional context line. */
-export function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
+/** A KPI tile on frosted glass: optional icon (yellow on ink), label, hero number, context line. */
+export function Stat({ label, value, hint, icon: Icon }: { label: string; value: string; hint?: string; icon?: LucideIcon }) {
   return (
-    <div className="rounded-xl border border-warm-200 bg-white p-4">
-      <p className="text-sm text-warm-600">{label}</p>
-      <p className="mt-1 text-3xl font-extrabold text-ink">{value}</p>
+    <div className="admin-card p-4 md:p-5">
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-sm text-warm-600">{label}</p>
+        {Icon ? (
+          <span className="grid size-9 shrink-0 place-items-center rounded-full bg-ink text-yellow-500">
+            <Icon className="size-4.5" aria-hidden="true" />
+          </span>
+        ) : null}
+      </div>
+      <p className="mt-1 text-2xl font-extrabold text-ink md:text-3xl">{value}</p>
       {hint ? <p className="mt-1 text-xs text-warm-500">{hint}</p> : null}
     </div>
   );
 }
 
-export const inputClass = "min-h-11 w-full rounded-lg border border-warm-200 bg-warm-100 px-3 text-base text-warm-800 focus:bg-white";
+export const inputClass = "min-h-11 w-full admin-field rounded-lg px-3 text-base text-warm-800 focus:bg-white";
 
 /** Small labelled field for admin row forms. */
 export function L({ label, children, className = "" }: { label: string; children: ReactNode; className?: string }) {

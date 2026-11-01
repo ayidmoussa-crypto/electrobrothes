@@ -56,7 +56,7 @@ export default async function CitiesPage() {
       </Panel>
       <ul className="flex flex-col gap-2">
         {cities.map((c) => (
-          <li key={c.id} className="rounded-xl border border-warm-200 bg-white p-3">
+          <li key={c.id} className="admin-row p-3">
             <ActionForm action={saveCity} submitLabel="حفظ" variant="outline" className="flex flex-wrap items-end gap-3">
               <CityFields c={c} />
             </ActionForm>

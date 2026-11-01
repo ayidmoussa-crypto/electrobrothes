@@ -43,7 +43,7 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
     db.order.count({ where }),
   ]);
   const pages = Math.max(1, Math.ceil(total / PAGE));
-  const input = "min-h-11 rounded-lg border border-warm-200 bg-white px-3 text-sm text-warm-800";
+  const input = "min-h-11 admin-field rounded-lg px-3 text-sm text-warm-800";
 
   return (
     <>
@@ -58,7 +58,7 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
         }
       />
 
-      <form method="get" className="mb-4 flex flex-wrap items-end gap-2 rounded-xl border border-warm-200 bg-white p-3">
+      <form method="get" className="mb-4 flex flex-wrap items-end gap-2 admin-card p-3">
         <label className="flex flex-col gap-1 text-xs text-warm-600">
           بحث
           <input name="q" defaultValue={f.q} placeholder="رقم الطلب، الاسم أو الهاتف" className={`${input} w-56`} />
@@ -94,9 +94,9 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
         </Link>
       </form>
 
-      <div className="overflow-x-auto rounded-xl border border-warm-200 bg-white">
+      <div className="overflow-x-auto admin-card">
         <table className="w-full min-w-[56rem]">
-          <thead className="border-b border-warm-200 bg-warm-50">
+          <thead className="border-b border-white/70 bg-white/45">
             <tr>
               <th className={thClass}>الطلب</th>
               <th className={thClass}>التاريخ</th>
@@ -109,7 +109,7 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
           </thead>
           <tbody>
             {orders.map((o) => (
-              <tr key={o.id} className="border-b border-warm-200 last:border-0 hover:bg-warm-50">
+              <tr key={o.id} className="border-b border-warm-200/60 last:border-0 transition-colors hover:bg-white/60">
                 <td className={tdClass}>
                   <Link href={`/admin/orders/${o.id}`} className="font-mono font-bold text-ink underline-offset-4 hover:underline" dir="ltr">
                     {o.number}

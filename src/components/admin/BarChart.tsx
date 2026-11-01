@@ -18,7 +18,7 @@ export function BarChart({
   const every = Math.ceil(data.length / 8);
 
   return (
-    <figure className="rounded-xl border border-warm-200 bg-white p-4">
+    <figure className="admin-card p-4">
       <figcaption className="mb-4 text-sm font-bold text-ink">{title}</figcaption>
       <div className="flex h-48 items-end gap-0.5 border-b border-warm-300" role="img" aria-label={title}>
         {data.map((d) => (

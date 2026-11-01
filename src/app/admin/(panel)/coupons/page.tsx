@@ -69,7 +69,7 @@ export default async function CouponsPage() {
       </Panel>
       <ul className="flex flex-col gap-3">
         {coupons.map((c) => (
-          <li key={c.id} className="rounded-xl border border-warm-200 bg-white p-4">
+          <li key={c.id} className="admin-card p-4">
             <p className="mb-2 text-sm text-warm-600">
               استُعمل <b className="text-ink">{c.usedCount}</b> {c.maxUses ? `من ${c.maxUses}` : "مرة"}
             </p>

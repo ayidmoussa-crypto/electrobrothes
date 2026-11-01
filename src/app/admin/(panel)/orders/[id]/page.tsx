@@ -188,7 +188,7 @@ export default async function OrderDetail({ params }: PageProps<"/admin/orders/[
                 <input type="hidden" name="phone" value={order.phone} />
                 <label className="flex flex-col gap-1 text-sm text-warm-600">
                   السبب
-                  <input name="reason" maxLength={200} className="min-h-11 rounded-lg border border-warm-200 bg-warm-100 px-3 text-base text-warm-800" />
+                  <input name="reason" maxLength={200} className="min-h-11 admin-field rounded-lg px-3 text-base text-warm-800" />
                 </label>
               </ActionForm>
             )}

@@ -24,6 +24,7 @@
     "@neon/env": "^1.6.8",
     "@prisma/adapter-pg": "^7.10.1",
     "@prisma/client": "^7.10.1",
+    "framer-motion": "^14.9.0",
     "lucide-react": "^1.66.0",
     "next": "16.4.3",
     "next-intl": "^4.14.9",

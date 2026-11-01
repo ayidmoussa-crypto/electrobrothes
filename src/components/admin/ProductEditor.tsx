@@ -16,9 +16,9 @@ type Img = ProductInput["images"][number];
 
 const KNOWN_SPECS = ["ram", "storage", "screen", "cpu", "gpu", "camera", "battery", "type", "anc", "connectivity", "power", "port", "capacity", "length", "water"];
 
-const input = "min-h-11 w-full rounded-lg border border-warm-200 bg-warm-100 px-3 text-base text-warm-800 focus:bg-white";
+const input = "min-h-11 w-full admin-field rounded-lg px-3 text-base text-warm-800 focus:bg-white";
 const labelCls = "flex flex-col gap-1 text-sm font-semibold text-ink";
-const iconBtn = "grid size-10 shrink-0 cursor-pointer place-items-center rounded-lg text-warm-600 hover:bg-warm-100 hover:text-ink disabled:opacity-40";
+const iconBtn = "grid size-10 shrink-0 cursor-pointer place-items-center rounded-lg text-warm-600 hover:bg-white/70 hover:text-ink disabled:opacity-40";
 
 const emptyVariant = (): Variant => ({ sku: "", colorAr: "", colorEn: "", colorHex: "", storage: "", price: "", compareAtPrice: "", stock: "0" });
 
@@ -95,7 +95,7 @@ export function ProductEditor({
           </div>
         ) : null}
 
-        <section className="grid gap-4 rounded-xl border border-warm-200 bg-white p-4 md:grid-cols-2">
+        <section className="grid gap-4 admin-card p-4 md:grid-cols-2">
           <h2 className="text-base md:col-span-2">المعلومات الأساسية</h2>
           <label className={labelCls}>
             الاسم بالعربية
@@ -187,7 +187,7 @@ export function ProductEditor({
           </label>
         </section>
 
-        <section className="rounded-xl border border-warm-200 bg-white p-4">
+        <section className="admin-card p-4">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-base">الصور</h2>
             <div className="flex flex-wrap gap-2">
@@ -208,7 +208,7 @@ export function ProductEditor({
           {uploadError ? <p className="mb-3 text-sm text-danger">{uploadError}</p> : null}
           <ul className="flex flex-col gap-3">
             {p.images.map((img, i) => (
-              <li key={i} className="flex flex-wrap items-start gap-3 rounded-lg border border-warm-200 p-3">
+              <li key={i} className="flex flex-wrap items-start gap-3 admin-field rounded-xl p-3">
                 <div className="relative size-20 shrink-0 overflow-hidden rounded-lg bg-warm-50">
                   {img.url.startsWith("https://") || img.url.startsWith("/") ? (
                     <Image src={img.url} alt="" fill sizes="80px" unoptimized className="object-contain p-1" />
@@ -236,7 +236,7 @@ export function ProductEditor({
           </ul>
         </section>
 
-        <section className="rounded-xl border border-warm-200 bg-white p-4">
+        <section className="admin-card p-4">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-base">الخيارات (اللون / السعة) والأسعار والمخزون</h2>
             <button type="button" className={buttonClass({ variant: "ghost" })} onClick={() => set("variants", [...p.variants, emptyVariant()])}>
@@ -281,7 +281,7 @@ export function ProductEditor({
           <p className="mt-2 text-xs text-warm-600">الخيار الأول هو الافتراضي. السعر بالدرهم.</p>
         </section>
 
-        <section className="rounded-xl border border-warm-200 bg-white p-4">
+        <section className="admin-card p-4">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-base">المواصفات التقنية</h2>
             <button type="button" className={buttonClass({ variant: "ghost" })} onClick={() => set("specs", [...p.specs, { key: "", valueAr: "", valueEn: "", numericValue: "" }])}>
@@ -310,7 +310,7 @@ export function ProductEditor({
           <p className="mt-2 text-xs text-warm-600">المفاتيح ram و storage و screen و cpu تظهر كفلاتر في صفحات الأقسام (أدخل القيمة الرقمية: 8، 256، 6.1…).</p>
         </section>
 
-        <div className="sticky bottom-0 z-10 flex flex-wrap items-center gap-3 border-t border-warm-200 bg-warm-50 py-3">
+        <div className="glass-light sticky bottom-24 z-10 flex flex-wrap items-center gap-3 rounded-2xl border p-3 lg:bottom-3">
           <button type="submit" disabled={pending} className={buttonClass({ size: "lg" })}>
             {pending ? <LoaderCircle className="size-5 animate-spin" aria-hidden="true" /> : null}
             حفظ المنتج
@@ -320,7 +320,7 @@ export function ProductEditor({
       </form>
 
       {initial.id ? (
-        <section className="rounded-xl border border-danger bg-white p-4">
+        <section className="admin-card p-4 ring-1 ring-danger/60">
           <h2 className="text-base text-danger">حذف المنتج</h2>
           <p className="mt-1 text-sm text-warm-600">الطلبات السابقة تحتفظ بنسخة من الاسم والسعر. لإخفائه فقط، ألغِ خيار «ظاهر في المتجر».</p>
           <div className="mt-3">

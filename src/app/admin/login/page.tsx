@@ -1,8 +1,10 @@
 "use client";
 
+import { motion } from "framer-motion";
 import { CircleAlert, LoaderCircle } from "lucide-react";
 import { useActionState } from "react";
 import { login, type LoginState } from "@/app/actions/admin-auth";
+import { AdminBackdrop } from "@/components/admin/AdminBackdrop";
 import { Logo } from "@/components/brand/Logo";
 import { buttonClass } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/Field";
@@ -16,8 +18,14 @@ export default function LoginPage() {
   const [state, action, pending] = useActionState<LoginState, FormData>(login, {});
 
   return (
-    <main className="grid min-h-dvh place-items-center bg-ink px-4">
-      <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+    <main className="grid min-h-dvh place-items-center px-4">
+      <AdminBackdrop />
+      <motion.div
+        initial={{ opacity: 0, y: 16, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+        className="admin-card w-full max-w-sm p-6 sm:p-8"
+      >
         <div className="mb-6 flex items-center gap-2">
           <Logo className="h-9 w-auto text-logo-dark" />
           <span className="text-lg font-extrabold text-ink" dir="ltr">
@@ -45,7 +53,7 @@ export default function LoginPage() {
             دخول
           </button>
         </form>
-      </div>
+      </motion.div>
     </main>
   );
 }

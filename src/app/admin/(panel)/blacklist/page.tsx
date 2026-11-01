@@ -25,9 +25,9 @@ export default async function BlacklistPage() {
           </L>
         </ActionForm>
       </Panel>
-      <div className="overflow-x-auto rounded-xl border border-warm-200 bg-white">
+      <div className="overflow-x-auto admin-card">
         <table className="w-full">
-          <thead className="border-b border-warm-200 bg-warm-50">
+          <thead className="border-b border-white/70 bg-white/45">
             <tr>
               <th className={thClass}>الرقم</th>
               <th className={thClass}>السبب</th>
@@ -39,7 +39,7 @@ export default async function BlacklistPage() {
           </thead>
           <tbody>
             {entries.map((e) => (
-              <tr key={e.id} className="border-b border-warm-200 last:border-0">
+              <tr key={e.id} className="border-b border-warm-200/60 last:border-0">
                 <td className={`${tdClass} font-semibold text-ink`} dir="ltr">
                   {formatMoroccanPhone(e.phone)}
                 </td>
@@ -48,7 +48,7 @@ export default async function BlacklistPage() {
                 <td className={tdClass}>
                   <form action={removeFromBlacklist}>
                     <input type="hidden" name="id" value={e.id} />
-                    <button type="submit" className="grid size-10 cursor-pointer place-items-center rounded-lg text-warm-600 hover:bg-warm-100 hover:text-danger" aria-label={`إزالة ${formatMoroccanPhone(e.phone)} من القائمة`}>
+                    <button type="submit" className="grid size-10 cursor-pointer place-items-center rounded-lg text-warm-600 hover:bg-white/70 hover:text-danger" aria-label={`إزالة ${formatMoroccanPhone(e.phone)} من القائمة`}>
                       <Trash2 className="size-4" aria-hidden="true" />
                     </button>
                   </form>

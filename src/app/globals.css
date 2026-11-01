@@ -70,8 +70,8 @@
 
 /*
  * ── Glassmorphism tokens ─────────────────────────────────────────────────────
- * Used ONLY on: home hero, scrolled header, cart drawer, mobile "order now" bar,
- * limited-deal card. Never on product cards, the order form, prices or the admin.
+ * Storefront: home hero, header pills, cart drawer, mobile "order now" bar, limited-deal card.
+ * Never on product cards, the order form or prices. The admin has its own frosted cards (below).
  * Built from the brand palette (white / ink / warm greys); no new colours.
  */
 :root {
@@ -91,13 +91,45 @@
   --glass-light-bg: rgb(255 255 255 / 0.78);
   --glass-light-border: rgb(255 255 255 / 0.6);
   --glass-light-shadow: 0 8px 32px rgb(17 17 17 / 0.12);
+  /*
+   * Admin: frosted white cards over a warm, softly blurred backdrop. White at 62% over warm-50
+   * stays near-white, so warm-600 / ink text keeps its AA contrast.
+   */
+  --admin-blur: 18px;
+  --admin-card-bg: rgb(255 255 255 / 0.62);
+  --admin-card-border: rgb(255 255 255 / 0.8);
+  --admin-card-shadow: 0 1px 0 rgb(255 255 255 / 0.7) inset, 0 10px 30px -12px rgb(17 17 17 / 0.18);
+  --admin-field-bg: rgb(255 255 255 / 0.7);
 }
 
 /* Phones: lighter blur, cheaper to render while scrolling. */
 @media (max-width: 767px) {
   :root {
     --glass-blur: 10px;
+    --admin-blur: 8px;
+    --admin-card-bg: rgb(255 255 255 / 0.74);
   }
+}
+
+@utility admin-card {
+  background: var(--admin-card-bg);
+  border: 1px solid var(--admin-card-border);
+  border-radius: 1.25rem;
+  box-shadow: var(--admin-card-shadow);
+  -webkit-backdrop-filter: blur(var(--admin-blur)) saturate(140%);
+  backdrop-filter: blur(var(--admin-blur)) saturate(140%);
+}
+/* Rows of a long list (cities): same look as admin-card without a per-row blur, which would make scrolling heavy. */
+@utility admin-row {
+  background: rgb(255 255 255 / 0.72);
+  border: 1px solid var(--admin-card-border);
+  border-radius: 1rem;
+  box-shadow: 0 6px 18px -12px rgb(17 17 17 / 0.2);
+}
+/* Inputs and small controls on the frosted cards. */
+@utility admin-field {
+  background: var(--admin-field-bg);
+  border: 1px solid color-mix(in srgb, var(--color-warm-200) 90%, transparent);
 }
 
 @utility glass {
@@ -131,16 +163,21 @@
   .glass-dark {
     background: var(--color-ink);
   }
-  .glass-light {
+  .glass-light,
+  .admin-card {
     background: var(--color-white);
   }
 }
 @media (prefers-reduced-transparency: reduce) {
   .glass,
   .glass-dark,
-  .glass-light {
+  .glass-light,
+  .admin-card {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
+  }
+  .admin-card {
+    background: var(--color-white);
   }
   .glass {
     background: var(--color-warm-900);

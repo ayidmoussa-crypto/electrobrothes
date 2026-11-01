@@ -23,7 +23,7 @@ export default async function BrandsPage() {
       </Panel>
       <ul className="grid gap-3 md:grid-cols-2">
         {brands.map((b) => (
-          <li key={b.id} className="rounded-xl border border-warm-200 bg-white p-4">
+          <li key={b.id} className="admin-card p-4">
             <ActionForm action={saveBrand} submitLabel="حفظ" className="flex flex-wrap items-end gap-3">
               <input type="hidden" name="id" value={b.id} />
               <L label={`الاسم · ${b._count.products} منتج`}>

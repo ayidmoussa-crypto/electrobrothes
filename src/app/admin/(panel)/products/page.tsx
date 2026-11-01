@@ -35,7 +35,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/admin/p
     }),
     db.category.findMany({ select: { id: true, nameAr: true }, orderBy: { sortOrder: "asc" } }),
   ]);
-  const input = "min-h-11 rounded-lg border border-warm-200 bg-white px-3 text-sm text-warm-800";
+  const input = "min-h-11 admin-field rounded-lg px-3 text-sm text-warm-800";
 
   return (
     <>
@@ -49,7 +49,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/admin/p
           </Link>
         }
       />
-      <form method="get" className="mb-4 flex flex-wrap items-end gap-2 rounded-xl border border-warm-200 bg-white p-3">
+      <form method="get" className="mb-4 flex flex-wrap items-end gap-2 admin-card p-3">
         <label className="flex flex-col gap-1 text-xs text-warm-600">
           بحث
           <input name="q" defaultValue={q} placeholder="اسم أو SKU" className={`${input} w-56`} />
@@ -70,9 +70,9 @@ export default async function ProductsPage({ searchParams }: PageProps<"/admin/p
         </button>
       </form>
 
-      <div className="overflow-x-auto rounded-xl border border-warm-200 bg-white">
+      <div className="overflow-x-auto admin-card">
         <table className="w-full min-w-[48rem]">
-          <thead className="border-b border-warm-200 bg-warm-50">
+          <thead className="border-b border-white/70 bg-white/45">
             <tr>
               <th className={thClass}>المنتج</th>
               <th className={thClass}>القسم</th>
@@ -86,7 +86,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/admin/p
               const prices = p.variants.map((v) => v.price);
               const stock = p.variants.reduce((s, v) => s + v.stock, 0);
               return (
-                <tr key={p.id} className="border-b border-warm-200 last:border-0 hover:bg-warm-50">
+                <tr key={p.id} className="border-b border-warm-200/60 last:border-0 transition-colors hover:bg-white/60">
                   <td className={tdClass}>
                     <Link href={`/admin/products/${p.id}`} className="flex items-center gap-3">
                       <span className="relative size-12 shrink-0 overflow-hidden rounded-md bg-warm-50">

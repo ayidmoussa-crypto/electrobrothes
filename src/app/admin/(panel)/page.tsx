@@ -1,4 +1,4 @@
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, CalendarClock, PhoneCall, ShoppingCart, Truck, Wallet } from "lucide-react";
 import Link from "next/link";
 import { BarChart } from "@/components/admin/BarChart";
 import { PageHeader, Panel, Stat, StatusBadge } from "@/components/admin/ui";
@@ -54,7 +54,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
             key={r}
             href={`/admin?days=${r}`}
             aria-current={r === days ? "page" : undefined}
-            className={`inline-flex min-h-11 items-center rounded-lg px-4 text-sm font-semibold ${r === days ? "bg-ink text-white" : "border border-warm-200 bg-white text-ink hover:bg-warm-100"}`}
+            className={`inline-flex min-h-11 items-center rounded-full px-4 text-sm font-semibold transition-colors ${r === days ? "bg-ink text-white shadow-lg shadow-ink/20" : "admin-field text-ink hover:bg-white"}`}
           >
             {r} يوم
           </Link>
@@ -64,7 +64,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
       {rates.pending || risky ? (
         <Link
           href="/admin/orders?status=NEW"
-          className="mb-6 flex items-center gap-3 rounded-xl border border-warning bg-warning-soft p-4 text-warning-text hover:underline"
+          className="mb-6 flex items-center gap-3 rounded-2xl border border-warning/40 bg-warning-soft/85 p-4 text-warning-text shadow-sm backdrop-blur-sm hover:underline"
         >
           <AlertTriangle className="size-5 shrink-0" aria-hidden="true" />
           <span className="font-semibold">
@@ -74,11 +74,11 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
       ) : null}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-        <Stat label="طلبات اليوم" value={String(today[0].count)} />
-        <Stat label="الطلبات" value={String(rates.total)} hint={`آخر ${days} يوماً`} />
-        <Stat label="نسبة التأكيد" value={pctText(rates.confirmation)} hint="من الطلبات التي تم الاتصال بها" />
-        <Stat label="نسبة التسليم" value={pctText(rates.delivery)} hint={`نسبة الإرجاع ${pctText(rates.returns)}`} />
-        <Stat label="المداخيل (المسلَّمة)" value={formatMAD(revenue._sum.total ?? 0, "ar")} />
+        <Stat icon={CalendarClock} label="طلبات اليوم" value={String(today[0].count)} />
+        <Stat icon={ShoppingCart} label="الطلبات" value={String(rates.total)} hint={`آخر ${days} يوماً`} />
+        <Stat icon={PhoneCall} label="نسبة التأكيد" value={pctText(rates.confirmation)} hint="من الطلبات التي تم الاتصال بها" />
+        <Stat icon={Truck} label="نسبة التسليم" value={pctText(rates.delivery)} hint={`نسبة الإرجاع ${pctText(rates.returns)}`} />
+        <Stat icon={Wallet} label="المداخيل (المسلَّمة)" value={formatMAD(revenue._sum.total ?? 0, "ar")} />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[2fr_1fr]">
@@ -97,7 +97,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
                     <span className="truncate text-warm-800">{t.nameAr}</span>
                     <span className="font-bold text-ink">{t._sum.quantity}</span>
                   </div>
-                  <div className="mt-1 h-2 rounded-full bg-warm-100" aria-hidden="true">
+                  <div className="mt-1 h-2 rounded-full bg-warm-200/70" aria-hidden="true">
                     <div className="h-2 rounded-full bg-ink" style={{ width: `${((t._sum.quantity ?? 0) / topMax) * 100}%` }} />
                   </div>
                 </li>
@@ -113,7 +113,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
         <ul className="flex flex-wrap gap-3">
           {ORDER_STATUSES.map((s) => (
             <li key={s}>
-              <Link href={`/admin/orders?status=${s}`} className="flex min-h-11 items-center gap-2 rounded-lg border border-warm-200 px-3 hover:bg-warm-50">
+              <Link href={`/admin/orders?status=${s}`} className="flex min-h-11 items-center gap-2 admin-field rounded-lg px-3 transition-colors hover:bg-white">
                 <StatusBadge status={s} />
                 <span className="font-bold text-ink">{counts[s] ?? 0}</span>
               </Link>
