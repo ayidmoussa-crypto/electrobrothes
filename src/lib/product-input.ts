@@ -36,6 +36,8 @@ export const productInput = z
       (v) => (v ? v : null),
       z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, "dealEndsAt").nullable(),
     ),
+    // Purchase price per unit (admin only); a colour may override it.
+    costPrice: optionalMoney,
     images: z
       .array(z.object({ url: z.string().trim().max(500).refine((u) => u.startsWith("/") || u.startsWith("https://"), "image"), altAr: text(200), altEn: text(200) }))
       .min(1, "images")
@@ -51,7 +53,12 @@ export const productInput = z
           storage: optionalText(20),
           price: money.refine((n) => n > 0, "price"),
           compareAtPrice: optionalMoney,
+          costPrice: optionalMoney,
           stock: z.coerce.number().int().min(0).max(100_000),
+          // Stock when the editor was opened: the server applies (stock − stockBase) as a move, so an
+          // order confirmed meanwhile is not overwritten.
+          stockBase: z.coerce.number().int().min(0).max(100_000),
+          lowStockAt: z.coerce.number().int().min(0).max(1_000),
         }),
       )
       .min(1, "variants")
@@ -75,7 +82,15 @@ export const productInput = z
         ctx.addIssue({ code: "custom", message: "compareAt", path: ["variants", i, "compareAtPrice"] });
       }
     }
-  });
+    // Several options must be told apart by the customer: each needs a colour (or a capacity), all different.
+    if (p.variants.length > 1) {
+      const names = p.variants.map((v) => [v.colorAr, v.storage].filter(Boolean).join("|"));
+      if (names.some((n) => !n)) ctx.addIssue({ code: "custom", message: "colorRequired", path: ["variants"] });
+      else if (new Set(names).size !== names.length) ctx.addIssue({ code: "custom", message: "duplicateColor", path: ["variants"] });
+    }
+  })
+  // The storefront picker keys colours on the English name: fall back to the Arabic one.
+  .transform((p) => ({ ...p, variants: p.variants.map((v) => ({ ...v, colorEn: v.colorEn ?? v.colorAr })) }));
 
 /** What the editor holds: form strings, parsed and normalised by `productInput` on the server. */
 export type ProductInput = {
@@ -92,6 +107,7 @@ export type ProductInput = {
   isFeatured: boolean;
   isBestSeller: boolean;
   dealEndsAt: string | null;
+  costPrice: number | string;
   images: { url: string; altAr: string; altEn: string }[];
   variants: {
     id?: string;
@@ -102,7 +118,10 @@ export type ProductInput = {
     storage: string;
     price: number | string;
     compareAtPrice: number | string;
+    costPrice: number | string;
     stock: number | string;
+    stockBase: number;
+    lowStockAt: number | string;
   }[];
   specs: { key: string; valueAr: string; valueEn: string; numericValue: number | string }[];
 };
@@ -123,6 +142,8 @@ export const PRODUCT_ERRORS: Record<string, string> = {
   variants: "أضف خياراً واحداً على الأقل",
   duplicateSku: "رموز SKU يجب أن تكون مختلفة",
   compareAt: "السعر قبل التخفيض يجب أن يكون أكبر من السعر الحالي",
+  colorRequired: "عند وجود أكثر من لون، اكتب اسم كل لون",
+  duplicateColor: "أسماء الألوان يجب أن تكون مختلفة",
   specKey: "مفتاح المواصفة بحروف لاتينية صغيرة (مثال: ram)",
   spec: "قيمة المواصفة مطلوبة باللغتين",
 };

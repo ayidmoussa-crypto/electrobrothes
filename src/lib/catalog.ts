@@ -162,11 +162,13 @@ export async function getProduct(slug: string) {
   cacheTag("products", `product:${slug}`);
   const p = await db.product.findFirst({
     where: visible({ slug }),
+    // Purchase prices and stock-alert settings are admin-only: never loaded for the storefront.
+    omit: { costPrice: true },
     include: {
       brand: { select: { name: true, slug: true } },
       category: { select: { slug: true, nameAr: true, nameEn: true } },
       images: { orderBy: { sortOrder: "asc" } },
-      variants: { orderBy: { sortOrder: "asc" } },
+      variants: { omit: { costPrice: true, lowStockAt: true }, orderBy: { sortOrder: "asc" } },
       specs: { orderBy: { sortOrder: "asc" } },
       reviews: { where: { isApproved: true }, orderBy: { createdAt: "desc" } },
     },

@@ -49,10 +49,13 @@ model Product {
   isBestSeller   Boolean        @default(false)
   // Limited-time offer: shown with a countdown until this date.
   dealEndsAt     DateTime?
+  // Purchase price (MAD), admin only: never selected for the storefront. A colour may override it.
+  costPrice      Int?
   images         ProductImage[]
   variants       Variant[]
   specs          Spec[]
   reviews        Review[]
+  stockMovements StockMovement[]
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
@@ -72,12 +75,13 @@ model ProductImage {
   @@index([productId])
 }
 
-// A purchasable option (colour / capacity) with its own price and stock.
+// A purchasable option — in practice one colour (optionally with a capacity) — with its own price
+// and stock. A product without colours has a single variant with no colour. Product stock = sum.
 model Variant {
-  id             String      @id @default(cuid())
+  id             String          @id @default(cuid())
   productId      String
-  product        Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
-  sku            String      @unique
+  product        Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sku            String          @unique
   colorAr        String?
   colorEn        String?
   // Product swatch colour (catalog data, not a UI colour).
@@ -85,12 +89,55 @@ model Variant {
   storage        String?
   price          Int
   compareAtPrice Int?
-  stock          Int         @default(0)
-  isDefault      Boolean     @default(false)
-  sortOrder      Int         @default(0)
+  stock          Int             @default(0)
+  // Purchase price for this colour when it differs from the product's (admin only).
+  costPrice      Int?
+  // Low-stock alert on the dashboard at or below this quantity.
+  lowStockAt     Int             @default(3)
+  isDefault      Boolean         @default(false)
+  sortOrder      Int             @default(0)
   orderItems     OrderItem[]
+  stockMovements StockMovement[]
 
   @@index([productId])
+}
+
+enum StockReason {
+  OPENING // quantity that existed before the log started
+  STOCK_IN // added from the product editor (purchase / restock)
+  ADJUSTMENT // removed or corrected from the product editor, or a colour deleted with stock left
+  ORDER_CONFIRMED
+  ORDER_CANCELLED
+  ORDER_RETURNED
+}
+
+// Inventory ledger, one row per quantity change of a colour. Snapshots (sku, colour, cost) keep the
+// history readable after the catalog changes; sum(delta) per variant equals its stock.
+model StockMovement {
+  id          String      @id @default(cuid())
+  productId   String?
+  product     Product?    @relation(fields: [productId], references: [id], onDelete: SetNull)
+  variantId   String?
+  variant     Variant?    @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  productName String
+  sku         String
+  colorLabel  String?
+  delta       Int
+  // Stock of the colour right after this move.
+  stockAfter  Int
+  reason      StockReason
+  // Purchase price per unit at that moment (variant override, else product), MAD.
+  unitCost    Int?
+  orderId     String?
+  orderNumber String?
+  // Admin email, or "system".
+  actor       String
+  note        String?
+  createdAt   DateTime    @default(now())
+
+  @@index([productId, createdAt])
+  @@index([variantId, createdAt])
+  @@index([createdAt])
 }
 
 // Technical specification row. `key` is a stable id (ram, storage, screen, cpu…)

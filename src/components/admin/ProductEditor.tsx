@@ -20,7 +20,23 @@ const input = "min-h-11 w-full admin-field rounded-lg px-3 text-base text-warm-8
 const labelCls = "flex flex-col gap-1 text-sm font-semibold text-ink";
 const iconBtn = "grid size-10 shrink-0 cursor-pointer place-items-center rounded-lg text-warm-600 hover:bg-white/70 hover:text-ink disabled:opacity-40";
 
-const emptyVariant = (): Variant => ({ sku: "", colorAr: "", colorEn: "", colorHex: "", storage: "", price: "", compareAtPrice: "", stock: "0" });
+const emptyVariant = (price: Variant["price"] = ""): Variant => ({
+  sku: "",
+  colorAr: "",
+  colorEn: "",
+  colorHex: "",
+  storage: "",
+  price,
+  compareAtPrice: "",
+  costPrice: "",
+  stock: "0",
+  stockBase: 0,
+  lowStockAt: 3,
+});
+const num = (v: number | string) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+// Starting value of the native colour picker: product swatch data (like the seed's colorHex), not a UI colour.
+// eslint-disable-next-line no-restricted-syntax
+const DEFAULT_SWATCH = "#111111";
 
 function move<T>(list: T[], i: number, by: number) {
   const next = [...list];
@@ -41,6 +57,13 @@ export function ProductEditor({
   uploadsEnabled: boolean;
 }) {
   const [p, setP] = useState(initial);
+  // After a save the server re-renders with fresh data (stock, its base, new colour ids): adopt it, so a
+  // second save never re-applies the same stock change or re-creates a colour.
+  const [loaded, setLoaded] = useState(initial);
+  if (loaded !== initial) {
+    setLoaded(initial);
+    setP(initial);
+  }
   const [slugTouched, setSlugTouched] = useState(!!initial.id);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -237,48 +260,104 @@ export function ProductEditor({
         </section>
 
         <section className="admin-card p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-base">الخيارات (اللون / السعة) والأسعار والمخزون</h2>
-            <button type="button" className={buttonClass({ variant: "ghost" })} onClick={() => set("variants", [...p.variants, emptyVariant()])}>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-base">الألوان والمخزون والأسعار</h2>
+              <span className="rounded-full bg-ink px-3 py-1 text-xs font-bold text-white">
+                الكمية الكلية: {p.variants.reduce((s, v) => s + num(v.stock), 0)}
+              </span>
+            </div>
+            <button type="button" className={buttonClass({ variant: "ghost" })} onClick={() => set("variants", [...p.variants, emptyVariant(p.variants[0]?.price ?? "")])}>
               <Plus className="size-4" aria-hidden="true" />
-              خيار جديد
+              إضافة لون
             </button>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[60rem] text-sm">
-              <thead>
-                <tr className="text-xs text-warm-600">
-                  {["SKU", "اللون (ع)", "اللون (En)", "لون العينة", "السعة", "السعر", "قبل التخفيض", "المخزون", ""].map((h) => (
-                    <th key={h} className="px-1 pb-2 text-start font-semibold">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {p.variants.map((v, i) => (
-                  <tr key={v.id ?? `new-${i}`}>
-                    <td className="p-1"><input className={input} dir="ltr" value={v.sku} onChange={(e) => setVariant(i, { sku: e.target.value })} aria-label="SKU" /></td>
-                    <td className="p-1"><input className={input} value={v.colorAr ?? ""} onChange={(e) => setVariant(i, { colorAr: e.target.value })} aria-label="اللون بالعربية" /></td>
-                    <td className="p-1"><input className={input} dir="ltr" value={v.colorEn ?? ""} onChange={(e) => setVariant(i, { colorEn: e.target.value })} aria-label="Color" /></td>
-                    <td className="p-1">
-                      <input type="color" className="h-11 w-14 cursor-pointer rounded-lg border border-warm-200" value={v.colorHex || ""} onChange={(e) => setVariant(i, { colorHex: e.target.value })} aria-label="لون العينة" />
-                    </td>
-                    <td className="p-1"><input className={input} dir="ltr" placeholder="128GB" value={v.storage ?? ""} onChange={(e) => setVariant(i, { storage: e.target.value })} aria-label="السعة" /></td>
-                    <td className="p-1"><input className={input} type="number" min={1} value={String(v.price)} onChange={(e) => setVariant(i, { price: e.target.value })} aria-label="السعر" /></td>
-                    <td className="p-1"><input className={input} type="number" min={0} value={String(v.compareAtPrice ?? "")} onChange={(e) => setVariant(i, { compareAtPrice: e.target.value })} aria-label="السعر قبل التخفيض" /></td>
-                    <td className="p-1"><input className={input} type="number" min={0} value={String(v.stock)} onChange={(e) => setVariant(i, { stock: e.target.value })} aria-label="المخزون" /></td>
-                    <td className="p-1">
-                      <button type="button" className={iconBtn} disabled={p.variants.length === 1} onClick={() => set("variants", p.variants.filter((_, j) => j !== i))} aria-label="حذف الخيار">
-                        <Trash2 className="size-4" aria-hidden="true" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p className="mt-2 text-xs text-warm-600">الخيار الأول هو الافتراضي. السعر بالدرهم.</p>
+
+          <label className={`${labelCls} mb-4 max-w-xs`}>
+            سعر الشراء (للمنتج)
+            <input className={input} type="number" min={0} inputMode="numeric" placeholder="بالدرهم" value={String(p.costPrice ?? "")} onChange={(e) => set("costPrice", e.target.value)} />
+            <span className="text-xs font-normal text-warm-600">لا يظهر أبداً في المتجر. يمكن تغييره للون معيّن أسفله.</span>
+          </label>
+
+          <ul className="flex flex-col gap-3">
+            {p.variants.map((v, i) => {
+              const low = num(v.stock) <= num(v.lowStockAt);
+              const changed = v.id ? num(v.stock) - v.stockBase : num(v.stock);
+              return (
+                <li key={v.id ?? `new-${i}`} className="admin-field rounded-2xl p-3">
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <p className="flex items-center gap-2 text-sm font-bold text-ink">
+                      <span className="size-5 rounded-full border border-warm-300" style={{ backgroundColor: v.colorHex || "transparent" }} aria-hidden="true" />
+                      {v.colorAr || (p.variants.length === 1 ? "بدون لون" : `لون ${i + 1}`)}
+                      {i === 0 ? <span className="text-xs font-normal text-warm-600">(الافتراضي)</span> : null}
+                      {low ? <span className="rounded-full bg-warning-soft px-2 py-0.5 text-xs font-semibold text-warning-text">مخزون منخفض</span> : null}
+                    </p>
+                    <button type="button" className={iconBtn} disabled={p.variants.length === 1} onClick={() => set("variants", p.variants.filter((_, j) => j !== i))} aria-label={`حذف ${v.colorAr || `اللون ${i + 1}`}`}>
+                      <Trash2 className="size-4" aria-hidden="true" />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                    <label className={labelCls}>
+                      اسم اللون
+                      <input className={input} placeholder="أسود" value={v.colorAr ?? ""} onChange={(e) => setVariant(i, { colorAr: e.target.value })} />
+                    </label>
+                    <label className={labelCls}>
+                      Color (EN)
+                      <input className={input} dir="ltr" placeholder="Black" value={v.colorEn ?? ""} onChange={(e) => setVariant(i, { colorEn: e.target.value })} />
+                    </label>
+                    <label className={labelCls}>
+                      دائرة اللون
+                      <input type="color" className="h-11 w-full cursor-pointer rounded-lg border border-warm-200 bg-white" value={v.colorHex || DEFAULT_SWATCH} onChange={(e) => setVariant(i, { colorHex: e.target.value })} />
+                    </label>
+                    <label className={labelCls}>
+                      الكمية
+                      <input className={input} type="number" min={0} inputMode="numeric" value={String(v.stock)} onChange={(e) => setVariant(i, { stock: e.target.value })} />
+                      {changed ? (
+                        <span className={`text-xs font-semibold ${changed > 0 ? "text-success" : "text-danger"}`} dir="ltr">
+                          {changed > 0 ? `+${changed}` : changed}
+                        </span>
+                      ) : null}
+                    </label>
+                    <label className={labelCls}>
+                      تنبيه عند
+                      <input className={input} type="number" min={0} inputMode="numeric" value={String(v.lowStockAt)} onChange={(e) => setVariant(i, { lowStockAt: e.target.value })} />
+                    </label>
+                    <label className={labelCls}>
+                      SKU
+                      <input className={input} dir="ltr" value={v.sku} onChange={(e) => setVariant(i, { sku: e.target.value })} />
+                    </label>
+                    <label className={labelCls}>
+                      سعر البيع
+                      <input className={input} type="number" min={1} inputMode="numeric" value={String(v.price)} onChange={(e) => setVariant(i, { price: e.target.value })} />
+                    </label>
+                    <label className={labelCls}>
+                      قبل التخفيض
+                      <input className={input} type="number" min={0} inputMode="numeric" value={String(v.compareAtPrice ?? "")} onChange={(e) => setVariant(i, { compareAtPrice: e.target.value })} />
+                    </label>
+                    <label className={labelCls}>
+                      سعر شراء خاص
+                      <input
+                        className={input}
+                        type="number"
+                        min={0}
+                        inputMode="numeric"
+                        placeholder={p.costPrice !== "" ? `${p.costPrice} (المنتج)` : "—"}
+                        value={String(v.costPrice ?? "")}
+                        onChange={(e) => setVariant(i, { costPrice: e.target.value })}
+                      />
+                    </label>
+                    <label className={labelCls}>
+                      السعة (اختياري)
+                      <input className={input} dir="ltr" placeholder="128GB" value={v.storage ?? ""} onChange={(e) => setVariant(i, { storage: e.target.value })} />
+                    </label>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="mt-3 text-xs text-warm-600">
+            الكمية الكلية = مجموع كميات الألوان. منتج بدون ألوان: احتفظ بسطر واحد واترك اسم اللون فارغاً. كل تغيير في الكمية يُسجَّل في سجل الحركات. الأسعار بالدرهم.
+          </p>
         </section>
 
         <section className="admin-card p-4">

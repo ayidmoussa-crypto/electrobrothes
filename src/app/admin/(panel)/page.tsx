@@ -1,4 +1,4 @@
-import { AlertTriangle, CalendarClock, PhoneCall, ShoppingCart, Truck, Wallet } from "lucide-react";
+import { AlertTriangle, CalendarClock, PackageX, PhoneCall, ShoppingCart, Truck, Wallet } from "lucide-react";
 import Link from "next/link";
 import { AreaChart } from "@/components/admin/AreaChart";
 import { PageHeader, Panel, Stat, StatusBadge } from "@/components/admin/ui";
@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { formatMAD } from "@/lib/money";
 import { ORDER_STATUSES, type OrderStatus } from "@/lib/order-rules";
 import { codRates, daysAgo, fillDays } from "@/lib/stats";
+import { colorLabel } from "@/lib/stock";
 
 const RANGES = [7, 30, 90] as const;
 const TZ = "Africa/Casablanca";
@@ -21,7 +22,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
   const days = (RANGES as readonly number[]).includes(raw) ? raw : 30;
   const since = daysAgo(days);
 
-  const [byStatus, perDay, revenue, top, today, risky, todayRow] = await Promise.all([
+  const [byStatus, perDay, revenue, top, today, risky, todayRow, lowStock] = await Promise.all([
     db.order.groupBy({ by: ["status"], where: { createdAt: { gte: since } }, _count: true }),
     db.$queryRaw<{ day: string; count: number }[]>`
       SELECT to_char(("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE ${TZ}, 'YYYY-MM-DD') AS day, count(*)::int AS count
@@ -39,6 +40,13 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
       WHERE (("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE ${TZ})::date = (now() AT TIME ZONE ${TZ})::date`,
     db.order.count({ where: { status: "NEW", riskScore: { gte: 30 } } }),
     db.$queryRaw<{ today: string }[]>`SELECT to_char(now() AT TIME ZONE ${TZ}, 'YYYY-MM-DD') AS today`,
+    // Colours at or below their own alert level, emptiest first (products shown in the shop only).
+    db.variant.findMany({
+      where: { stock: { lte: db.variant.fields.lowStockAt }, product: { isActive: true } },
+      select: { id: true, colorAr: true, colorHex: true, storage: true, stock: true, lowStockAt: true, product: { select: { id: true, nameAr: true } } },
+      orderBy: [{ stock: "asc" }, { product: { nameAr: "asc" } }],
+      take: 12,
+    }),
   ]);
 
   const counts = Object.fromEntries(byStatus.map((s) => [s.status, s._count])) as Partial<Record<OrderStatus, number>>;
@@ -73,6 +81,32 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
             {counts.NEW ?? 0} طلب جديد بانتظار الاتصال{risky ? `، منها ${risky} مشبوهة` : ""}
           </span>
         </Link>
+      ) : null}
+
+      {lowStock.length ? (
+        <section aria-labelledby="low-stock" className="mb-6 rounded-2xl border border-warning/40 bg-warning-soft/85 p-4 text-warning-text shadow-sm backdrop-blur-sm">
+          <h2 id="low-stock" className="flex items-center gap-2 text-base text-warning-text">
+            <PackageX className="size-5 shrink-0" aria-hidden="true" />
+            {lowStock.length} {lowStock.length === 1 ? "لون اقترب من النفاد" : "ألوان اقتربت من النفاد"}
+          </h2>
+          <ul className="mt-3 flex flex-wrap gap-2">
+            {lowStock.map((v) => (
+              <li key={v.id}>
+                <Link
+                  href={`/admin/products/${v.product.id}`}
+                  className="flex min-h-11 items-center gap-2 rounded-full bg-white/80 px-3 text-sm text-warm-800 transition-colors hover:bg-white"
+                >
+                  {v.colorHex ? <span className="size-4 shrink-0 rounded-full border border-warm-300" style={{ backgroundColor: v.colorHex }} aria-hidden="true" /> : null}
+                  <span className="max-w-48 truncate">
+                    {v.product.nameAr}
+                    {colorLabel(v) ? <span className="text-warm-600"> · {colorLabel(v)}</span> : null}
+                  </span>
+                  <b className={v.stock === 0 ? "text-danger" : "text-warning-text"}>{v.stock === 0 ? "نفد" : `بقي ${v.stock}`}</b>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
       ) : null}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">

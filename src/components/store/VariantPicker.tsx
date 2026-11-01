@@ -38,9 +38,17 @@ export function VariantPicker({
   const storages = unique(variants.map((v) => v.storage));
 
   // Keep the other attribute when possible; otherwise fall back to the first variant with the new value.
+  // Prefers an in-stock match for the new value.
   const pick = (attr: "colorEn" | "storage", value: string) => {
     const other = attr === "colorEn" ? "storage" : "colorEn";
-    onSelect(variants.find((v) => v[attr] === value && v[other] === selected[other]) ?? variants.find((v) => v[attr] === value) ?? selected);
+    const withValue = variants.filter((v) => v[attr] === value);
+    onSelect(
+      withValue.find((v) => v[other] === selected[other] && v.stock > 0) ??
+        withValue.find((v) => v.stock > 0) ??
+        withValue.find((v) => v[other] === selected[other]) ??
+        withValue[0] ??
+        selected,
+    );
   };
   const stockFor = (attr: "colorEn" | "storage", value: string) => variants.filter((v) => v[attr] === value).reduce((s, v) => s + v.stock, 0);
 
@@ -73,11 +81,31 @@ export function VariantPicker({
             {colors.map((c) => {
               const v = variants.find((x) => x.colorEn === c)!;
               const label = (locale === "ar" ? v.colorAr : v.colorEn) ?? c;
+              // A sold-out colour stays visible (struck through) but cannot be chosen.
+              const soldOut = stockFor("colorEn", c) <= 0;
               return (
-                <label key={c} className={optionClass(selected.colorEn === c)}>
-                  <input type="radio" name="color" value={c} checked={selected.colorEn === c} onChange={() => pick("colorEn", c)} className="sr-only" />
-                  {v.colorHex ? <span className="size-5 rounded-full border border-warm-300" style={{ backgroundColor: v.colorHex }} aria-hidden="true" /> : null}
-                  {stockFor("colorEn", c) > 0 ? label : t("soldOutOption", { label })}
+                <label
+                  key={c}
+                  className={`${optionClass(selected.colorEn === c)} ${soldOut ? "cursor-not-allowed border-dashed bg-warm-50 text-warm-500 hover:border-warm-200" : ""}`}
+                >
+                  <input
+                    type="radio"
+                    name="color"
+                    value={c}
+                    checked={selected.colorEn === c}
+                    disabled={soldOut}
+                    aria-label={soldOut ? t("soldOutOption", { label }) : label}
+                    onChange={() => pick("colorEn", c)}
+                    className="sr-only"
+                  />
+                  {v.colorHex ? (
+                    <span className={`relative size-5 overflow-hidden rounded-full border border-warm-300 ${soldOut ? "opacity-50" : ""}`} style={{ backgroundColor: v.colorHex }} aria-hidden="true">
+                      {soldOut ? <span className="absolute inset-x-[-2px] top-1/2 h-0.5 -translate-y-1/2 -rotate-45 bg-warm-600" /> : null}
+                    </span>
+                  ) : null}
+                  <span className={soldOut ? "line-through decoration-2" : ""} aria-hidden="true">
+                    {label}
+                  </span>
                 </label>
               );
             })}

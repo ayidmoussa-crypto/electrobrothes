@@ -1,15 +1,16 @@
 import { ExternalLink } from "lucide-react";
 import { notFound } from "next/navigation";
 import { ProductEditor } from "@/components/admin/ProductEditor";
+import { StockHistory } from "@/components/admin/StockHistory";
 import { PageHeader } from "@/components/admin/ui";
 import { buttonClass } from "@/components/ui/button";
 import { requireAdmin } from "@/lib/admin";
-import { editorOptions, productForEditor } from "@/lib/admin-products";
+import { editorOptions, productForEditor, stockHistory } from "@/lib/admin-products";
 
 export default async function EditProduct({ params, searchParams }: PageProps<"/admin/products/[id]">) {
   await requireAdmin();
   const [{ id }, sp] = await Promise.all([params, searchParams]);
-  const [product, options] = await Promise.all([productForEditor(id), editorOptions()]);
+  const [product, options, history] = await Promise.all([productForEditor(id), editorOptions(), stockHistory(id)]);
   if (!product) notFound();
 
   return (
@@ -25,6 +26,9 @@ export default async function EditProduct({ params, searchParams }: PageProps<"/
         }
       />
       <ProductEditor initial={product} {...options} />
+      <div className="mt-6">
+        <StockHistory rows={history} />
+      </div>
     </>
   );
 }

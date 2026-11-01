@@ -7,6 +7,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { requireAdmin } from "@/lib/admin";
 import { db } from "@/lib/db";
 import { PRODUCT_ERRORS, productInput } from "@/lib/product-input";
+import { InsufficientStockError, moveStock } from "@/lib/stock";
 
 export type ProductFormState = { ok?: boolean; message?: string; errors?: string[] };
 
@@ -18,7 +19,7 @@ function refreshStorefront(slug?: string) {
 }
 
 export async function saveProduct(_prev: ProductFormState, formData: FormData): Promise<ProductFormState> {
-  await requireAdmin();
+  const admin = await requireAdmin();
   let json: unknown;
   try {
     json = JSON.parse(String(formData.get("payload") ?? ""));
@@ -45,6 +46,7 @@ export async function saveProduct(_prev: ProductFormState, formData: FormData): 
     isBestSeller: p.isBestSeller,
     // Moroccan local time (UTC+1).
     dealEndsAt: p.dealEndsAt ? new Date(`${p.dealEndsAt}:00+01:00`) : null,
+    costPrice: p.costPrice,
   };
 
   let id = p.id;
@@ -59,16 +61,29 @@ export async function saveProduct(_prev: ProductFormState, formData: FormData): 
       await tx.spec.deleteMany({ where: { productId: id } });
       await tx.spec.createMany({ data: p.specs.map((s, i) => ({ ...s, productId: id!, sortOrder: i })) });
 
-      // Variants are updated in place (order history keeps pointing at them); removed ones are deleted.
+      // Colours are updated in place (order history keeps pointing at them). Quantities never get written
+      // directly: the editor's change (stock − stockBase) goes through moveStock, so it is logged and an
+      // order confirmed while the editor was open is not overwritten.
       const keep = p.variants.map((v) => v.id).filter((v): v is string => !!v);
-      await tx.variant.deleteMany({ where: { productId: id, id: { notIn: keep } } });
-      for (const [i, { id: variantId, ...v }] of p.variants.entries()) {
+      const removed = await tx.variant.findMany({ where: { productId: id, id: { notIn: keep } }, select: { id: true, stock: true } });
+      for (const r of removed.filter((r) => r.stock > 0)) {
+        await moveStock(tx, { variantId: r.id, delta: -r.stock, reason: "ADJUSTMENT", actor: admin.email, note: "حذف اللون" });
+      }
+      await tx.variant.deleteMany({ where: { id: { in: removed.map((r) => r.id) } } });
+
+      for (const [i, { id: variantId, stock, stockBase, ...v }] of p.variants.entries()) {
         const row = { ...v, productId: id!, isDefault: i === 0, sortOrder: i };
-        if (variantId) await tx.variant.update({ where: { id: variantId, productId: id }, data: row });
-        else await tx.variant.create({ data: row });
+        const saved = variantId
+          ? await tx.variant.update({ where: { id: variantId, productId: id }, data: row })
+          : await tx.variant.create({ data: { ...row, stock: 0 } });
+        const delta = stock - (variantId ? stockBase : 0);
+        if (delta) await moveStock(tx, { variantId: saved.id, delta, reason: delta > 0 ? "STOCK_IN" : "ADJUSTMENT", actor: admin.email });
       }
     });
   } catch (e) {
+    if (e instanceof InsufficientStockError) {
+      return { ok: false, message: `لا يمكن إنقاص مخزون ${e.sku} أكثر من الكمية المتوفرة الآن. حدّث الصفحة وأعد المحاولة.` };
+    }
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
       const target = String(e.meta?.target ?? "");
       return { ok: false, message: target.includes("sku") ? "رمز SKU مستعمل في منتج آخر." : "هذا الرابط (slug) مستعمل في منتج آخر." };
@@ -78,6 +93,8 @@ export async function saveProduct(_prev: ProductFormState, formData: FormData): 
 
   refreshStorefront(p.slug);
   if (!p.id) redirect(`/admin/products/${id}?created=1`);
+  // Reload the editor so stock and its base reflect the saved state (and the history shows the moves).
+  revalidatePath(`/admin/products/${id}`);
   return { ok: true, message: "تم حفظ المنتج." };
 }
 

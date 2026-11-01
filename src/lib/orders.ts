@@ -7,6 +7,7 @@ import { db } from "./db";
 import { assessRisk, newOrderNumber, transitionPlan, type OrderStatus } from "./order-rules";
 import { normalizeMoroccanPhone } from "./phone";
 import { computeTotals } from "./pricing";
+import { InsufficientStockError, moveStock } from "./stock";
 
 /** httpOnly cookie holding the id of the order this browser just placed (confirmation page). */
 export const ORDER_COOKIE = "eb_order";
@@ -178,24 +179,29 @@ export class OrderTransitionError extends Error {
  */
 export async function changeOrderStatus(orderId: string, to: OrderStatus, actor: string, note?: string) {
   const stockMoved = await db.$transaction(async (tx) => {
-    const [order] = await tx.$queryRaw<{ status: OrderStatus; stockDeducted: boolean }[]>`
-      SELECT "status", "stockDeducted" FROM "Order" WHERE "id" = ${orderId} FOR UPDATE`;
+    const [order] = await tx.$queryRaw<{ status: OrderStatus; stockDeducted: boolean; number: string }[]>`
+      SELECT "status", "stockDeducted", "number" FROM "Order" WHERE "id" = ${orderId} FOR UPDATE`;
     if (!order) throw new OrderTransitionError("not_found");
 
     const plan = transitionPlan(order.status, to, order.stockDeducted);
     if (!plan.allowed) throw new OrderTransitionError("not_allowed");
 
     if (plan.stock) {
+      // Each line moves the stock of the exact colour ordered, and is written to the stock ledger.
+      const reason = plan.stock === "take" ? "ORDER_CONFIRMED" : to === "RETURNED" ? "ORDER_RETURNED" : "ORDER_CANCELLED";
       const items = await tx.orderItem.findMany({ where: { orderId, variantId: { not: null } } });
       for (const item of items) {
-        if (plan.stock === "take") {
-          const taken = await tx.variant.updateMany({
-            where: { id: item.variantId!, stock: { gte: item.quantity } },
-            data: { stock: { decrement: item.quantity } },
+        try {
+          await moveStock(tx, {
+            variantId: item.variantId!,
+            delta: plan.stock === "take" ? -item.quantity : item.quantity,
+            reason,
+            actor,
+            order: { id: orderId, number: order.number },
           });
-          if (!taken.count) throw new OrderTransitionError("insufficient_stock", item.sku);
-        } else {
-          await tx.variant.update({ where: { id: item.variantId! }, data: { stock: { increment: item.quantity } } });
+        } catch (e) {
+          if (e instanceof InsufficientStockError) throw new OrderTransitionError("insufficient_stock", item.sku);
+          throw e;
         }
       }
     }
