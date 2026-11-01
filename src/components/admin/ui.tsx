@@ -56,7 +56,20 @@ export function Panel({ title, children, className = "" }: { title?: string; chi
 }
 
 /** A KPI tile on frosted glass: optional icon (yellow on ink), label, hero number, context line. */
-export function Stat({ label, value, hint, icon: Icon }: { label: string; value: string; hint?: string; icon?: LucideIcon }) {
+export function Stat({
+  label,
+  value,
+  hint,
+  icon: Icon,
+  empty = false,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  icon?: LucideIcon;
+  /** No data yet: the value is a sentence, so it is set smaller and muted instead of as a hero number. */
+  empty?: boolean;
+}) {
   return (
     <div className="admin-card p-4 md:p-5">
       <div className="flex items-start justify-between gap-2">
@@ -67,7 +80,7 @@ export function Stat({ label, value, hint, icon: Icon }: { label: string; value:
           </span>
         ) : null}
       </div>
-      <p className="mt-1 text-2xl font-extrabold text-ink md:text-3xl">{value}</p>
+      <p className={empty ? "mt-2 text-sm font-semibold text-warm-600" : "mt-1 text-2xl font-extrabold text-ink md:text-3xl"}>{value}</p>
       {hint ? <p className="mt-1 text-xs text-warm-500">{hint}</p> : null}
     </div>
   );

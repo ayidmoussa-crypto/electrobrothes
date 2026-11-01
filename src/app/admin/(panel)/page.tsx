@@ -1,6 +1,6 @@
 import { AlertTriangle, CalendarClock, PhoneCall, ShoppingCart, Truck, Wallet } from "lucide-react";
 import Link from "next/link";
-import { BarChart } from "@/components/admin/BarChart";
+import { AreaChart } from "@/components/admin/AreaChart";
 import { PageHeader, Panel, Stat, StatusBadge } from "@/components/admin/ui";
 import { requireAdmin } from "@/lib/admin";
 import { db } from "@/lib/db";
@@ -10,8 +10,10 @@ import { codRates, daysAgo, fillDays } from "@/lib/stats";
 
 const RANGES = [7, 30, 90] as const;
 const TZ = "Africa/Casablanca";
-const dayLabel = new Intl.DateTimeFormat("ar-MA", { day: "numeric", month: "short", timeZone: "UTC" });
-const pctText = (v: number | null) => (v === null ? "—" : `${v}%`);
+// Whole dates on the chart axis: "31 أكتوبر".
+const dayLabel = new Intl.DateTimeFormat("ar-MA", { day: "numeric", month: "long", timeZone: "UTC" });
+const NO_DATA = "لا توجد بيانات بعد";
+const pctText = (v: number | null) => (v === null ? NO_DATA : `${v}%`);
 
 export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
   await requireAdmin();
@@ -76,16 +78,27 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <Stat icon={CalendarClock} label="طلبات اليوم" value={String(today[0].count)} />
         <Stat icon={ShoppingCart} label="الطلبات" value={String(rates.total)} hint={`آخر ${days} يوماً`} />
-        <Stat icon={PhoneCall} label="نسبة التأكيد" value={pctText(rates.confirmation)} hint="من الطلبات التي تم الاتصال بها" />
-        <Stat icon={Truck} label="نسبة التسليم" value={pctText(rates.delivery)} hint={`نسبة الإرجاع ${pctText(rates.returns)}`} />
+        <Stat
+          icon={PhoneCall}
+          label="نسبة التأكيد"
+          value={pctText(rates.confirmation)}
+          empty={rates.confirmation === null}
+          hint="من الطلبات التي تم الاتصال بها"
+        />
+        <Stat
+          icon={Truck}
+          label="نسبة التسليم"
+          value={pctText(rates.delivery)}
+          empty={rates.delivery === null}
+          hint={rates.returns === null ? undefined : `نسبة الإرجاع ${rates.returns}%`}
+        />
         <Stat icon={Wallet} label="المداخيل (المسلَّمة)" value={formatMAD(revenue._sum.total ?? 0, "ar")} />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[2fr_1fr]">
-        <BarChart
+        <AreaChart
           title="الطلبات اليومية"
-          data={series.map((d) => ({ key: d.day, value: d.count }))}
-          formatLabel={(k) => dayLabel.format(new Date(`${k}T00:00:00Z`))}
+          data={series.map((d) => ({ key: d.day, label: dayLabel.format(new Date(`${d.day}T00:00:00Z`)), value: d.count }))}
         />
 
         <Panel title="الأكثر مبيعاً">
@@ -97,8 +110,9 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
                     <span className="truncate text-warm-800">{t.nameAr}</span>
                     <span className="font-bold text-ink">{t._sum.quantity}</span>
                   </div>
-                  <div className="mt-1 h-2 rounded-full bg-warm-200/70" aria-hidden="true">
-                    <div className="h-2 rounded-full bg-ink" style={{ width: `${((t._sum.quantity ?? 0) / topMax) * 100}%` }} />
+                  {/* One track; the fill grows from the start edge (the right, in Arabic). */}
+                  <div className="relative mt-1.5 h-2 overflow-hidden rounded-full bg-warm-200/70" aria-hidden="true">
+                    <div className="absolute inset-y-0 start-0 rounded-full bg-ink" style={{ width: `${((t._sum.quantity ?? 0) / topMax) * 100}%` }} />
                   </div>
                 </li>
               ))}
