@@ -170,6 +170,7 @@ export async function getProduct(slug: string) {
       images: { orderBy: { sortOrder: "asc" } },
       variants: { omit: { costPrice: true, lowStockAt: true }, orderBy: { sortOrder: "asc" } },
       specs: { orderBy: { sortOrder: "asc" } },
+      faqs: { orderBy: { sortOrder: "asc" } },
       reviews: { where: { isApproved: true }, orderBy: { createdAt: "desc" } },
     },
   });
@@ -182,6 +183,15 @@ export async function getProduct(slug: string) {
 }
 
 export type ProductDetail = NonNullable<Awaited<ReturnType<typeof getProduct>>>;
+
+/** The product's current address when this slug is an old one; null otherwise. */
+export async function getSlugRedirect(slug: string) {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag("products", `product:${slug}`);
+  const row = await db.slugRedirect.findUnique({ where: { slug }, select: { product: { select: { slug: true, isActive: true } } } });
+  return row?.product.isActive ? row.product.slug : null;
+}
 
 export async function getProductSlugs() {
   "use cache";

@@ -2,9 +2,10 @@ import Link from "next/link";
 import type { stockHistory } from "@/lib/admin-products";
 import { formatMAD } from "@/lib/money";
 import { STOCK_REASON_LABEL } from "@/lib/stock";
+import { TIME_ZONE } from "@/lib/time";
 import { Panel, tdClass, thClass } from "./ui";
 
-const when = new Intl.DateTimeFormat("ar-MA", { dateStyle: "medium", timeStyle: "short", timeZone: "Africa/Casablanca" });
+const when = new Intl.DateTimeFormat("ar-MA", { dateStyle: "medium", timeStyle: "short", timeZone: TIME_ZONE });
 
 /** The product's stock ledger: every in / out per colour, why, and the purchase price at that moment. */
 export function StockHistory({ rows }: { rows: Awaited<ReturnType<typeof stockHistory>> }) {

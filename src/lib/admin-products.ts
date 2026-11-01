@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "./db";
 import type { ProductInput } from "./product-input";
+import { toMoroccanInput } from "./time";
 
 export async function editorOptions() {
   const [categories, brands] = await Promise.all([
@@ -14,8 +15,8 @@ export async function editorOptions() {
   };
 }
 
-/** Date → "YYYY-MM-DDTHH:mm" in Moroccan time (UTC+1) for <input type="datetime-local">. */
-const toLocalInput = (d: Date) => new Date(d.getTime() + 3600_000).toISOString().slice(0, 16);
+
+
 
 export async function productForEditor(id: string): Promise<ProductInput | null> {
   const p = await db.product.findUnique({
@@ -36,7 +37,7 @@ export async function productForEditor(id: string): Promise<ProductInput | null>
     isActive: p.isActive,
     isFeatured: p.isFeatured,
     isBestSeller: p.isBestSeller,
-    dealEndsAt: p.dealEndsAt ? toLocalInput(p.dealEndsAt) : null,
+    dealEndsAt: p.dealEndsAt ? toMoroccanInput(p.dealEndsAt, 16) : null,
     costPrice: p.costPrice ?? "",
     images: p.images.map((i) => ({ url: i.url, altAr: i.altAr, altEn: i.altEn })),
     variants: p.variants.map((v) => ({

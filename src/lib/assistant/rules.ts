@@ -1,3 +1,5 @@
+import { TIME_ZONE } from "@/lib/time";
+
 // Pure rules of the admin assistant (no database, no network), so they can be tested directly.
 
 export const HAIKU = "claude-haiku-5-5";
@@ -19,7 +21,7 @@ export function costMicros(model: string, t: Tokens) {
   return Math.ceil(t.input * p.input + t.output * p.output + (t.cacheRead ?? 0) * p.cacheRead + (t.cacheWrite ?? 0) * p.cacheWrite);
 }
 
-const monthFormat = new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", timeZone: "Africa/Casablanca" });
+const monthFormat = new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", timeZone: TIME_ZONE });
 
 /** The budget month, "YYYY-MM" in Moroccan time. */
 export const budgetMonth = (now = new Date()) => monthFormat.format(now).slice(0, 7);

@@ -47,9 +47,9 @@ test("the ceiling blocks at the limit, and 0 turns the assistant off", () => {
   assert.equal(overBudget(0, 0), true);
 });
 
-test("the budget month changes at midnight in Morocco, not UTC", () => {
-  assert.equal(budgetMonth(new Date("2026-10-31T22:59:00Z")), "2026-10");
-  assert.equal(budgetMonth(new Date("2026-11-30T23:30:00Z")), "2026-12");
+test("the budget month changes at midnight in Morocco (GMT since 2026-09-20)", () => {
+  assert.equal(budgetMonth(new Date("2026-10-31T23:59:00Z")), "2026-10");
+  assert.equal(budgetMonth(new Date("2026-11-01T00:00:00Z")), "2026-11");
 });
 
 test("stock requests become the right move", () => {

@@ -33,31 +33,41 @@ model Brand {
 }
 
 model Product {
-  id             String         @id @default(cuid())
-  slug           String         @unique
-  nameAr         String
-  nameEn         String
-  descriptionAr  String
-  descriptionEn  String
-  categoryId     String
-  category       Category       @relation(fields: [categoryId], references: [id])
-  brandId        String
-  brand          Brand          @relation(fields: [brandId], references: [id])
-  warrantyMonths Int            @default(12)
-  isActive       Boolean        @default(true)
-  isFeatured     Boolean        @default(false)
-  isBestSeller   Boolean        @default(false)
+  id                String          @id @default(cuid())
+  slug              String          @unique
+  nameAr            String
+  nameEn            String
+  descriptionAr     String
+  descriptionEn     String
+  categoryId        String
+  category          Category        @relation(fields: [categoryId], references: [id])
+  brandId           String
+  brand             Brand           @relation(fields: [brandId], references: [id])
+  warrantyMonths    Int             @default(12)
+  isActive          Boolean         @default(true)
+  isFeatured        Boolean         @default(false)
+  isBestSeller      Boolean         @default(false)
   // Limited-time offer: shown with a countdown until this date.
-  dealEndsAt     DateTime?
+  dealEndsAt        DateTime?
   // Purchase price (MAD), admin only: never selected for the storefront. A colour may override it.
-  costPrice      Int?
-  images         ProductImage[]
-  variants       Variant[]
-  specs          Spec[]
-  reviews        Review[]
-  stockMovements StockMovement[]
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  costPrice         Int?
+  // Search result texts; the name and description are used when empty.
+  metaTitleAr       String?
+  metaTitleEn       String?
+  metaDescriptionAr String?
+  metaDescriptionEn String?
+  highlightsAr      String[]
+  highlightsEn      String[]
+  images            ProductImage[]
+  variants          Variant[]
+  specs             Spec[]
+  reviews           Review[]
+  stockMovements    StockMovement[]
+  faqs              ProductFaq[]
+  seoSuggestions    SeoSuggestion[]
+  slugRedirects     SlugRedirect[]
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
 
   @@index([categoryId, isActive])
   @@index([brandId])
@@ -140,6 +150,28 @@ model StockMovement {
   @@index([createdAt])
 }
 
+model ProductFaq {
+  id         String  @id @default(cuid())
+  productId  String
+  product    Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  questionAr String
+  answerAr   String
+  questionEn String
+  answerEn   String
+  sortOrder  Int     @default(0)
+
+  @@index([productId])
+}
+
+// An old product address, so links and search results keep working after a slug change.
+model SlugRedirect {
+  slug      String  @id
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
 // Technical specification row. `key` is a stable id (ram, storage, screen, cpu…)
 // whose label comes from i18n; `numericValue` powers range filters.
 model Spec {
@@ -185,12 +217,19 @@ model City {
 
 // Single row (id = 1), editable from the admin.
 model Settings {
-  id                    Int    @id @default(1)
-  freeShippingThreshold Int    @default(1000)
-  whatsappNumber        String @default("")
-  notifyEmail           String @default("")
+  id                    Int     @id @default(1)
+  freeShippingThreshold Int     @default(1000)
+  whatsappNumber        String  @default("")
+  notifyEmail           String  @default("")
   // Hard monthly ceiling for the admin assistant's Claude API calls, in US cents. 0 turns it off.
-  assistantBudgetCents  Int    @default(500)
+  assistantBudgetCents  Int     @default(500)
+  // Generated content goes live with an undo button, except what needsApproval() keeps back.
+  seoAutoApply          Boolean @default(true)
+  // The shop's promises to customers. Generated text may only repeat these, word for word.
+  deliveryTimeAr        String  @default("2 إلى 5 أيام")
+  deliveryTimeEn        String  @default("2 to 5 days")
+  replacementPolicyAr   String  @default("إلا وصلك المنتج فيه عطب، كنبدلوه ليك بمنتج جديد.")
+  replacementPolicyEn   String  @default("If your product arrives defective, we replace it with a new one.")
 }
 
 enum CouponType {
@@ -351,6 +390,59 @@ model AssistantAction {
 
   @@index([status, createdAt])
   @@index([createdAt])
+}
+
+enum SeoSuggestionStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  SUPERSEDED
+  UNDONE
+}
+
+// One proposed value for one field of a product, accepted or refused on its own. Nothing reaches the
+// store while PENDING; oldValue is what undo restores.
+model SeoSuggestion {
+  id          String              @id @default(cuid())
+  productId   String
+  product     Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
+  field       String
+  oldValue    Json?
+  newValue    Json
+  // A specification Claude could not confirm: shown as "خاص التحقق" and can never be applied.
+  needsCheck  Boolean             @default(false)
+  status      SeoSuggestionStatus @default(PENDING)
+  autoApplied Boolean             @default(false)
+  nightly     Boolean             @default(false)
+  model       String
+  requestedBy String
+  decidedBy   String?
+  undoneBy    String?
+  createdAt   DateTime            @default(now())
+  decidedAt   DateTime?
+  undoneAt    DateTime?
+
+  @@index([status, createdAt])
+  @@index([productId, status])
+}
+
+// One pass of the SEO job, nightly or from the "شغّل دابا" button.
+model SeoRun {
+  id          String    @id @default(cuid())
+  trigger     String
+  status      String    @default("RUNNING")
+  examined    Int       @default(0)
+  generated   Int       @default(0)
+  failed      Int       @default(0)
+  suggestions Int       @default(0)
+  autoApplied Int       @default(0)
+  // Why it ended early: budget, deadline, api_key.
+  stoppedBy   String?
+  actor       String
+  startedAt   DateTime  @default(now())
+  finishedAt  DateTime?
+
+  @@index([startedAt])
 }
 
 // One row per Claude API call; the monthly counter and ceiling sum these.

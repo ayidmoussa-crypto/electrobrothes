@@ -23,6 +23,7 @@ export function pageMetadata({
   description,
   image,
   noindex = false,
+  fullTitle = false,
 }: {
   locale: Locale;
   path: string;
@@ -30,12 +31,14 @@ export function pageMetadata({
   description: string;
   image?: string | null;
   noindex?: boolean;
+  /** The title is written for search results as it is: the "| ElectroBrothers" template would break its length. */
+  fullTitle?: boolean;
 }): Metadata {
   const url = localizedPath(locale, path);
   // A page-level openGraph replaces the inherited one, so the brand image (app/[locale]/opengraph-image) is set explicitly.
   const images = [image ? { url: image } : { url: localizedPath(locale, "/opengraph-image"), width: 1200, height: 630 }];
   return {
-    title,
+    title: fullTitle ? { absolute: title } : title,
     description,
     alternates: {
       canonical: url,

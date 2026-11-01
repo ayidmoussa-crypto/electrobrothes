@@ -1,5 +1,6 @@
 import "server-only";
-import Anthropic from "@anthropic-ai/sdk";
+import type Anthropic from "@anthropic-ai/sdk";
+import { anthropic } from "./client";
 import { HAIKU, overBudget, replyScript, scrubInternalIds, SONNET, type AssistantReply, type ImageType } from "./rules";
 import { ESCALATE_TOOL, haikuTools, runTool, sonnetTools, type ToolContext } from "./tools";
 import { recordUsage, usageSummary } from "./usage";
@@ -55,9 +56,6 @@ export type IncomingMessage = {
   /** Written by a button, not typed: says nothing about the letters the admin uses. */
   auto?: boolean;
 };
-
-let client: Anthropic | undefined;
-const anthropic = () => (client ??= new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 60_000, maxRetries: 2 }));
 
 export function toApiMessages(messages: IncomingMessage[]): Anthropic.Beta.BetaMessageParam[] {
   const typed = messages.findLast((m) => m.role === "user" && !m.auto);

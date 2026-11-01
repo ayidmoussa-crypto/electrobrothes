@@ -6,13 +6,14 @@ import { Prisma } from "@/generated/prisma/client";
 import { requireAdmin } from "@/lib/admin";
 import { db } from "@/lib/db";
 import { slugify } from "@/lib/product-input";
+import { moroccanDate } from "@/lib/time";
 
 type State = { ok?: boolean; message?: string };
 
 const fields = (fd: FormData) => Object.fromEntries([...fd].filter(([, v]) => typeof v === "string"));
 const bool = z.preprocess((v) => v === "on" || v === "true", z.boolean());
 const optionalInt = z.preprocess((v) => (v === "" || v === undefined ? null : v), z.coerce.number().int().min(0).max(10_000_000).nullable());
-const optionalDate = z.preprocess((v) => (v ? new Date(`${v}T00:00:00+01:00`) : null), z.date().nullable());
+const optionalDate = z.preprocess((v) => (v ? moroccanDate(String(v)) : null), z.date().nullable());
 const id = z.string().max(40).optional().transform((v) => v || undefined);
 
 async function run(task: () => Promise<unknown>, paths: string[], tags: string[], success: string): Promise<State> {
@@ -144,6 +145,11 @@ const settingsInput = z.object({
   notifyEmail: z.union([z.literal(""), z.string().trim().email().max(120)]),
   // Entered in dollars, stored in cents.
   assistantBudgetCents: z.coerce.number().min(0).max(1000).transform((d) => Math.round(d * 100)),
+  seoAutoApply: bool,
+  deliveryTimeAr: z.string().trim().min(1).max(60),
+  deliveryTimeEn: z.string().trim().min(1).max(60),
+  replacementPolicyAr: z.string().trim().min(1).max(500),
+  replacementPolicyEn: z.string().trim().min(1).max(500),
 });
 
 export async function saveSettings(_: State, fd: FormData) {

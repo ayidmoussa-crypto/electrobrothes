@@ -5,8 +5,9 @@ import { inputClass, L, PageHeader, Panel, tdClass, thClass } from "@/components
 import { requireAdmin } from "@/lib/admin";
 import { db } from "@/lib/db";
 import { formatMoroccanPhone } from "@/lib/phone";
+import { TIME_ZONE } from "@/lib/time";
 
-const dateFmt = new Intl.DateTimeFormat("ar-MA", { dateStyle: "medium" });
+const dateFmt = new Intl.DateTimeFormat("ar-MA", { dateStyle: "medium", timeZone: TIME_ZONE });
 
 export default async function BlacklistPage() {
   await requireAdmin();

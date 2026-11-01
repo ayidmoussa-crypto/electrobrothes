@@ -23,6 +23,8 @@ export async function InfoPage({ slug, params }: { slug: StaticSlug; params: Pro
   const [t, config] = await Promise.all([getTranslations({ locale, namespace: "whatsapp" }), getCheckoutConfig()]);
   const whatsapp = config.whatsappNumber.replace(/\D/g, "");
   const tf = await getTranslations({ locale, namespace: "footer" });
+  // Promises kept in the settings, so every page says the same thing.
+  const fill = (text: string) => text.replace("{delivery}", config.deliveryTime[locale]).replace("{replacement}", config.replacementPolicy[locale]);
 
   return (
     <div className="mx-auto max-w-3xl px-4 pb-16">
@@ -42,7 +44,7 @@ export async function InfoPage({ slug, params }: { slug: StaticSlug; params: Pro
               </summary>
               {b.p.map((p) => (
                 <p key={p} className="mt-3 leading-relaxed text-warm-800">
-                  {p}
+                  {fill(p)}
                 </p>
               ))}
             </details>
@@ -55,7 +57,7 @@ export async function InfoPage({ slug, params }: { slug: StaticSlug; params: Pro
               <h2 className="text-xl">{b.h}</h2>
               {b.p.map((p) => (
                 <p key={p} className="mt-3 leading-relaxed text-warm-800">
-                  {p}
+                  {fill(p)}
                 </p>
               ))}
             </section>

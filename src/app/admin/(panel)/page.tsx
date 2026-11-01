@@ -8,9 +8,10 @@ import { formatMAD } from "@/lib/money";
 import { ORDER_STATUSES, type OrderStatus } from "@/lib/order-rules";
 import { codRates, daysAgo, fillDays } from "@/lib/stats";
 import { colorLabel } from "@/lib/stock";
+import { TIME_ZONE } from "@/lib/time";
 
 const RANGES = [7, 30, 90] as const;
-const TZ = "Africa/Casablanca";
+const TZ = TIME_ZONE;
 // Whole dates on the chart axis: "31 أكتوبر".
 const dayLabel = new Intl.DateTimeFormat("ar-MA", { day: "numeric", month: "long", timeZone: "UTC" });
 const NO_DATA = "لا توجد بيانات بعد";

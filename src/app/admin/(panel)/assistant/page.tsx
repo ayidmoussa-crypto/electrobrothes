@@ -4,8 +4,9 @@ import { PageHeader, Panel, tdClass, thClass } from "@/components/admin/ui";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { requireAdmin } from "@/lib/admin";
 import { db } from "@/lib/db";
+import { TIME_ZONE } from "@/lib/time";
 
-const when = new Intl.DateTimeFormat("ar-MA", { dateStyle: "medium", timeStyle: "short", timeZone: "Africa/Casablanca" });
+const when = new Intl.DateTimeFormat("ar-MA", { dateStyle: "medium", timeStyle: "short", timeZone: TIME_ZONE });
 
 const STATUS: Record<string, { label: string; tone: BadgeTone }> = {
   PENDING: { label: "كيتسنى التأكيد", tone: "accent" },

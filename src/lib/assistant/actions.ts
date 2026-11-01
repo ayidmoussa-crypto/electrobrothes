@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { formatMAD } from "@/lib/money";
 import { slugify } from "@/lib/product-input";
 import { colorLabel, InsufficientStockError, moveStock } from "@/lib/stock";
+import { unbackedClaim } from "@/lib/seo-content/rules";
 import { sameOperation, stockDelta, type AssistantCard, type OperationKey } from "./rules";
 
 // The only code that lets the assistant change data. Claude can only create PENDING rows here; the
@@ -119,6 +120,15 @@ export async function proposeDraft(input: z.infer<typeof draftProposal>, ctx: { 
   if (!category) throw new AssistantActionError("category_id not found: call list_taxonomy");
   if (input.brand_id && !brand) throw new AssistantActionError("brand_id not found: call list_taxonomy");
   if (!input.brand_id && !input.new_brand_name) throw new AssistantActionError("give brand_id or new_brand_name");
+  // A new draft has no warranty, no specifications and no stated numbers yet: its text may promise nothing.
+  const why = unbackedClaim(`${input.description_ar} ${input.description_en}`, {
+    warrantyMonths: null,
+    deliveryTime: [],
+    replacementPolicy: [],
+    shopNumbers: [],
+    productText: `${input.name_ar} ${input.name_en}`,
+  });
+  if (why) throw new AssistantActionError(`Rewrite the description without warranty, delivery, return, price or any number that is not in the product name. Problem: ${why}`);
   const names = input.colors.map((c) => c.color_ar ?? "");
   if (input.colors.length > 1 && (names.some((n) => !n) || new Set(names).size !== names.length)) {
     throw new AssistantActionError("several colours must each have a different color_ar");
@@ -237,6 +247,8 @@ export async function applyAction(id: string, admin: string) {
         descriptionEn: p.description_en,
         categoryId: p.category_id,
         brandId: p.brand_id ?? newBrand!.id,
+        // Unknown until the owner fills it in: the schema's default would invent one.
+        warrantyMonths: 0,
         isActive: false,
         costPrice: p.unit_cost_mad,
         images: imageUrl ? { create: { url: imageUrl, altAr: p.name_ar, altEn: p.name_en } } : undefined,

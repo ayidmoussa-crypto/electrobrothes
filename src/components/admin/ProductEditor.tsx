@@ -155,7 +155,7 @@ export function ProductEditor({
             </span>
           </label>
           <label className={labelCls}>
-            الضمان (بالأشهر)
+            الضمان بالأشهر (0 = بلا ضمان)
             <input className={input} type="number" min={0} max={120} value={String(p.warrantyMonths)} onChange={(e) => set("warrantyMonths", e.target.value)} />
           </label>
           <label className={labelCls}>

@@ -1,6 +1,7 @@
 import { Plus } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { ScoreBadge } from "@/components/admin/SeoSuggestions";
 import { PageHeader, tdClass, thClass } from "@/components/admin/ui";
 import { StockBadge, stockMessageKey } from "@/components/store/StockBadge";
 import { Badge } from "@/components/ui/Badge";
@@ -8,6 +9,7 @@ import { buttonClass } from "@/components/ui/button";
 import { requireAdmin } from "@/lib/admin";
 import { db } from "@/lib/db";
 import { formatMAD } from "@/lib/money";
+import { seoScore, WEAK_SCORE } from "@/lib/seo-content/rules";
 
 const STOCK_LABEL = { inStock: "متوفر", lowStock: "مخزون منخفض", outOfStock: "نفد" } as const;
 
@@ -16,8 +18,9 @@ export default async function ProductsPage({ searchParams }: PageProps<"/admin/p
   const sp = await searchParams;
   const q = (typeof sp.q === "string" ? sp.q : "").trim().slice(0, 80);
   const category = typeof sp.category === "string" ? sp.category : "";
+  const weakOnly = sp.weak === "1";
 
-  const [products, categories] = await Promise.all([
+  const [rows, categories] = await Promise.all([
     db.product.findMany({
       where: {
         ...(category ? { categoryId: category } : {}),
@@ -28,14 +31,17 @@ export default async function ProductsPage({ searchParams }: PageProps<"/admin/p
       include: {
         category: { select: { nameAr: true } },
         brand: { select: { name: true } },
-        images: { take: 1, orderBy: { sortOrder: "asc" } },
+        images: { orderBy: { sortOrder: "asc" } },
         variants: { select: { price: true, stock: true } },
+        _count: { select: { specs: true, faqs: true } },
       },
       orderBy: { updatedAt: "desc" },
     }),
     db.category.findMany({ select: { id: true, nameAr: true }, orderBy: { sortOrder: "asc" } }),
   ]);
-  const input = "min-h-11 admin-field rounded-lg px-3 text-sm text-warm-800";
+  const scored = rows.map((p) => ({ ...p, seo: seoScore({ ...p, specCount: p._count.specs, faqCount: p._count.faqs }) }));
+  const products = weakOnly ? scored.filter((p) => p.seo.score < WEAK_SCORE).sort((a, b) => a.seo.score - b.seo.score) : scored;
+  const input ="min-h-11 admin-field rounded-lg px-3 text-sm text-warm-800";
 
   return (
     <>
@@ -65,6 +71,10 @@ export default async function ProductsPage({ searchParams }: PageProps<"/admin/p
             ))}
           </select>
         </label>
+        <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-semibold text-warm-800">
+          <input type="checkbox" name="weak" value="1" defaultChecked={weakOnly} className="size-4" />
+          المنتجات الضعيفة (أقل من {WEAK_SCORE})
+        </label>
         <button type="submit" className={buttonClass()}>
           تصفية
         </button>
@@ -79,6 +89,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/admin/p
               <th className={thClass}>السعر</th>
               <th className={thClass}>المخزون</th>
               <th className={thClass}>الظهور</th>
+              <th className={thClass}>السيو</th>
             </tr>
           </thead>
           <tbody>
@@ -111,6 +122,11 @@ export default async function ProductsPage({ searchParams }: PageProps<"/admin/p
                     </span>
                   </td>
                   <td className={tdClass}>{p.isActive ? <Badge tone="success">ظاهر</Badge> : <Badge>مخفي</Badge>}</td>
+                  <td className={tdClass}>
+                    <Link href={`/admin/products/${p.id}`} title={p.seo.missing.map((m) => m.label).join("\n") || "كلشي كامل"}>
+                      <ScoreBadge score={p.seo.score} />
+                    </Link>
+                  </td>
                 </tr>
               );
             })}

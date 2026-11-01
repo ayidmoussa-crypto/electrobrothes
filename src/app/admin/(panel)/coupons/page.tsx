@@ -3,6 +3,7 @@ import { ActionForm } from "@/components/admin/ActionForm";
 import { inputClass, L, PageHeader, Panel } from "@/components/admin/ui";
 import { requireAdmin } from "@/lib/admin";
 import { db } from "@/lib/db";
+import { toMoroccanInput } from "@/lib/time";
 
 type Coupon = {
   id?: string;
@@ -17,7 +18,7 @@ type Coupon = {
   isActive: boolean;
 };
 
-const day = (d: Date | null) => (d ? new Date(d.getTime() + 3600_000).toISOString().slice(0, 10) : "");
+const day = (d: Date | null) => (d ? toMoroccanInput(d, 10) : "");
 
 function CouponFields({ c }: { c: Coupon }) {
   return (

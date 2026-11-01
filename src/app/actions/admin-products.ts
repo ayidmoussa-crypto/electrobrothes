@@ -8,6 +8,7 @@ import { requireAdmin } from "@/lib/admin";
 import { db } from "@/lib/db";
 import { PRODUCT_ERRORS, productInput } from "@/lib/product-input";
 import { InsufficientStockError, moveStock } from "@/lib/stock";
+import { moroccanDate } from "@/lib/time";
 
 export type ProductFormState = { ok?: boolean; message?: string; errors?: string[] };
 
@@ -44,8 +45,8 @@ export async function saveProduct(_prev: ProductFormState, formData: FormData): 
     isActive: p.isActive,
     isFeatured: p.isFeatured,
     isBestSeller: p.isBestSeller,
-    // Moroccan local time (UTC+1).
-    dealEndsAt: p.dealEndsAt ? new Date(`${p.dealEndsAt}:00+01:00`) : null,
+    // Moroccan local time.
+    dealEndsAt: p.dealEndsAt ? moroccanDate(`${p.dealEndsAt}:00`) : null,
     costPrice: p.costPrice,
   };
 

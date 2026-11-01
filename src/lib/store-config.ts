@@ -19,6 +19,8 @@ export async function getCheckoutConfig() {
     cities,
     freeShippingThreshold: settings?.freeShippingThreshold ?? 1000,
     whatsappNumber: settings?.whatsappNumber ?? "",
+    deliveryTime: { ar: settings?.deliveryTimeAr ?? "", en: settings?.deliveryTimeEn ?? "" },
+    replacementPolicy: { ar: settings?.replacementPolicyAr ?? "", en: settings?.replacementPolicyEn ?? "" },
   };
 }
 

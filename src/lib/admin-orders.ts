@@ -1,6 +1,7 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { ORDER_STATUSES, type OrderStatus } from "./order-rules";
 import { normalizeMoroccanPhone } from "./phone";
+import { moroccanDate } from "./time";
 
 export type OrderFilters = { status?: OrderStatus; q?: string; risky?: boolean; from?: string; to?: string; page: number };
 
@@ -29,8 +30,8 @@ export function orderWhere(f: OrderFilters): Prisma.OrderWhereInput {
     ...(f.from || f.to
       ? {
           createdAt: {
-            ...(f.from ? { gte: new Date(`${f.from}T00:00:00+01:00`) } : {}),
-            ...(f.to ? { lte: new Date(`${f.to}T23:59:59+01:00`) } : {}),
+            ...(f.from ? { gte: moroccanDate(f.from) } : {}),
+            ...(f.to ? { lte: moroccanDate(`${f.to}T23:59:59`) } : {}),
           },
         }
       : {}),

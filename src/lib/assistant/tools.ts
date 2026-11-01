@@ -4,7 +4,8 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { effectiveCost } from "@/lib/stock";
 import { AssistantActionError, draftProposal, proposeDraft, proposeStockChange, stockProposal } from "./actions";
-import { comparableImage, storeImageUrl, type AssistantCard, type AssistantChoice } from "./rules";
+import { fetchStoreImage } from "./client";
+import type { AssistantCard, AssistantChoice } from "./rules";
 
 // The assistant's whole reach: reading through these fixed queries, and proposing. No tool writes to the catalog.
 
@@ -54,7 +55,7 @@ const SHARED_TOOLS: Tool[] = [
   {
     name: "propose_draft_product",
     description:
-      "Propose creating a product that is not in the catalog, as a hidden draft; nothing is created until the admin confirms. Only use facts visible in the photo or stated by the admin: never invent specifications or prices.",
+      "Propose creating a product that is not in the catalog, as a hidden draft; nothing is created until the admin confirms. Only use facts visible in the photo or stated by the admin: never invent specifications or prices. The descriptions must not mention warranty, delivery, returns, replacement, or any number that is not in the product name.",
     strict: true,
     input_schema: obj({
       name_ar: { type: "string" },
@@ -154,8 +155,6 @@ async function listTaxonomy() {
   return { categories, brands };
 }
 
-const MAX_STORE_IMAGE_BYTES = 4 * 1024 * 1024;
-
 async function viewImages(ids: string[], origin: string): Promise<ResultBlock> {
   const products = await db.product.findMany({
     where: { id: { in: ids } },
@@ -165,20 +164,11 @@ async function viewImages(ids: string[], origin: string): Promise<ResultBlock> {
   for (const p of products) {
     let shown = 0;
     for (const { url } of p.images) {
-      const safe = storeImageUrl(url, origin);
-      if (!safe) continue;
-      try {
-        const res = await fetch(safe, { signal: AbortSignal.timeout(8000) });
-        const type = comparableImage(res.headers.get("content-type"));
-        if (!res.ok || !type) continue;
-        const bytes = Buffer.from(await res.arrayBuffer());
-        if (bytes.length > MAX_STORE_IMAGE_BYTES) continue;
-        if (!shown) blocks.push({ type: "text", text: `Store photos of product ${p.id} (${p.nameEn}):` });
-        blocks.push({ type: "image", source: { type: "base64", media_type: type, data: bytes.toString("base64") } });
-        shown++;
-      } catch {
-        // One unreachable photo must not end the comparison.
-      }
+      const image = await fetchStoreImage(url, origin);
+      if (!image) continue;
+      if (!shown) blocks.push({ type: "text", text: `Store photos of product ${p.id} (${p.nameEn}):` });
+      blocks.push({ type: "image", source: { type: "base64", media_type: image.type, data: image.data } });
+      shown++;
     }
     if (!shown) blocks.push({ type: "text", text: `Product ${p.id} (${p.nameEn}) has only placeholder drawings: it cannot be compared by photo. Do not treat this as a visual match.` });
   }

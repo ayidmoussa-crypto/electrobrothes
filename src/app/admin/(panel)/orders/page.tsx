@@ -11,6 +11,7 @@ import { formatMAD } from "@/lib/money";
 import { ORDER_STATUSES, type OrderStatus } from "@/lib/order-rules";
 import { formatMoroccanPhone } from "@/lib/phone";
 import { STATUS_LABEL } from "@/components/admin/ui";
+import { TIME_ZONE } from "@/lib/time";
 
 const PAGE = 30;
 
@@ -26,7 +27,7 @@ const QUICK: Record<OrderStatus, StatusOption[]> = {
   RETURNED: [],
   CANCELLED: [],
 };
-const dateFmt = new Intl.DateTimeFormat("ar-MA", { dateStyle: "short", timeStyle: "short", timeZone: "Africa/Casablanca" });
+const dateFmt = new Intl.DateTimeFormat("ar-MA", { dateStyle: "short", timeStyle: "short", timeZone: TIME_ZONE });
 
 export default async function OrdersPage({ searchParams }: PageProps<"/admin/orders">) {
   await requireAdmin();

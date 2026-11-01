@@ -26,9 +26,9 @@ const nextConfig: NextConfig = {
   },
   partialPrefetching: true,
   images: {
-    // Product photos uploaded from the admin (Cloudinary). Served as AVIF/WebP by next/image.
+    // Product photos uploaded from the admin (Cloudinary). Served as WebP at the size each screen needs.
     remotePatterns: [{ protocol: "https", hostname: "res.cloudinary.com" }],
-    formats: ["image/avif", "image/webp"],
+    formats: ["image/webp"],
   },
   turbopack: {
     rules: {

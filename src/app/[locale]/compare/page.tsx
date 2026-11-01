@@ -155,7 +155,7 @@ async function Comparison({ locale, searchParams }: { locale: Locale; searchPara
             <tr className={row}>
               <th scope="row" className={th}>{t("warranty")}</th>
               {items.map((p) => (
-                <td key={p.slug} className={td}>{t("months", { months: p.warrantyMonths })}</td>
+                <td key={p.slug} className={td}>{p.warrantyMonths > 0 ? t("months", { months: p.warrantyMonths }) : "—"}</td>
               ))}
             </tr>
             <tr className={row}>

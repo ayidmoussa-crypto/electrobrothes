@@ -13,6 +13,7 @@ import {
   Package,
   Settings,
   ShoppingCart,
+  Sparkles,
   Tags,
   TicketPercent,
   X,
@@ -35,6 +36,7 @@ const items: Item[] = [
   { href: "/admin/coupons", label: "الكوبونات", icon: TicketPercent },
   { href: "/admin/blacklist", label: "القائمة السوداء", icon: Ban },
   { href: "/admin/assistant", label: "سجل المساعد", icon: Bot },
+  { href: "/admin/seo", label: "مقترحات السيو", icon: Sparkles },
   { href: "/admin/settings", label: "الإعدادات", icon: Settings },
 ];
 

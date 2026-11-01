@@ -48,6 +48,14 @@ export function breadcrumbLd(locale: Locale, items: { name: string; path?: strin
   };
 }
 
+export function faqLd(faqs: { question: string; answer: string }[]) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqs.map((f) => ({ "@type": "Question", name: f.question, acceptedAnswer: { "@type": "Answer", text: f.answer } })),
+  };
+}
+
 type LdProduct = {
   slug: string;
   name: string;
@@ -64,13 +72,6 @@ export function productLd(locale: Locale, p: LdProduct) {
   const prices = p.variants.map((v) => v.price);
   const inStock = p.variants.some((v) => v.stock > 0);
   const availability = `https://schema.org/${inStock ? "InStock" : "OutOfStock"}`;
-  const returnPolicy = {
-    "@type": "MerchantReturnPolicy",
-    applicableCountry: "MA",
-    returnPolicyCategory: "https://schema.org/MerchantReturnFiniteReturnWindow",
-    merchantReturnDays: 7,
-    returnMethod: "https://schema.org/ReturnByMail",
-  };
   const seller = { "@type": "Organization", name: SITE_NAME };
 
   const offers =
@@ -93,7 +94,6 @@ export function productLd(locale: Locale, p: LdProduct) {
           itemCondition: "https://schema.org/NewCondition",
           url,
           seller,
-          hasMerchantReturnPolicy: returnPolicy,
         };
 
   return {

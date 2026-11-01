@@ -1,6 +1,6 @@
-import { Banknote, BadgeCheck, GitCompareArrows, ShieldCheck, Star, Truck } from "lucide-react";
+import { Banknote, BadgeCheck, Check, ChevronDown, GitCompareArrows, ShieldCheck, Star, Truck } from "lucide-react";
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Breadcrumbs } from "@/components/store/Breadcrumbs";
 import { ProductGallery } from "@/components/store/ProductGallery";
@@ -9,10 +9,11 @@ import { Rating } from "@/components/store/Rating";
 import { ProductPurchase } from "@/components/store/ProductPurchase";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
-import { getProduct, getProductCards, getProductSlugs } from "@/lib/catalog";
-import { pageMetadata } from "@/lib/seo";
+import { getProduct, getProductCards, getProductSlugs, getSlugRedirect } from "@/lib/catalog";
+import { localizedPath, pageMetadata } from "@/lib/seo";
+import { shareImageUrl } from "@/lib/seo-content/rules";
 import { getCheckoutConfig } from "@/lib/store-config";
-import { breadcrumbLd, productLd } from "@/lib/structured-data";
+import { breadcrumbLd, faqLd, productLd } from "@/lib/structured-data";
 import { JsonLd } from "@/components/seo/JsonLd";
 
 export async function generateStaticParams() {
@@ -24,14 +25,15 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/products
   const p = await getProduct(slug);
   if (!p) return {};
   const ar = locale === "ar";
-  const image = p.images[0]?.url;
+  const metaTitle = ar ? p.metaTitleAr : p.metaTitleEn;
   return pageMetadata({
     locale: locale as Locale,
     path: `/products/${slug}`,
-    title: ar ? p.nameAr : p.nameEn,
-    description: ar ? p.descriptionAr : p.descriptionEn,
+    title: metaTitle || (ar ? p.nameAr : p.nameEn),
+    fullTitle: !!metaTitle,
+    description: (ar ? p.metaDescriptionAr : p.metaDescriptionEn) || (ar ? p.descriptionAr : p.descriptionEn),
     // Social networks cannot render SVG previews; the default brand image is used for those.
-    image: image && !image.endsWith(".svg") ? image : null,
+    image: shareImageUrl(p.images[0]?.url),
   });
 }
 
@@ -42,7 +44,11 @@ export default async function ProductPage({ params }: PageProps<"/[locale]/produ
   const locale = l as Locale;
   setRequestLocale(locale);
   const product = await getProduct(slug);
-  if (!product) notFound();
+  if (!product) {
+    const moved = await getSlugRedirect(slug);
+    if (moved) permanentRedirect(localizedPath(locale, `/products/${moved}`));
+    notFound();
+  }
 
   const [t, ts, tc, related, config] = await Promise.all([
     getTranslations("pdp"),
@@ -54,11 +60,14 @@ export default async function ProductPage({ params }: PageProps<"/[locale]/produ
   const ar = locale === "ar";
   const name = ar ? product.nameAr : product.nameEn;
   const similar = related.filter((p) => p.slug !== product.slug).slice(0, 4);
+  const highlights = ar ? product.highlightsAr : product.highlightsEn;
+  const faqs = product.faqs.map((f) => ({ id: f.id, question: ar ? f.questionAr : f.questionEn, answer: ar ? f.answerAr : f.answerEn }));
 
   const trust = [
     { icon: Banknote, text: t("codNote") },
-    { icon: Truck, text: t("deliveryNote") },
-    { icon: ShieldCheck, text: t("warranty", { months: product.warrantyMonths }) },
+    { icon: Truck, text: t("deliveryNote", { time: ar ? config.deliveryTime.ar : config.deliveryTime.en }) },
+    // 0 means the field is empty: no warranty is promised.
+    ...(product.warrantyMonths > 0 ? [{ icon: ShieldCheck, text: t("warranty", { months: product.warrantyMonths }) }] : []),
     { icon: BadgeCheck, text: t("genuine") },
   ];
 
@@ -77,6 +86,7 @@ export default async function ProductPage({ params }: PageProps<"/[locale]/produ
           reviews: product.reviews,
         })}
       />
+      {faqs.length ? <JsonLd data={faqLd(faqs)} /> : null}
       <JsonLd
         data={breadcrumbLd(locale, [
           { name: t("home"), path: "/" },
@@ -129,6 +139,11 @@ export default async function ProductPage({ params }: PageProps<"/[locale]/produ
               ))}
             </ul>
 
+            <Link href="/warranty" className="inline-flex min-h-11 items-center gap-2 self-start font-semibold text-ink underline-offset-4 hover:underline">
+              <ShieldCheck className="size-5" aria-hidden="true" />
+              {t("policyLink")}
+            </Link>
+
             <Link
               href={`/compare?p=${product.slug}`}
               className="inline-flex min-h-11 items-center gap-2 self-start font-semibold text-ink underline-offset-4 hover:underline"
@@ -144,6 +159,16 @@ export default async function ProductPage({ params }: PageProps<"/[locale]/produ
         <section>
           <h2 className="text-xl">{t("description")}</h2>
           <p className="mt-3 leading-relaxed text-warm-800">{ar ? product.descriptionAr : product.descriptionEn}</p>
+          {highlights.length ? (
+            <ul className="mt-4 flex flex-col gap-2 text-warm-800">
+              {highlights.map((h) => (
+                <li key={h} className="flex items-start gap-2">
+                  <Check className="mt-1 size-4 shrink-0 text-ink" aria-hidden="true" />
+                  {h}
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </section>
 
         <section>
@@ -158,16 +183,35 @@ export default async function ProductPage({ params }: PageProps<"/[locale]/produ
                   <td className="px-4 py-3 text-warm-800">{ar ? s.valueAr : s.valueEn}</td>
                 </tr>
               ))}
-              <tr>
-                <th scope="row" className="px-4 py-3 text-start font-semibold text-ink">
-                  {tc("warranty")}
-                </th>
-                <td className="px-4 py-3 text-warm-800">{tc("months", { months: product.warrantyMonths })}</td>
-              </tr>
+              {product.warrantyMonths > 0 ? (
+                <tr>
+                  <th scope="row" className="px-4 py-3 text-start font-semibold text-ink">
+                    {tc("warranty")}
+                  </th>
+                  <td className="px-4 py-3 text-warm-800">{tc("months", { months: product.warrantyMonths })}</td>
+                </tr>
+              ) : null}
             </tbody>
           </table>
         </section>
       </div>
+
+      {faqs.length ? (
+        <section className="mt-12">
+          <h2 className="text-xl">{t("faq")}</h2>
+          <div className="mt-3 divide-y divide-warm-200 rounded-xl border border-warm-200">
+            {faqs.map((f) => (
+              <details key={f.id} className="group p-4">
+                <summary className="flex min-h-6 cursor-pointer list-none items-center justify-between gap-3 font-semibold text-ink">
+                  {f.question}
+                  <ChevronDown className="size-5 shrink-0 transition-transform group-open:rotate-180" aria-hidden="true" />
+                </summary>
+                <p className="mt-2 leading-relaxed text-warm-800">{f.answer}</p>
+              </details>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <section id="reviews" className="mt-12 scroll-mt-24">
         <h2 className="text-xl">{t("reviews")}</h2>

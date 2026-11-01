@@ -11,8 +11,9 @@ import { db } from "@/lib/db";
 import { formatMAD } from "@/lib/money";
 import { allowedNext, type OrderStatus } from "@/lib/order-rules";
 import { formatMoroccanPhone } from "@/lib/phone";
+import { TIME_ZONE } from "@/lib/time";
 
-const dateFmt = new Intl.DateTimeFormat("ar-MA", { dateStyle: "medium", timeStyle: "short", timeZone: "Africa/Casablanca" });
+const dateFmt = new Intl.DateTimeFormat("ar-MA", { dateStyle: "medium", timeStyle: "short", timeZone: TIME_ZONE });
 const VARIANT: Record<OrderStatus, StatusOption["variant"]> = {
   NEW: "outline",
   CONFIRMED: "primary",
