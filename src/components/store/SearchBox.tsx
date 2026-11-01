@@ -1,0 +1,181 @@
+"use client";
+
+import { Search, X } from "lucide-react";
+import Image from "next/image";
+import { useLocale, useTranslations } from "next-intl";
+import { useEffect, useId, useRef, useState } from "react";
+import { buttonClass } from "@/components/ui/button";
+import { Link, useRouter } from "@/i18n/navigation";
+import type { Locale } from "@/i18n/routing";
+import { formatMAD } from "@/lib/money";
+import { useSearchToggle } from "./HeaderShell";
+
+const iconButton = "grid size-11 cursor-pointer place-items-center rounded-full transition-colors hover:text-yellow-500";
+
+/** Phone-only search icon: unfolds the search box under the header row. */
+export function SearchToggleButton() {
+  const t = useTranslations("header");
+  const { open, setOpen } = useSearchToggle();
+  return (
+    <button
+      type="button"
+      onClick={() => setOpen(!open)}
+      aria-expanded={open}
+      aria-controls="site-search-form"
+      aria-label={open ? t("closeSearch") : t("openSearch")}
+      className={`${iconButton} md:hidden`}
+    >
+      {open ? <X className="size-6" aria-hidden="true" /> : <Search className="size-6" aria-hidden="true" />}
+    </button>
+  );
+}
+
+type Suggestion ={ slug: string; nameAr: string; nameEn: string; brand: string; price: number; image: string | null };
+
+/**
+ * Header search: a plain GET form to /search (works without JS), enhanced with an
+ * ARIA combobox of instant suggestions (debounced, keyboard navigable).
+ */
+export function SearchBox({ action }: { action: string }) {
+  const t = useTranslations("header");
+  const locale = useLocale() as Locale;
+  const router = useRouter();
+  const listId = useId();
+  const [q, setQ] = useState("");
+  const [items, setItems] = useState<Suggestion[]>([]);
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(-1);
+  const boxRef = useRef<HTMLFormElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const toggle = useSearchToggle();
+
+  // Unfolded from the phone search icon: put the cursor straight in the field.
+  useEffect(() => {
+    if (toggle.open) inputRef.current?.focus();
+  }, [toggle.open]);
+
+  useEffect(() => {
+    const term = q.trim();
+    if (term.length < 2) return;
+    const ctrl = new AbortController();
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(term)}`, { signal: ctrl.signal });
+        const data = (await res.json()) as { items: Suggestion[] };
+        setItems(data.items);
+        setActive(-1);
+        setOpen(true);
+      } catch {
+        // Aborted or offline: the form submit still works.
+      }
+    }, 200);
+    return () => {
+      clearTimeout(timer);
+      ctrl.abort();
+    };
+  }, [q]);
+
+  useEffect(() => {
+    const close = (e: PointerEvent) => !boxRef.current?.contains(e.target as Node) && setOpen(false);
+    document.addEventListener("pointerdown", close);
+    return () => document.removeEventListener("pointerdown", close);
+  }, []);
+
+  const showList = open && q.trim().length >= 2;
+  const optionId = (i: number) => `${listId}-opt-${i}`;
+
+  return (
+    <form
+      ref={boxRef}
+      action={action}
+      method="get"
+      role="search"
+      id="site-search-form"
+      // Phones: folded behind the search icon until opened.
+      className={`relative order-last flex w-full md:order-none md:mx-6 md:flex-1 ${toggle.open ? "" : "max-md:hidden"}`}
+      onSubmit={(e) => {
+        if (active >= 0 && items[active]) {
+          e.preventDefault();
+          setOpen(false);
+          router.push(`/products/${items[active].slug}`);
+        }
+      }}
+    >
+      <label htmlFor="site-search" className="sr-only">
+        {t("searchLabel")}
+      </label>
+      <input
+        ref={inputRef}
+        id="site-search"
+        name="q"
+        type="search"
+        autoComplete="off"
+        value={q}
+        onChange={(e) => {
+          setQ(e.target.value);
+          if (e.target.value.trim().length < 2) setOpen(false);
+        }}
+        onFocus={() => items.length && setOpen(true)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape" && !showList && toggle.open) toggle.setOpen(false);
+          if (!showList) return;
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            setActive((a) => Math.min(a + 1, items.length - 1));
+          } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            setActive((a) => Math.max(a - 1, -1));
+          } else if (e.key === "Escape") {
+            setOpen(false);
+          }
+        }}
+        role="combobox"
+        aria-expanded={showList}
+        aria-controls={listId}
+        aria-autocomplete="list"
+        aria-activedescendant={showList && active >= 0 ? optionId(active) : undefined}
+        placeholder={t("searchPlaceholder")}
+        className="min-h-11 w-full min-w-0 rounded-s-lg border-0 bg-white px-4 text-base text-warm-800 placeholder:text-warm-400"
+      />
+      <button type="submit" className={buttonClass({ className: "rounded-s-none" })}>
+        <Search className="size-5" aria-hidden="true" />
+        <span className="sr-only md:not-sr-only">{t("searchButton")}</span>
+      </button>
+
+      <div
+        className={`absolute inset-x-0 top-full z-40 mt-2 overflow-hidden rounded-xl border border-warm-200 bg-white text-warm-800 shadow-xl shadow-ink/10 ${showList ? "" : "hidden"}`}
+      >
+        <ul id={listId} role="listbox" aria-label={t("suggestions")}>
+          {items.map((s, i) => (
+            <li key={s.slug} id={optionId(i)} role="option" aria-selected={i === active}>
+              <Link
+                href={`/products/${s.slug}`}
+                tabIndex={-1}
+                onClick={() => setOpen(false)}
+                className={`flex items-center gap-3 px-3 py-2 ${i === active ? "bg-yellow-100" : "hover:bg-warm-50"}`}
+              >
+                <span className="relative size-12 shrink-0 overflow-hidden rounded-md bg-warm-50">
+                  {s.image ? <Image src={s.image} alt="" fill sizes="48px" unoptimized={s.image.endsWith(".svg")} className="object-contain p-1" /> : null}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold text-ink">{locale === "ar" ? s.nameAr : s.nameEn}</span>
+                  <span className="block text-xs text-warm-500" dir="ltr">
+                    {s.brand}
+                  </span>
+                </span>
+                <span className="text-sm font-bold text-ink">{formatMAD(s.price, locale)}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+        {items.length ? (
+          <button type="submit" className="block w-full border-t border-warm-200 px-3 py-3 text-start text-sm font-semibold text-ink hover:bg-warm-50">
+            {t("seeAllResults", { q: q.trim() })}
+          </button>
+        ) : (
+          <p className="px-3 py-3 text-sm text-warm-600">{t("noSuggestions")}</p>
+        )}
+      </div>
+    </form>
+  );
+}

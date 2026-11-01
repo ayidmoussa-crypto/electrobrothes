@@ -1,0 +1,56 @@
+{
+  "apple": {
+    "ratio": 0.83
+  },
+  "samsung": {
+    "ratio": 6.13
+  },
+  "xiaomi": {
+    "ratio": 1
+  },
+  "jbl": {
+    "ratio": 1.72
+  },
+  "sony": {
+    "ratio": 5.34
+  },
+  "honor": {
+    "ratio": 4.88
+  },
+  "hp": {
+    "ratio": 1
+  },
+  "dell": {
+    "ratio": 1
+  },
+  "asus": {
+    "ratio": 4.55
+  },
+  "lenovo": {
+    "ratio": 2.85
+  },
+  "anker": {
+    "ratio": 2.75
+  },
+  "baseus": {
+    "ratio": 2.78
+  },
+  "soundcore": {
+    "ratio": 3.97
+  },
+  "ugreen": {
+    "ratio": 3.26
+  },
+  "edifier": {
+    "ratio": 3.08
+  },
+  "haylou": {
+    "ratio": 3.19
+  },
+  "amazfit": {
+    "ratio": 2.83
+  },
+  "qcy": {
+    "ratio": 1.68
+  }
+}

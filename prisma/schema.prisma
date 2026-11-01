@@ -1,0 +1,266 @@
+// ElectroBrothers — catalog, cash-on-delivery orders, admin.
+// Money is stored as whole Moroccan dirhams (Int, MAD).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ───────────────────────── Catalog ─────────────────────────
+
+model Category {
+  id            String    @id @default(cuid())
+  slug          String    @unique
+  nameAr        String
+  nameEn        String
+  descriptionAr String?
+  descriptionEn String?
+  image         String?
+  sortOrder     Int       @default(0)
+  products      Product[]
+}
+
+model Brand {
+  id       String    @id @default(cuid())
+  slug     String    @unique
+  name     String
+  logo     String?
+  products Product[]
+}
+
+model Product {
+  id             String         @id @default(cuid())
+  slug           String         @unique
+  nameAr         String
+  nameEn         String
+  descriptionAr  String
+  descriptionEn  String
+  categoryId     String
+  category       Category       @relation(fields: [categoryId], references: [id])
+  brandId        String
+  brand          Brand          @relation(fields: [brandId], references: [id])
+  warrantyMonths Int            @default(12)
+  isActive       Boolean        @default(true)
+  isFeatured     Boolean        @default(false)
+  isBestSeller   Boolean        @default(false)
+  // Limited-time offer: shown with a countdown until this date.
+  dealEndsAt     DateTime?
+  images         ProductImage[]
+  variants       Variant[]
+  specs          Spec[]
+  reviews        Review[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([categoryId, isActive])
+  @@index([brandId])
+}
+
+model ProductImage {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url       String
+  altAr     String
+  altEn     String
+  sortOrder Int     @default(0)
+
+  @@index([productId])
+}
+
+// A purchasable option (colour / capacity) with its own price and stock.
+model Variant {
+  id             String      @id @default(cuid())
+  productId      String
+  product        Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sku            String      @unique
+  colorAr        String?
+  colorEn        String?
+  // Product swatch colour (catalog data, not a UI colour).
+  colorHex       String?
+  storage        String?
+  price          Int
+  compareAtPrice Int?
+  stock          Int         @default(0)
+  isDefault      Boolean     @default(false)
+  sortOrder      Int         @default(0)
+  orderItems     OrderItem[]
+
+  @@index([productId])
+}
+
+// Technical specification row. `key` is a stable id (ram, storage, screen, cpu…)
+// whose label comes from i18n; `numericValue` powers range filters.
+model Spec {
+  id           String  @id @default(cuid())
+  productId    String
+  product      Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  key          String
+  valueAr      String
+  valueEn      String
+  numericValue Float?
+  sortOrder    Int     @default(0)
+
+  @@index([productId])
+  @@index([key, numericValue])
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  authorName String
+  city       String?
+  rating     Int
+  comment    String
+  isApproved Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  @@index([productId, isApproved])
+}
+
+// ───────────────────────── Delivery & settings ─────────────────────────
+
+model City {
+  id           String  @id @default(cuid())
+  nameAr       String
+  nameEn       String  @unique
+  shippingFee  Int
+  deliveryDays String  @default("2-4")
+  isActive     Boolean @default(true)
+  sortOrder    Int     @default(0)
+  orders       Order[]
+}
+
+// Single row (id = 1), editable from the admin.
+model Settings {
+  id                    Int    @id @default(1)
+  freeShippingThreshold Int    @default(1000)
+  whatsappNumber        String @default("")
+  notifyEmail           String @default("")
+}
+
+enum CouponType {
+  PERCENT
+  FIXED
+}
+
+model Coupon {
+  id          String     @id @default(cuid())
+  code        String     @unique
+  type        CouponType
+  value       Int
+  minSubtotal Int?
+  maxUses     Int?
+  usedCount   Int        @default(0)
+  startsAt    DateTime?
+  expiresAt   DateTime?
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+}
+
+// ───────────────────────── Orders (cash on delivery) ─────────────────────────
+
+enum OrderStatus {
+  NEW
+  CONFIRMED
+  SHIPPING
+  DELIVERED
+  RETURNED
+  CANCELLED
+}
+
+model Order {
+  id            String           @id @default(cuid())
+  number        String           @unique
+  status        OrderStatus      @default(NEW)
+  customerName  String
+  // Normalized E.164, e.g. +212612345678
+  phone         String
+  cityId        String
+  city          City             @relation(fields: [cityId], references: [id])
+  cityName      String
+  address       String
+  notes         String?
+  subtotal      Int
+  shippingFee   Int
+  discount      Int              @default(0)
+  total         Int
+  couponCode    String?
+  // Anti-fraud: 0 = clean; flags explain the score (duplicate_phone, too_fast…).
+  riskScore     Int              @default(0)
+  riskFlags     String[]
+  // Stock is taken on CONFIRMED and given back on CANCELLED/RETURNED; this keeps it idempotent.
+  stockDeducted Boolean          @default(false)
+  ip            String?
+  userAgent     String?
+  items         OrderItem[]
+  logs          OrderStatusLog[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([phone, createdAt])
+  @@index([status, createdAt])
+  @@index([createdAt])
+}
+
+// Snapshot of what was bought, so later catalog edits never rewrite history.
+model OrderItem {
+  id           String   @id @default(cuid())
+  orderId      String
+  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variantId    String?
+  variant      Variant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  sku          String
+  nameAr       String
+  nameEn       String
+  variantLabel String?
+  unitPrice    Int
+  quantity     Int
+
+  @@index([orderId])
+  @@index([variantId])
+}
+
+model OrderStatusLog {
+  id         String       @id @default(cuid())
+  orderId    String
+  order      Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  fromStatus OrderStatus?
+  toStatus   OrderStatus
+  note       String?
+  // Admin email, or "system" / "customer".
+  actor      String
+  createdAt  DateTime     @default(now())
+
+  @@index([orderId, createdAt])
+}
+
+model Blacklist {
+  id        String   @id @default(cuid())
+  phone     String   @unique
+  reason    String?
+  createdAt DateTime @default(now())
+}
+
+// Fixed-window counter keyed by e.g. "order:ip:1.2.3.4".
+model RateLimit {
+  key     String   @id
+  count   Int
+  resetAt DateTime
+}
+
+// ───────────────────────── Admin ─────────────────────────
+
+model AdminUser {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String
+  passwordHash String
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+}

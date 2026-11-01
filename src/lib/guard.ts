@@ -1,0 +1,45 @@
+import "server-only";
+import { headers } from "next/headers";
+import { db } from "./db";
+
+/** Client IP behind Vercel / a reverse proxy; "unknown" when not available. */
+export async function clientIp() {
+  const h = await headers();
+  return h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "unknown";
+}
+
+/**
+ * Fixed-window counter in Postgres, atomic under concurrency (single upsert).
+ * Returns the count in the current window including this hit.
+ */
+export async function hit(key: string, windowSeconds: number) {
+  const rows = await db.$queryRaw<{ count: number }[]>`
+    INSERT INTO "RateLimit" ("key", "count", "resetAt")
+    VALUES (${key}, 1, now() + make_interval(secs => ${windowSeconds}))
+    ON CONFLICT ("key") DO UPDATE SET
+      "count"   = CASE WHEN "RateLimit"."resetAt" < now() THEN 1 ELSE "RateLimit"."count" + 1 END,
+      "resetAt" = CASE WHEN "RateLimit"."resetAt" < now() THEN now() + make_interval(secs => ${windowSeconds}) ELSE "RateLimit"."resetAt" END
+    RETURNING "count"`;
+  return rows[0].count;
+}
+
+/**
+ * Cloudflare Turnstile check. Skipped (returns true) when no secret is configured,
+ * so local development works without keys.
+ */
+export async function verifyTurnstile(token: string | null, ip: string) {
+  const secret = process.env.TURNSTILE_SECRET_KEY;
+  if (!secret) return true;
+  if (!token) return false;
+  try {
+    const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+      method: "POST",
+      body: new URLSearchParams({ secret, response: token, ...(ip !== "unknown" ? { remoteip: ip } : {}) }),
+      signal: AbortSignal.timeout(5000),
+    });
+    return ((await res.json()) as { success?: boolean }).success === true;
+  } catch {
+    // Cloudflare unreachable: do not lose the sale, the order is still risk-scored and called.
+    return true;
+  }
+}

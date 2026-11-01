@@ -1,0 +1,80 @@
+"use client";
+
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { Link, usePathname } from "@/i18n/navigation";
+
+type Item = { href: string; label: string; image?: string | null };
+type Pos = { x: number; w: number; visible: boolean; animate: boolean };
+
+/**
+ * Desktop category strip on the header's surface (phones use the side menu). One frosted pill
+ * glides to the hovered (or focused) category and settles back on the current one; being
+ * translucent, it takes the colour of whatever is behind the header. The current category also
+ * carries a yellow marker (brand "active link"), which shows inside the pill.
+ */
+export function CategoryNav({ items, label }: { items: Item[]; label: string }) {
+  const pathname = usePathname();
+  const links = useRef(new Map<string, HTMLAnchorElement>());
+  const [pos, setPos] = useState<Pos>({ x: 0, w: 0, visible: false, animate: false });
+  const activeHref = items.find((i) => pathname === i.href || pathname.startsWith(`${i.href}/`))?.href;
+
+  const moveTo = useCallback((href: string | undefined) => {
+    const el = href ? links.current.get(href) : undefined;
+    setPos((p) =>
+      el
+        ? // Glide only when the pill is already showing; otherwise appear in place.
+          { x: el.offsetLeft, w: el.offsetWidth, visible: true, animate: p.visible }
+        : { ...p, visible: false },
+    );
+  }, []);
+  const rest = useCallback(() => moveTo(activeHref), [moveTo, activeHref]);
+
+  useLayoutEffect(() => {
+    rest();
+    window.addEventListener("resize", rest);
+    return () => window.removeEventListener("resize", rest);
+  }, [rest]);
+
+  return (
+    // Transparent: takes the header's surface (solid ink, or glass once scrolled).
+    <nav aria-label={label} className="border-t border-white/10 max-md:hidden">
+      <ul
+        onMouseLeave={rest}
+        onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && rest()}
+        className="relative isolate mx-auto flex max-w-7xl items-center gap-1 px-6 py-2"
+      >
+        <li
+          aria-hidden="true"
+          style={{ transform: `translateX(${pos.x}px)`, width: pos.w }}
+          // Physical left-0: offsetLeft is measured from the left in both directions.
+          className={`pointer-events-none absolute inset-y-2 left-0 -z-10 rounded-full border border-(color:--glass-tab-border) bg-(color:--glass-tab-bg) shadow-[inset_0_1px_0] shadow-white/10 backdrop-blur-md backdrop-saturate-150 ${
+            pos.animate ? "transition-[transform,width,opacity] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]" : "transition-opacity duration-200"
+          } ${pos.visible ? "opacity-100" : "opacity-0"}`}
+        />
+        {items.map((item) => {
+          const active = item.href === activeHref;
+          return (
+            <li key={item.href} className="shrink-0">
+              <Link
+                ref={(el) => {
+                  if (el) links.current.set(item.href, el);
+                  else links.current.delete(item.href);
+                }}
+                href={item.href}
+                aria-current={active ? "page" : undefined}
+                onMouseEnter={() => moveTo(item.href)}
+                onFocus={() => moveTo(item.href)}
+                className={`relative inline-flex min-h-11 items-center justify-center rounded-full px-6 text-sm font-semibold transition-colors duration-300 hover:text-white focus-visible:text-white ${
+                  active ? "text-white" : "text-warm-300"
+                }`}
+              >
+                {item.label}
+                {active ? <span aria-hidden="true" className="absolute bottom-1 h-1 w-5 rounded-full bg-yellow-500" /> : null}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  );
+}

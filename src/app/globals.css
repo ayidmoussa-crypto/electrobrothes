@@ -1,0 +1,256 @@
+@import "tailwindcss";
+
+/*
+ * ElectroBrothers design tokens — the ONLY place raw HEX values are allowed.
+ * Source of truth: CLAUDE.md « هوية البراند ». Components use the Tailwind
+ * classes these generate (bg-yellow-500, text-warm-800, …), never HEX.
+ */
+@theme {
+  /* Drop every default Tailwind colour: no blues, no cold greys, by construction. */
+  --color-*: initial;
+
+  --color-white: #FFFFFF;
+  --color-ink: #111111;          /* Ink Black — header, nav, footer, headings, text on yellow */
+  --color-deep: #070500;         /* Deep Black — top strip above the header */
+
+  /* Electric Yellow — the single action colour */
+  --color-yellow-50: #FFFBE6;    /* promo strip background */
+  --color-yellow-100: #FFF3BF;   /* selected row, tag background */
+  --color-yellow-200: #FFE580;   /* text highlight */
+  --color-yellow-300: #FFDA40;   /* focus ring */
+  --color-yellow-500: #FFD000;   /* ★ primary */
+  --color-yellow-600: #E6B800;   /* hover */
+  --color-yellow-700: #B38F00;   /* pressed, borders */
+  --color-yellow-800: #806600;   /* yellow-ish text on white */
+  --color-yellow-900: #4D3D00;   /* text on yellow-100 */
+
+  /* Warm greys (cold greys are forbidden) */
+  --color-warm-50: #FAF9F6;      /* alternate page background */
+  --color-warm-100: #F2F0EB;     /* sections, inputs */
+  --color-warm-200: #E4E1DA;     /* borders */
+  --color-warm-300: #C9C5BC;     /* text on black */
+  --color-warm-400: #9C988F;     /* placeholder, disabled — never body text */
+  --color-warm-500: #75716A;     /* small captions (lightest text allowed on white) */
+  --color-warm-600: #57544D;     /* secondary text */
+  --color-warm-700: #3D3B36;     /* lines on black */
+  --color-warm-800: #2A2925;     /* body text */
+  --color-warm-900: #1C1B18;     /* cards on black */
+  --color-warm-950: #111111;     /* = ink */
+
+  /* Status */
+  --color-success: #187A43;
+  --color-success-soft: #E7F4EC;
+  --color-warning: #E8710A;
+  --color-warning-text: #A34E00;
+  --color-warning-soft: #FDF0E4;
+  --color-danger: #C62828;
+  --color-danger-soft: #FBEAEA;
+  --color-whatsapp: #25D366;     /* WhatsApp button only */
+
+  /* Logo only — never in the UI */
+  --color-logo-gold: #F1BC2A;
+  --color-logo-dark: #191214;
+
+  /*
+   * Inter for Latin + digits; Arabic glyphs fall through to IBM Plex Sans Arabic.
+   * Both real families come first: next/font's metric fallbacks are Arial-based,
+   * and Arial has Arabic glyphs that would otherwise shadow Plex.
+   */
+  --font-sans: "Inter", "IBM Plex Sans Arabic", var(--font-inter), var(--font-plex-arabic), ui-sans-serif, system-ui, sans-serif;
+
+  --radius-glass: 1.5rem;
+
+  /* Brand logo strip: the track holds the list twice, so -50% loops seamlessly. */
+  --animate-marquee: marquee 40s linear infinite;
+  @keyframes marquee {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+}
+
+/*
+ * ── Glassmorphism tokens ─────────────────────────────────────────────────────
+ * Used ONLY on: home hero, scrolled header, cart drawer, mobile "order now" bar,
+ * limited-deal card. Never on product cards, the order form, prices or the admin.
+ * Built from the brand palette (white / ink / warm greys); no new colours.
+ */
+:root {
+  --glass-blur: 20px;
+  --glass-saturate: 140%;
+  /* Clear glass on dark surfaces (hero): white 10%, thin white edge. */
+  --glass-bg: rgb(255 255 255 / 0.1);
+  --glass-border: rgb(255 255 255 / 0.18);
+  --glass-shadow: 0 8px 32px rgb(17 17 17 / 0.28);
+  /* Smoked glass (header on scroll, deal card): ink at 80% keeps warm-300 text ≥4.5:1 even over a white page. */
+  --glass-dark-bg: rgb(17 17 17 / 0.8);
+  --glass-dark-border: rgb(255 255 255 / 0.1);
+  /* Sliding category tab in the header: translucent, so it takes the colour of what is behind. */
+  --glass-tab-bg: rgb(255 255 255 / 0.15);
+  --glass-tab-border: rgb(255 255 255 / 0.2);
+  /* Frosted glass over light content (cart drawer, mobile bar): white 78% keeps ink text ≥ 7:1 over anything. */
+  --glass-light-bg: rgb(255 255 255 / 0.78);
+  --glass-light-border: rgb(255 255 255 / 0.6);
+  --glass-light-shadow: 0 8px 32px rgb(17 17 17 / 0.12);
+}
+
+/* Phones: lighter blur, cheaper to render while scrolling. */
+@media (max-width: 767px) {
+  :root {
+    --glass-blur: 10px;
+  }
+}
+
+@utility glass {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  border-radius: var(--radius-glass);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+}
+@utility glass-dark {
+  background: var(--glass-dark-bg);
+  border-color: var(--glass-dark-border);
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+}
+@utility glass-light {
+  background: var(--glass-light-bg);
+  border-color: var(--glass-light-border);
+  box-shadow: var(--glass-light-shadow);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+}
+
+/* No backdrop-filter support, or the user asked for less transparency: solid brand surfaces. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass {
+    background: var(--color-warm-900);
+  }
+  .glass-dark {
+    background: var(--color-ink);
+  }
+  .glass-light {
+    background: var(--color-white);
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .glass,
+  .glass-dark,
+  .glass-light {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .glass {
+    background: var(--color-warm-900);
+  }
+  .glass-dark {
+    background: var(--color-ink);
+  }
+  .glass-light {
+    background: var(--color-white);
+  }
+}
+
+/*
+ * Side drawers (native modal <dialog>): slide in from their own edge and fade the backdrop in,
+ * then slide back out on close. drawer-start = the reading-start edge (right in Arabic),
+ * drawer-end = the other one. Reduced motion is handled by the global rule below.
+ */
+/* A newly shown tab panel rises in softly. */
+@keyframes tab-in {
+  from {
+    opacity: 0;
+    translate: 0 0.5rem;
+  }
+}
+
+dialog.drawer {
+  translate: 0 0;
+  transition:
+    translate 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    overlay 320ms allow-discrete,
+    display 320ms allow-discrete;
+}
+dialog.drawer:not([open]) {
+  translate: var(--drawer-from) 0;
+  transition-timing-function: cubic-bezier(0.4, 0, 1, 1);
+  transition-duration: 200ms;
+}
+dialog.drawer::backdrop {
+  transition:
+    background-color 320ms ease,
+    overlay 320ms allow-discrete,
+    display 320ms allow-discrete;
+}
+dialog.drawer:not([open])::backdrop {
+  background-color: transparent;
+}
+@starting-style {
+  dialog.drawer[open] {
+    translate: var(--drawer-from) 0;
+  }
+  dialog.drawer[open]::backdrop {
+    background-color: transparent;
+  }
+}
+.drawer-start {
+  --drawer-from: -100%;
+}
+.drawer-end {
+  --drawer-from: 100%;
+}
+[dir="rtl"] .drawer-start {
+  --drawer-from: 100%;
+}
+[dir="rtl"] .drawer-end {
+  --drawer-from: -100%;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    /* The header is sticky: anchors (#order, #reviews…) and focused fields must not hide under it. */
+    scroll-padding-top: 9rem;
+  }
+
+  body {
+    background-color: var(--color-white);
+    color: var(--color-warm-800);
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.5;
+  }
+
+  h1, h2, h3, h4 {
+    color: var(--color-ink);
+    font-weight: 800;
+    line-height: 1.2;
+  }
+
+  ::selection {
+    background-color: var(--color-yellow-200);
+    color: var(--color-ink);
+  }
+
+  /*
+   * Focus = Yellow 300 (brand rule). Yellow alone is ~1.4:1 on white, so an ink
+   * inner ring keeps the indicator ≥3:1 on white surfaces too (WCAG 1.4.11).
+   */
+  :focus-visible {
+    outline: 3px solid var(--color-yellow-300);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 2px var(--color-ink);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      /* Without this an infinite animation would loop at 0.01ms. */
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
