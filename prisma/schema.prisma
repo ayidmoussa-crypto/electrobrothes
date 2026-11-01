@@ -189,6 +189,8 @@ model Settings {
   freeShippingThreshold Int    @default(1000)
   whatsappNumber        String @default("")
   notifyEmail           String @default("")
+  // Hard monthly ceiling for the admin assistant's Claude API calls, in US cents. 0 turns it off.
+  assistantBudgetCents  Int    @default(500)
 }
 
 enum CouponType {
@@ -310,4 +312,60 @@ model AdminUser {
   passwordHash String
   lastLoginAt  DateTime?
   createdAt    DateTime  @default(now())
+}
+
+// ───────────────────────── Admin assistant ─────────────────────────
+
+enum AssistantActionKind {
+  STOCK_CHANGE
+  DRAFT_PRODUCT
+}
+
+enum AssistantActionStatus {
+  PENDING
+  APPLIED
+  CANCELLED
+  EXPIRED
+  UNDONE
+}
+
+// Everything the assistant proposes. Nothing touches the catalog until an admin confirms the row.
+model AssistantAction {
+  id          String                @id @default(cuid())
+  kind        AssistantActionKind
+  status      AssistantActionStatus @default(PENDING)
+  summary     String
+  // The validated proposal, plus what the confirmation card shows.
+  payload     Json
+  // What undo needs; set when applied.
+  undo        Json?
+  // Base64 JPEG for a draft's Cloudinary upload; removed as soon as the proposal is decided.
+  photo       String?
+  model       String
+  requestedBy String
+  decidedBy   String?
+  undoneBy    String?
+  createdAt   DateTime              @default(now())
+  decidedAt   DateTime?
+  undoneAt    DateTime?
+
+  @@index([status, createdAt])
+  @@index([createdAt])
+}
+
+// One row per Claude API call; the monthly counter and ceiling sum these.
+model AssistantUsage {
+  id               String   @id @default(cuid())
+  // "YYYY-MM", Moroccan time.
+  month            String
+  model            String
+  inputTokens      Int
+  outputTokens     Int
+  cacheReadTokens  Int      @default(0)
+  cacheWriteTokens Int      @default(0)
+  costMicros       Int
+  actor            String
+  createdAt        DateTime @default(now())
+
+  @@index([month])
 }

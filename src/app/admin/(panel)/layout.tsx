@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { logout } from "@/app/actions/admin-auth";
 import { AdminBackdrop } from "@/components/admin/AdminBackdrop";
 import { AdminBottomNav, AdminTopNav } from "@/components/admin/AdminNav";
+import { AssistantWidget } from "@/components/admin/AssistantWidget";
 import { Logo } from "@/components/brand/Logo";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { requireAdmin } from "@/lib/admin";
@@ -55,6 +56,7 @@ async function Shell({ children }: { children: ReactNode }) {
       <main className="mx-auto min-w-0 max-w-7xl px-4 pt-6 pb-32 md:pt-8 lg:px-6 lg:pb-12">{children}</main>
 
       <AdminBottomNav email={admin.email} />
+      <AssistantWidget />
     </>
   );
 }

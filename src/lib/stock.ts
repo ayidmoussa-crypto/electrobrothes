@@ -33,7 +33,7 @@ export class InsufficientStockError extends Error {
  */
 export async function moveStock(
   tx: Tx,
-  move: { variantId: string; delta: number; reason: StockReason; actor: string; note?: string; order?: { id: string; number: string } },
+  move: { variantId: string; delta: number; reason: StockReason; actor: string; note?: string; order?: { id: string; number: string }; unitCost?: number | null },
 ) {
   const [row] = await tx.$queryRaw<{ stock: number }[]>`
     UPDATE "Variant" SET "stock" = "stock" + ${move.delta}
@@ -55,7 +55,7 @@ export async function moveStock(
       delta: move.delta,
       stockAfter: row.stock,
       reason: move.reason,
-      unitCost: effectiveCost(v.costPrice, v.product.costPrice),
+      unitCost: move.unitCost ?? effectiveCost(v.costPrice, v.product.costPrice),
       orderId: move.order?.id,
       orderNumber: move.order?.number,
       actor: move.actor,

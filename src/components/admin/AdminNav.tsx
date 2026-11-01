@@ -3,6 +3,7 @@
 import { AnimatePresence, LayoutGroup, motion, MotionConfig } from "framer-motion";
 import {
   Ban,
+  Bot,
   Boxes,
   ExternalLink,
   LayoutDashboard,
@@ -33,6 +34,7 @@ const items: Item[] = [
   { href: "/admin/cities", label: "المدن والتوصيل", icon: MapPin },
   { href: "/admin/coupons", label: "الكوبونات", icon: TicketPercent },
   { href: "/admin/blacklist", label: "القائمة السوداء", icon: Ban },
+  { href: "/admin/assistant", label: "سجل المساعد", icon: Bot },
   { href: "/admin/settings", label: "الإعدادات", icon: Settings },
 ];
 

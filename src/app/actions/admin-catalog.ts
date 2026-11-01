@@ -142,6 +142,8 @@ const settingsInput = z.object({
   // International format without "+", e.g. 212612345678 (wa.me format).
   whatsappNumber: z.string().trim().regex(/^(\d{11,15})?$/),
   notifyEmail: z.union([z.literal(""), z.string().trim().email().max(120)]),
+  // Entered in dollars, stored in cents.
+  assistantBudgetCents: z.coerce.number().min(0).max(1000).transform((d) => Math.round(d * 100)),
 });
 
 export async function saveSettings(_: State, fd: FormData) {
