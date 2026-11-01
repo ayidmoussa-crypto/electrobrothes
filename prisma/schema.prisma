@@ -58,6 +58,16 @@ model Product {
   metaDescriptionEn String?
   highlightsAr      String[]
   highlightsEn      String[]
+  // Search phrase each language's content is written for: suggested by Claude, editable by the owner.
+  focusKeywordAr    String?
+  focusKeywordEn    String?
+  // Rule-based SEO results, saved so lists stay fast: see lib/seo-content/score.ts.
+  seoScore          Int             @default(0)
+  seoScoreAr        Int             @default(0)
+  seoScoreEn        Int             @default(0)
+  seoProblems       Int             @default(0)
+  seoDuplicateTitle Boolean         @default(false)
+  seoScoredAt       DateTime?
   images            ProductImage[]
   variants          Variant[]
   specs             Spec[]
@@ -71,6 +81,7 @@ model Product {
 
   @@index([categoryId, isActive])
   @@index([brandId])
+  @@index([isActive, seoScore])
 }
 
 model ProductImage {
@@ -424,6 +435,18 @@ model SeoSuggestion {
 
   @@index([status, createdAt])
   @@index([productId, status])
+}
+
+// The shop's overall SEO result, one row per day, for the progress chart.
+model SeoDailyScore {
+  // "YYYY-MM-DD", Moroccan time.
+  day      String @id
+  score    Int
+  products Int
+  green    Int
+  orange   Int
+  red      Int
+  problems Int
 }
 
 // One pass of the SEO job, nightly or from the "شغّل دابا" button.

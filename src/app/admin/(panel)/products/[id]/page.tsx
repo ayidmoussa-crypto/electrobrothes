@@ -7,22 +7,17 @@ import { PageHeader } from "@/components/admin/ui";
 import { buttonClass } from "@/components/ui/button";
 import { requireAdmin } from "@/lib/admin";
 import { editorOptions, productForEditor, stockHistory } from "@/lib/admin-products";
-import { db } from "@/lib/db";
-import { seoScore } from "@/lib/seo-content/rules";
-import { contentSelect, productChanges } from "@/lib/seo-content/service";
+import { seoProductDetail } from "@/lib/seo-content/service";
 
 export default async function EditProduct({ params, searchParams }: PageProps<"/admin/products/[id]">) {
   await requireAdmin();
   const [{ id }, sp] = await Promise.all([params, searchParams]);
-  const [product, options, history, content, [changes]] = await Promise.all([
-    productForEditor(id),
-    editorOptions(),
-    stockHistory(id),
-    db.product.findUnique({ where: { id }, select: { ...contentSelect, _count: { select: { specs: true, faqs: true } } } }),
-    productChanges(id),
-  ]);
-  if (!product || !content) notFound();
-  const { score, missing } = seoScore({ ...content, specCount: content._count.specs, faqCount: content._count.faqs });
+  const [product, options, history, seo] = await Promise.all([productForEditor(id), editorOptions(), stockHistory(id), seoProductDetail(id)]);
+  if (!product || !seo) notFound();
+  const missing = [
+    ...seo.checks.ar.filter((c) => c.status !== "good").map((c) => ({ label: `${c.label} (العربية): ${c.hint}`, points: c.weight })),
+    ...seo.checks.en.filter((c) => c.status !== "good").map((c) => ({ label: `${c.label} (English): ${c.hint}`, points: c.weight })),
+  ];
 
   return (
     <>
@@ -37,7 +32,7 @@ export default async function EditProduct({ params, searchParams }: PageProps<"/
         }
       />
       <div className="mb-6">
-        <SeoPanel productId={id} score={score} missing={missing} changes={changes ?? null} />
+        <SeoPanel productId={id} score={seo.score} missing={missing} changes={seo.changes} />
       </div>
       <ProductEditor initial={product} {...options} />
       <div className="mt-6">

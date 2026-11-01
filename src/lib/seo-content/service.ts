@@ -7,7 +7,10 @@ import { anthropic, fetchStoreImage } from "@/lib/assistant/client";
 import { HAIKU, overBudget } from "@/lib/assistant/rules";
 import { recordUsage, usageSummary } from "@/lib/assistant/usage";
 import { db } from "@/lib/db";
-import { canonical, describeValue, fieldLabel, fieldValue, needsApproval, parseField, previewValue, toSuggestionRows, type ClaimFacts, type Faq, type ProductContent, type SpecValue } from "./rules";
+import { absoluteUrl, localizedPath, SITE_NAME } from "@/lib/seo";
+import { canonical, describeValue, fieldLabel, fieldValue, needsApproval, parseField, previewValue, shareImageUrl, toSuggestionRows, type ClaimFacts, type Faq, type ProductContent, type SpecValue } from "./rules";
+import { productSeoStatus, rescoreProducts } from "./score";
+import { contentSelect } from "./select";
 
 // Claude only produces PENDING rows here. A value reaches the store through acceptSuggestion: an admin's
 // click, or automatically for what needsApproval() lets through, while the owner's setting is on.
@@ -20,29 +23,6 @@ export class SeoBudgetError extends SeoError {
   }
 }
 
-const contentSelect = {
-  id: true,
-  slug: true,
-  nameAr: true,
-  nameEn: true,
-  warrantyMonths: true,
-  metaTitleAr: true,
-  metaTitleEn: true,
-  metaDescriptionAr: true,
-  metaDescriptionEn: true,
-  descriptionAr: true,
-  descriptionEn: true,
-  highlightsAr: true,
-  highlightsEn: true,
-  categoryId: true,
-  brandId: true,
-  brand: { select: { name: true } },
-  category: { select: { nameEn: true } },
-  images: { orderBy: { sortOrder: "asc" }, select: { url: true, altAr: true, altEn: true } },
-  specs: { orderBy: { sortOrder: "asc" }, select: { key: true, valueAr: true, valueEn: true, numericValue: true } },
-  faqs: { orderBy: { sortOrder: "asc" }, select: { questionAr: true, answerAr: true, questionEn: true, answerEn: true } },
-} satisfies Prisma.ProductSelect;
-
 const generatedSchema = z.object({
   description_ar: z.string(),
   description_en: z.string(),
@@ -53,6 +33,8 @@ const generatedSchema = z.object({
   meta_title_en: z.string(),
   meta_description_ar: z.string(),
   meta_description_en: z.string(),
+  focus_keyword_ar: z.string(),
+  focus_keyword_en: z.string(),
   slug: z.string(),
   image_alts: z.array(z.object({ index: z.number().int(), alt_ar: z.string(), alt_en: z.string() })),
   faqs: z.array(z.object({ question_ar: z.string(), answer_ar: z.string(), question_en: z.string(), answer_en: z.string() })),
@@ -74,6 +56,7 @@ Promises and numbers come only from the data, never from you:
 - highlights: 3 to 6 short feature points. Same rule: only facts you are sure of.
 - specs: stable lowercase keys (ram, storage, screen, cpu, gpu, camera, battery, type, anc, connectivity, power, port, capacity, length, water). numeric_value is a number only for ram (GB), storage (GB) and screen (inches); otherwise null. Set certain to true only when the value is in the facts, visible, or you are sure of it for this exact model. If you think a spec matters but are not sure, include it with certain false. A guess must have certain false.
 - meta_title: 55 characters at most, product name first. meta_description: 145 characters at most. Count carefully. Use the words Moroccans search with, where they read naturally: Arabic "ثمن", "المغرب", "الدفع عند الاستلام"; English "price Morocco", "cash on delivery".
+- focus_keyword: the short phrase customers type to find this product, 2 to 4 words, for example brand and model. Use the same words in that language's meta_title, meta_description and one image alt, and make the English one fit the slug. Keep it free of promises.
 - slug: lowercase Latin letters, digits and hyphens, from the English name.
 - image_alts: for every listed image, by index, describing the product. Use only what you know or can see.
 - faqs: 3 to 5, covering delivery, cash on delivery, the replacement policy, and warranty only when warranty_months is not null. Answer only from the facts given.
@@ -207,13 +190,14 @@ export async function generateSuggestions(productId: string, ctx: { actor: strin
   if (settings?.seoAutoApply ?? true) {
     for (const row of created.filter((r) => !needsApproval(r.field, r.newValue, r.needsCheck))) {
       try {
-        for (const slug of await acceptSuggestion(row.id, `${ctx.actor} (تلقائي)`, true)) slugs.add(slug);
+        for (const slug of await applySuggestion(row.id, `${ctx.actor} (تلقائي)`, true)) slugs.add(slug);
         autoApplied++;
       } catch (e) {
         // One field that cannot apply stays waiting; the others still go through.
         if (!(e instanceof SeoError)) throw e;
       }
     }
+    if (autoApplied) await rescoreProducts([productId]);
   }
   return { created, dropped, autoApplied, slugs: [...slugs] };
 }
@@ -226,14 +210,21 @@ export async function acceptAllSuggestions(productId: string, admin: string) {
   let failed = 0;
   for (const { id } of rows) {
     try {
-      for (const slug of await acceptSuggestion(id, admin)) slugs.add(slug);
+      for (const slug of await applySuggestion(id, admin)) slugs.add(slug);
       accepted++;
     } catch (e) {
       if (!(e instanceof SeoError)) throw e;
       failed++;
     }
   }
+  if (accepted) await rescoreProducts([productId]);
   return { accepted, failed, slugs: [...slugs] };
+}
+
+/** The owner's own keywords. Empty clears one. Returns nothing to refresh: the store does not show them. */
+export async function saveFocusKeywords(productId: string, keywords: { ar: string; en: string }) {
+  await db.product.update({ where: { id: productId }, data: { focusKeywordAr: keywords.ar || null, focusKeywordEn: keywords.en || null } });
+  await rescoreProducts([productId]);
 }
 
 // ───────── Writing one field ─────────
@@ -246,6 +237,8 @@ async function writeField(tx: Prisma.TransactionClient, productId: string, field
     case "metaTitleEn":
     case "metaDescriptionAr":
     case "metaDescriptionEn":
+    case "focusKeywordAr":
+    case "focusKeywordEn":
       await tx.product.update({ where: { id: productId }, data: { [kind]: value as string | null } });
       break;
     case "descriptionAr":
@@ -295,8 +288,16 @@ async function writeField(tx: Prisma.TransactionClient, productId: string, field
 
 const CHANGED = "هاد الخانة تبدلات من بعد الاقتراح. ولد اقتراحات جديدة باش ما يضيعش تعديلك.";
 
-/** The accept path. Refuses when the field changed since the suggestion, so no edit is overwritten silently. */
+/** Accepts one suggestion and updates the product's saved score. */
 export async function acceptSuggestion(id: string, admin: string, auto = false) {
+  const slugs = await applySuggestion(id, admin, auto);
+  const row = await db.seoSuggestion.findUniqueOrThrow({ where: { id }, select: { productId: true } });
+  await rescoreProducts([row.productId]);
+  return slugs;
+}
+
+/** The accept path. Refuses when the field changed since the suggestion, so no edit is overwritten silently. */
+async function applySuggestion(id: string, admin: string, auto = false) {
   return db.$transaction(async (tx) => {
     const row = await tx.seoSuggestion.findUnique({ where: { id }, select: { productId: true, field: true, oldValue: true, newValue: true, needsCheck: true } });
     if (!row) throw new SeoError("هاد الاقتراح ما كاينش.");
@@ -317,7 +318,7 @@ export async function rejectSuggestion(id: string, admin: string) {
 
 /** Puts the old value back, unless the field was edited since: that edit is newer than both. */
 export async function undoSuggestion(id: string, admin: string) {
-  return db.$transaction(async (tx) => {
+  const slugs = await db.$transaction(async (tx) => {
     const row = await tx.seoSuggestion.findUnique({ where: { id }, select: { productId: true, field: true, oldValue: true, newValue: true } });
     if (!row) throw new SeoError("هاد الاقتراح ما كاينش.");
     const { count } = await tx.seoSuggestion.updateMany({ where: { id, status: "ACCEPTED" }, data: { status: "UNDONE", undoneBy: admin, undoneAt: new Date() } });
@@ -326,6 +327,9 @@ export async function undoSuggestion(id: string, admin: string) {
     if (canonical(fieldValue(p, row.field)) !== canonical(row.newValue)) throw new SeoError("هاد الخانة تبدلات من بعد، فما رجعتش القيمة القديمة باش ما يضيعش تعديلك.");
     return writeField(tx, row.productId, row.field, row.oldValue, p.slug);
   });
+  const row = await db.seoSuggestion.findUniqueOrThrow({ where: { id }, select: { productId: true } });
+  await rescoreProducts([row.productId]);
+  return slugs;
 }
 
 // ───────── Views for the admin pages ─────────
@@ -393,30 +397,51 @@ export async function suggestionViews(where: Prisma.SeoSuggestionWhereInput, tak
   }));
 }
 
-/** A product's changes for the compact view: what waits, and the latest automatic value of each field. */
-export async function productChanges(productId?: string) {
-  const scope = productId ? { productId } : {};
-  const [pending, auto] = await Promise.all([suggestionViews({ ...scope, status: "PENDING" }), suggestionViews({ ...scope, status: "ACCEPTED", autoApplied: true }, 400)]);
-  const products = new Map<string, { productId: string; name: string; image: string | null; pending: SuggestionView[]; auto: SuggestionView[] }>();
-  const entry = (r: SuggestionView) => {
-    const found = products.get(r.productId);
-    if (found) return found;
-    const created = { productId: r.productId, name: r.productName, image: r.productImage, pending: [] as SuggestionView[], auto: [] as SuggestionView[] };
-    products.set(r.productId, created);
-    return created;
-  };
-  for (const r of pending) entry(r).pending.push(r);
+/** One product's changes for the compact table: what waits, and the latest applied value of each field. */
+export async function productChanges(productId: string) {
+  const [pending, applied] = await Promise.all([suggestionViews({ productId, status: "PENDING" }), suggestionViews({ productId, status: "ACCEPTED" }, 100)]);
   // Newest first, so an older generation's value for the same field is left out: it can no longer be undone.
-  for (const r of auto) {
-    const p = entry(r);
-    if (!p.auto.some((a) => a.field === r.field)) p.auto.push(r);
-  }
-  const list = [...products.values()];
-  for (const p of list) p.pending.sort((a, b) => Number(b.approval) - Number(a.approval));
-  return list.sort((a, b) => b.pending.filter((r) => r.approval).length - a.pending.filter((r) => r.approval).length);
+  const latest = applied.filter((r, i) => applied.findIndex((a) => a.field === r.field) === i);
+  return {
+    pending: pending.sort((a, b) => Number(b.approval) - Number(a.approval)),
+    auto: latest.filter((r) => r.autoApplied),
+    accepted: latest.filter((r) => !r.autoApplied),
+  };
 }
 
-export type ProductChanges = Awaited<ReturnType<typeof productChanges>>[number];
+export type ProductChanges = Awaited<ReturnType<typeof productChanges>>;
+
+/** Everything the drawer shows about one product. */
+export async function seoProductDetail(productId: string) {
+  const [status, changes] = await Promise.all([productSeoStatus(productId), productChanges(productId)]);
+  if (!status) return null;
+  const p = status.product;
+  const preview = (lang: "ar" | "en") => {
+    const ar = lang === "ar";
+    const name = ar ? p.nameAr : p.nameEn;
+    return {
+      title: (ar ? p.metaTitleAr : p.metaTitleEn) || `${name} | ${SITE_NAME}`,
+      description: (ar ? p.metaDescriptionAr : p.metaDescriptionEn) || (ar ? p.descriptionAr : p.descriptionEn),
+      url: absoluteUrl(lang, `/products/${p.slug}`),
+      image: shareImageUrl(p.images[0]?.url) ?? localizedPath(lang, "/opengraph-image"),
+    };
+  };
+  return {
+    id: p.id,
+    name: p.nameAr,
+    image: p.images[0]?.url ?? null,
+    score: status.score,
+    scoreAr: status.scoreAr,
+    scoreEn: status.scoreEn,
+    focusKeywordAr: p.focusKeywordAr ?? "",
+    focusKeywordEn: p.focusKeywordEn ?? "",
+    previews: { ar: preview("ar"), en: preview("en") },
+    checks: status.checks,
+    changes,
+  };
+}
+
+export type SeoDetail = NonNullable<Awaited<ReturnType<typeof seoProductDetail>>>;
 
 export { contentSelect, loadProduct };
 export type { ProductContent };

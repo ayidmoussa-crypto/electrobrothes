@@ -5,7 +5,8 @@ import { headers } from "next/headers";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/admin";
 import { runSeoJob } from "@/lib/seo-content/job";
-import { acceptAllSuggestions, acceptSuggestion, apiErrorMessage, generateSuggestions, rejectSuggestion, undoSuggestion } from "@/lib/seo-content/service";
+import { siteChecks } from "@/lib/seo-content/score";
+import { acceptAllSuggestions, acceptSuggestion, apiErrorMessage, generateSuggestions, rejectSuggestion, saveFocusKeywords, seoProductDetail, undoSuggestion } from "@/lib/seo-content/service";
 
 export type SeoActionState = { ok?: boolean; message?: string };
 
@@ -68,6 +69,28 @@ export async function acceptAllSeoSuggestions(productId: string): Promise<SeoAct
   const { accepted, failed, slugs } = await acceptAllSuggestions(parsed.data, admin.email);
   refresh(slugs.length ? slugs : undefined);
   return { ok: !failed, message: failed ? `تقبلو ${accepted}، و${failed} تبدلو من بعد الاقتراح وما تطبقوش.` : `تقبلو ${accepted}.` };
+}
+
+export async function loadSeoDetail(productId: string) {
+  await requireAdmin();
+  const parsed = id.safeParse(productId);
+  return parsed.success ? seoProductDetail(parsed.data) : null;
+}
+
+export async function runSiteChecks() {
+  await requireAdmin();
+  return siteChecks(await siteOrigin());
+}
+
+const keyword = z.string().trim().max(80);
+
+export async function saveSeoKeywords(productId: string, ar: string, en: string): Promise<SeoActionState> {
+  await requireAdmin();
+  const parsed = z.object({ productId: id, ar: keyword, en: keyword }).safeParse({ productId, ar, en });
+  if (!parsed.success) return { ok: false, message: "الكلمة المفتاحية طويلة بزاف." };
+  await saveFocusKeywords(parsed.data.productId, parsed.data);
+  refresh();
+  return { ok: true, message: "تسجلات." };
 }
 
 export async function runSeoJobNow(_: SeoActionState, fd: FormData): Promise<SeoActionState> {

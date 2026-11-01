@@ -233,7 +233,7 @@ export async function applyAction(id: string, admin: string) {
   // Outside the transaction: never hold a database connection during an upload.
   const imageUrl = row.photo ? await uploadPhoto(row.photo) : null;
   const suffix = randomBytes(3).toString("hex");
-  return db.$transaction(async (tx) => {
+  const slugs = await db.$transaction(async (tx) => {
     await claim(tx, id, "PENDING", { status: "APPLIED", decidedBy: admin, decidedAt: new Date(), photo: null }, gone);
     const brandSlug = p.new_brand_name ? `${slugify(p.new_brand_name) || "brand"}-${suffix}` : null;
     const newBrand = p.brand_id ? null : await tx.brand.create({ data: { name: p.new_brand_name!, slug: brandSlug! } });
@@ -273,6 +273,8 @@ export async function applyAction(id: string, admin: string) {
     await tx.assistantAction.update({ where: { id }, data: { undo } });
     return [slug];
   });
+  // Unscored products are picked up by ensureScored: a draft is scored the first time the SEO page opens.
+  return slugs;
 }
 
 export async function cancelAction(id: string, admin: string) {

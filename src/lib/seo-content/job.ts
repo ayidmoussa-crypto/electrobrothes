@@ -1,13 +1,15 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { db } from "@/lib/db";
-import { seoScore, WEAK_SCORE } from "./rules";
-import { contentSelect, generateSuggestions, SeoBudgetError } from "./service";
+import { WEAK_SCORE } from "./rules";
+import { dailyHistory, rescoreAll, seoOverview } from "./score";
+import { generateSuggestions, SeoBudgetError } from "./service";
 
 export const NIGHTLY_LIMIT = 20;
 // A serverless function is cut off around five minutes: finish cleanly, the next night continues.
 const DEADLINE_MS = 4 * 60 * 1000;
 const STALE_RUN_MS = 15 * 60 * 1000;
+const RETRY_AFTER_MS = 7 * 24 * 60 * 60 * 1000;
 
 /**
  * Goes through the weakest visible products that have nothing waiting, and generates their content.
@@ -24,16 +26,15 @@ export async function runSeoJob({ trigger, limit, origin, actor }: { trigger: "n
   let stoppedBy: string | null = null;
 
   try {
-    const products = await db.product.findMany({
-      where: { isActive: true, seoSuggestions: { none: { status: "PENDING" } } },
-      select: { ...contentSelect, _count: { select: { specs: true, faqs: true } } },
-    });
-    totals.examined = products.length;
-    const weak = products
-      .map((p) => ({ id: p.id, score: seoScore({ ...p, specCount: p._count.specs, faqCount: p._count.faqs }).score }))
-      .filter((p) => p.score < WEAK_SCORE)
-      .sort((a, b) => a.score - b.score)
-      .slice(0, limit);
+    await rescoreAll();
+    // A product generated recently is left alone: paying again every night would not improve it.
+    const where = {
+      isActive: true,
+      seoScore: { lt: WEAK_SCORE },
+      seoSuggestions: { none: { OR: [{ status: "PENDING" as const }, { createdAt: { gte: new Date(Date.now() - RETRY_AFTER_MS) } }] } },
+    };
+    totals.examined = await db.product.count({ where: { isActive: true } });
+    const weak = await db.product.findMany({ where, orderBy: { seoScore: "asc" }, take: limit, select: { id: true } });
 
     for (const { id } of weak) {
       if (Date.now() - started > DEADLINE_MS) {
@@ -60,6 +61,7 @@ export async function runSeoJob({ trigger, limit, origin, actor }: { trigger: "n
         console.error("seo job: product failed", id, e instanceof Error ? e.message : e);
       }
     }
+    await dailyHistory(await seoOverview());
     await db.seoRun.update({ where: { id: run.id }, data: { ...totals, stoppedBy, status: "DONE", finishedAt: new Date() } });
   } catch (e) {
     await db.seoRun.update({ where: { id: run.id }, data: { ...totals, stoppedBy, status: "FAILED", finishedAt: new Date() } });

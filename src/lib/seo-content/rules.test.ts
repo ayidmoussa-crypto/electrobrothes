@@ -1,15 +1,16 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { movedProductPath } from "./slug";
-import { canonical, fieldLabel, fieldValue, isCleanSlug, NEEDS_CHECK_AR, needsApproval, previewValue, seoScore, shareImageUrl, toSuggestionRows, unbackedClaim, type ClaimFacts, type GeneratedContent, type ProductContent } from "./rules";
+import { canonical, fieldLabel, fieldValue, isCleanSlug, NEEDS_CHECK_AR, needsApproval, previewValue, shareImageUrl, toSuggestionRows, unbackedClaim, type ClaimFacts, type GeneratedContent, type ProductContent } from "./rules";
 
-const long = "x".repeat(160);
 const product: ProductContent = {
   slug: "sony-wh-1000xm5",
   metaTitleAr: null,
   metaTitleEn: null,
   metaDescriptionAr: null,
   metaDescriptionEn: null,
+  focusKeywordAr: null,
+  focusKeywordEn: null,
   descriptionAr: "وصف قديم قصير",
   descriptionEn: "Old short text",
   highlightsAr: [],
@@ -30,6 +31,8 @@ const generated: GeneratedContent = {
   meta_title_en: "Sony WH-1000XM5 price Morocco",
   meta_description_ar: "سماعات سوني في المغرب مع الدفع عند الاستلام والتوصيل لكل المدن",
   meta_description_en: "Sony headphones in Morocco with cash on delivery to every city",
+  focus_keyword_ar: "سماعة سوني",
+  focus_keyword_en: "Sony headphones",
   slug: "sony-wh-1000xm5",
   image_alts: [],
   faqs: [],
@@ -88,38 +91,6 @@ test("one bad FAQ or highlight is dropped, the good ones stay", () => {
   const { rows } = fields({ faqs: [ok, bad, ok, ok], highlights_ar: ["صوت قوي", "ضمان 24 شهرا"] });
   assert.equal((rows.find((r) => r.field === "faqs")?.newValue as unknown[]).length, 3);
   assert.deepEqual(rows.find((r) => r.field === "highlightsAr")?.newValue, ["صوت قوي"]);
-});
-
-test("the SEO score adds up to exactly 100", () => {
-  const full = seoScore({
-    ...product,
-    metaTitleAr: "ثمن سوني في المغرب",
-    metaTitleEn: "Sony price Morocco",
-    metaDescriptionAr: "الدفع عند الاستلام",
-    metaDescriptionEn: "cash on delivery",
-    descriptionAr: long,
-    descriptionEn: long,
-    highlightsAr: ["a", "b", "c"],
-    highlightsEn: ["a", "b", "c"],
-    images: [{ url: "/a.jpg", altAr: "a", altEn: "a" }],
-    specCount: 3,
-    faqCount: 3,
-  });
-  assert.equal(full.score, 100);
-  assert.deepEqual(full.missing, []);
-});
-
-test("an empty product scores low and lists what is missing", () => {
-  const { score, missing } = seoScore({ ...product, images: [{ url: "/placeholders/a.svg", altAr: "", altEn: "" }], specCount: 0, faqCount: 0 });
-  assert.equal(score, 5);
-  assert.equal(missing.length, 13);
-  assert.ok(missing.some((m) => m.label.includes("صورة حقيقية")));
-});
-
-test("a too-long search text loses its points", () => {
-  const ok = seoScore({ ...product, metaTitleAr: "ثمن", specCount: 0, faqCount: 0 }).score;
-  const tooLong = seoScore({ ...product, metaTitleAr: "ثمن".repeat(30), specCount: 0, faqCount: 0 }).score;
-  assert.equal(ok - tooLong, 8);
 });
 
 test("too-long titles and descriptions are dropped and reported, never cut", () => {

@@ -7,6 +7,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { requireAdmin } from "@/lib/admin";
 import { db } from "@/lib/db";
 import { PRODUCT_ERRORS, productInput } from "@/lib/product-input";
+import { rescoreProducts } from "@/lib/seo-content/score";
 import { InsufficientStockError, moveStock } from "@/lib/stock";
 import { moroccanDate } from "@/lib/time";
 
@@ -92,6 +93,7 @@ export async function saveProduct(_prev: ProductFormState, formData: FormData): 
     throw e;
   }
 
+  await rescoreProducts([id!]);
   refreshStorefront(p.slug);
   if (!p.id) redirect(`/admin/products/${id}?created=1`);
   // Reload the editor so stock and its base reflect the saved state (and the history shows the moves).

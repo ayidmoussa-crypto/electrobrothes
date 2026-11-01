@@ -17,6 +17,8 @@ export type ProductContent = {
   metaTitleEn: string | null;
   metaDescriptionAr: string | null;
   metaDescriptionEn: string | null;
+  focusKeywordAr: string | null;
+  focusKeywordEn: string | null;
   descriptionAr: string;
   descriptionEn: string;
   highlightsAr: string[];
@@ -30,45 +32,17 @@ export type ProductContent = {
 
 export { isCleanSlug };
 
-const KEYWORDS_AR = /ثمن|سعر|المغرب|الدفع عند الاستلام/;
-const KEYWORDS_EN = /price|morocco|cash on delivery/i;
-const usable = (text: string | null, max: number) => !!text?.trim() && text.length <= max;
-
-/** Score out of 100 and what is missing, worded for the admin. Each row's points add up to 100. */
-export function seoScore(p: Pick<ProductContent, "slug" | "metaTitleAr" | "metaTitleEn" | "metaDescriptionAr" | "metaDescriptionEn" | "descriptionAr" | "descriptionEn" | "highlightsAr" | "highlightsEn" | "images"> & { specCount: number; faqCount: number }) {
-  const searchTextAr = `${p.metaTitleAr ?? ""} ${p.metaDescriptionAr ?? ""}`;
-  const searchTextEn = `${p.metaTitleEn ?? ""} ${p.metaDescriptionEn ?? ""}`;
-  const checks: [boolean, number, string][] = [
-    [usable(p.metaTitleAr, MAX_META_TITLE), 8, "عنوان SEO بالعربية (أقل من 60 حرف)"],
-    [usable(p.metaTitleEn, MAX_META_TITLE), 8, "عنوان SEO بالإنجليزية (أقل من 60 حرف)"],
-    [usable(p.metaDescriptionAr, MAX_META_DESCRIPTION), 8, "Meta description بالعربية (أقل من 155 حرف)"],
-    [usable(p.metaDescriptionEn, MAX_META_DESCRIPTION), 8, "Meta description بالإنجليزية (أقل من 155 حرف)"],
-    [KEYWORDS_AR.test(searchTextAr), 4, "كلمات البحث بالعربية: ثمن، المغرب، الدفع عند الاستلام"],
-    [KEYWORDS_EN.test(searchTextEn), 4, "كلمات البحث بالإنجليزية: price, Morocco, cash on delivery"],
-    [p.descriptionAr.trim().length >= 150, 10, "وصف بالعربية من 150 حرف على الأقل"],
-    [p.descriptionEn.trim().length >= 150, 10, "وصف بالإنجليزية من 150 حرف على الأقل"],
-    [p.highlightsAr.length >= 3 && p.highlightsEn.length >= 3, 5, "3 نقاط مميزات على الأقل باللغتين"],
-    [p.specCount >= 3, 10, "3 مواصفات تقنية على الأقل"],
-    [p.images.some((i) => !i.url.toLowerCase().endsWith(".svg")), 10, "صورة حقيقية للمنتج بدل الرسم المؤقت"],
-    [p.images.length > 0 && p.images.every((i) => i.altAr.trim() && i.altEn.trim()), 5, "نص alt لكل صورة باللغتين"],
-    [p.faqCount >= 3, 5, "3 أسئلة شائعة على الأقل"],
-    [isCleanSlug(p.slug), 5, "رابط (slug) نظيف"],
-  ];
-  return {
-    score: checks.reduce((sum, [ok, points]) => sum + (ok ? points : 0), 0),
-    missing: checks.filter(([ok]) => !ok).map(([, points, label]) => ({ label, points })),
-  };
-}
-
 // ───────── Fields ─────────
 
-const TEXT_FIELDS = ["metaTitleAr", "metaTitleEn", "metaDescriptionAr", "metaDescriptionEn", "descriptionAr", "descriptionEn", "slug", "categoryId", "brandId"] as const;
+const TEXT_FIELDS = ["metaTitleAr", "metaTitleEn", "metaDescriptionAr", "metaDescriptionEn", "focusKeywordAr", "focusKeywordEn", "descriptionAr", "descriptionEn", "slug", "categoryId", "brandId"] as const;
 const LIST_FIELDS = ["highlightsAr", "highlightsEn"] as const;
 const LABELS: Record<string, string> = {
   metaTitleAr: "عنوان SEO بالعربية",
   metaTitleEn: "عنوان SEO بالإنجليزية",
   metaDescriptionAr: "Meta description بالعربية",
   metaDescriptionEn: "Meta description بالإنجليزية",
+  focusKeywordAr: "الكلمة المفتاحية بالعربية",
+  focusKeywordEn: "الكلمة المفتاحية بالإنجليزية",
   descriptionAr: "الوصف بالعربية",
   descriptionEn: "الوصف بالإنجليزية",
   highlightsAr: "نقاط المميزات بالعربية",
@@ -207,6 +181,8 @@ export type GeneratedContent = {
   meta_title_en: string;
   meta_description_ar: string;
   meta_description_en: string;
+  focus_keyword_ar: string;
+  focus_keyword_en: string;
   slug: string;
   image_alts: { index: number; alt_ar: string; alt_en: string }[];
   faqs: { question_ar: string; answer_ar: string; question_en: string; answer_en: string }[];
@@ -245,6 +221,8 @@ export function toSuggestionRows(gen: GeneratedContent, current: ProductContent,
   text("metaTitleEn", gen.meta_title_en, 10, MAX_META_TITLE);
   text("metaDescriptionAr", gen.meta_description_ar, 30, MAX_META_DESCRIPTION);
   text("metaDescriptionEn", gen.meta_description_en, 30, MAX_META_DESCRIPTION);
+  text("focusKeywordAr", gen.focus_keyword_ar, 2, 80);
+  text("focusKeywordEn", gen.focus_keyword_en, 2, 80);
 
   for (const [field, list] of [["highlightsAr", gen.highlights_ar], ["highlightsEn", gen.highlights_en]] as const) {
     const clean = list.map((h) => h.trim()).filter((h) => h && backed(fieldLabel(field), h)).slice(0, 8);

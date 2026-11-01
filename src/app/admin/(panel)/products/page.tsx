@@ -9,7 +9,8 @@ import { buttonClass } from "@/components/ui/button";
 import { requireAdmin } from "@/lib/admin";
 import { db } from "@/lib/db";
 import { formatMAD } from "@/lib/money";
-import { seoScore, WEAK_SCORE } from "@/lib/seo-content/rules";
+import { WEAK_SCORE } from "@/lib/seo-content/rules";
+import { ensureScored } from "@/lib/seo-content/score";
 
 const STOCK_LABEL = { inStock: "متوفر", lowStock: "مخزون منخفض", outOfStock: "نفد" } as const;
 
@@ -20,9 +21,11 @@ export default async function ProductsPage({ searchParams }: PageProps<"/admin/p
   const category = typeof sp.category === "string" ? sp.category : "";
   const weakOnly = sp.weak === "1";
 
-  const [rows, categories] = await Promise.all([
+  await ensureScored();
+  const [products, categories] = await Promise.all([
     db.product.findMany({
       where: {
+        ...(weakOnly ? { seoScore: { lt: WEAK_SCORE } } : {}),
         ...(category ? { categoryId: category } : {}),
         ...(q
           ? { OR: [{ nameAr: { contains: q, mode: "insensitive" } }, { nameEn: { contains: q, mode: "insensitive" } }, { variants: { some: { sku: { contains: q.toUpperCase() } } } }] }
@@ -31,16 +34,13 @@ export default async function ProductsPage({ searchParams }: PageProps<"/admin/p
       include: {
         category: { select: { nameAr: true } },
         brand: { select: { name: true } },
-        images: { orderBy: { sortOrder: "asc" } },
+        images: { take: 1, orderBy: { sortOrder: "asc" } },
         variants: { select: { price: true, stock: true } },
-        _count: { select: { specs: true, faqs: true } },
       },
-      orderBy: { updatedAt: "desc" },
+      orderBy: weakOnly ? { seoScore: "asc" } : { updatedAt: "desc" },
     }),
     db.category.findMany({ select: { id: true, nameAr: true }, orderBy: { sortOrder: "asc" } }),
   ]);
-  const scored = rows.map((p) => ({ ...p, seo: seoScore({ ...p, specCount: p._count.specs, faqCount: p._count.faqs }) }));
-  const products = weakOnly ? scored.filter((p) => p.seo.score < WEAK_SCORE).sort((a, b) => a.seo.score - b.seo.score) : scored;
   const input ="min-h-11 admin-field rounded-lg px-3 text-sm text-warm-800";
 
   return (
@@ -123,8 +123,8 @@ export default async function ProductsPage({ searchParams }: PageProps<"/admin/p
                   </td>
                   <td className={tdClass}>{p.isActive ? <Badge tone="success">ظاهر</Badge> : <Badge>مخفي</Badge>}</td>
                   <td className={tdClass}>
-                    <Link href={`/admin/products/${p.id}`} title={p.seo.missing.map((m) => m.label).join("\n") || "كلشي كامل"}>
-                      <ScoreBadge score={p.seo.score} />
+                    <Link href={`/admin/products/${p.id}`} title={p.seoProblems ? `${p.seoProblems} مشكل` : "كلشي كامل"}>
+                      <ScoreBadge score={p.seoScore} />
                     </Link>
                   </td>
                 </tr>

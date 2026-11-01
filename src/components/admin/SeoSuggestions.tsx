@@ -1,13 +1,16 @@
 "use client";
 
 import { Check, ChevronDown, CircleAlert, LoaderCircle, RotateCcw, Sparkles, X } from "lucide-react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useState, useTransition, type ReactNode } from "react";
+import { createContext, useContext, useState, useTransition, type ReactNode } from "react";
 import { acceptAllSeoSuggestions, acceptSeoSuggestion, generateSeoSuggestions, rejectSeoSuggestion, undoSeoSuggestion, type SeoActionState } from "@/app/actions/admin-seo";
 import { buttonClass } from "@/components/ui/button";
+import { scoreTone } from "@/lib/seo-content/checks";
 import type { ProductChanges, SuggestionView } from "@/lib/seo-content/service";
 import { FormMessage } from "./ui";
+
+/** Lets the drawer reload its score and checks as soon as a change is decided. */
+export const SeoChangedContext = createContext<(() => void) | null>(null);
 
 const iconButton = "grid size-10 shrink-0 cursor-pointer place-items-center rounded-md transition-colors disabled:cursor-not-allowed disabled:opacity-50 md:size-8";
 
@@ -32,14 +35,17 @@ function ChangeRow({ row }: { row: SuggestionView }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
+  const onChanged = useContext(SeoChangedContext);
 
   const act = async (action: (id: string) => Promise<SeoActionState>) => {
     setBusy(true);
     setError("");
     try {
       const result = await action(row.id);
-      if (result.ok) router.refresh();
-      else setError(result.message ?? "وقع مشكل.");
+      if (result.ok) {
+        router.refresh();
+        onChanged?.();
+      } else setError(result.message ?? "وقع مشكل.");
     } catch {
       setError("ما قدرناش نوصلو للسيرفر. عاود جرب.");
     } finally {
@@ -126,7 +132,7 @@ export function AppliedList({ rows }: { rows: SuggestionView[] }) {
 }
 
 /** What a product has: orange rows first, the others, then one line for what already went live. */
-export function ChangesTable({ product }: { product: Pick<ProductChanges, "pending" | "auto"> }) {
+export function ChangesTable({ product }: { product: ProductChanges }) {
   return (
     <>
       {product.pending.length ? (
@@ -141,80 +147,46 @@ export function ChangesTable({ product }: { product: Pick<ProductChanges, "pendi
           <AppliedList rows={product.auto} />
         </CollapsedGroup>
       ) : null}
+      {product.accepted.length ? (
+        <CollapsedGroup label={`اللي قبلتي (${product.accepted.length})`}>
+          <AppliedList rows={product.accepted} />
+        </CollapsedGroup>
+      ) : null}
     </>
   );
 }
 
-export function ProductAccordion({ product, defaultOpen = false }: { product: ProductChanges; defaultOpen?: boolean }) {
-  const [open, setOpen] = useState(defaultOpen);
+/** "قبول الكل" for one product: every waiting change except what still needs checking. */
+export function AcceptAllButton({ productId, count }: { productId: string; count: number }) {
   const [state, setState] = useState<SeoActionState>({});
   const [pending, start] = useTransition();
   const router = useRouter();
-
-  const acceptable = product.pending.filter((r) => !r.needsCheck).length;
-  const approvals = product.pending.filter((r) => r.approval).length;
+  const onChanged = useContext(SeoChangedContext);
+  if (!count) return null;
   const acceptAll = () =>
     start(async () => {
       setState({});
       try {
-        const result = await acceptAllSeoSuggestions(product.productId);
+        const result = await acceptAllSeoSuggestions(productId);
         setState(result.ok ? {} : result);
         router.refresh();
+        onChanged?.();
       } catch {
         setState({ ok: false, message: "ما قدرناش نوصلو للسيرفر. عاود جرب." });
       }
     });
-
   return (
-    <section className="admin-card overflow-hidden">
-      <div className="flex items-center gap-2 pe-2">
-        <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex min-h-12 min-w-0 flex-1 cursor-pointer items-center gap-2 ps-2 text-start">
-          <ChevronDown className={`size-4 shrink-0 text-warm-600 transition-transform ${open ? "rotate-180" : ""}`} aria-hidden="true" />
-          <span className="relative size-9 shrink-0 overflow-hidden rounded-md bg-warm-100">
-            {product.image ? <Image src={product.image} alt="" fill sizes="36px" unoptimized className="object-contain p-0.5" /> : null}
-          </span>
-          {/* Phones: the count goes under the name, so the name keeps the width. */}
-          <span className="flex min-w-0 flex-1 flex-col gap-x-2 md:flex-row md:items-center">
-            <span className="min-w-0 truncate text-sm font-bold text-ink">{product.name}</span>
-            <span className="flex shrink-0 items-center gap-2 text-xs text-warm-600">
-              {product.pending.length + product.auto.length} تعديل
-              {approvals ? <span className="rounded-full bg-warning-soft px-2 py-0.5 font-bold text-warning-text">{approvals} موافقة</span> : null}
-            </span>
-          </span>
-        </button>
-        {acceptable ? (
-          <button type="button" disabled={pending} onClick={acceptAll} className={`${buttonClass({ className: "!min-h-9 shrink-0 !px-3 !text-sm" })} ms-auto`}>
-            {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : null}
-            قبول الكل
-          </button>
-        ) : null}
-      </div>
-      {state.message ? (
-        <div className="px-2 pb-2">
-          <FormMessage state={state} />
-        </div>
-      ) : null}
-      {open ? (
-        <div className="border-t border-warm-200 bg-white">
-          <ChangesTable product={product} />
-        </div>
-      ) : null}
-    </section>
+    <span className="flex flex-wrap items-center gap-2">
+      <FormMessage state={state} />
+      <button type="button" disabled={pending} onClick={acceptAll} className={buttonClass({ className: "!min-h-9 shrink-0 !px-3 !text-sm" })}>
+        {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : null}
+        قبول الكل ({count})
+      </button>
+    </span>
   );
 }
-
-export function CollapsedApplied({ label, rows }: { label: string; rows: SuggestionView[] }) {
-  return (
-    <section className="admin-card overflow-hidden">
-      <CollapsedGroup label={label}>
-        <AppliedList rows={rows} />
-      </CollapsedGroup>
-    </section>
-  );
-}
-
 /** The product page's panel: score, what is missing, the generate button, and this product's changes. */
-export function SeoPanel({ productId, score, missing, changes }: { productId: string; score: number; missing: { label: string; points: number }[]; changes: Pick<ProductChanges, "pending" | "auto"> | null }) {
+export function SeoPanel({ productId, score, missing, changes }: { productId: string; score: number; missing: { label: string; points: number }[]; changes: ProductChanges }) {
   const [state, setState] = useState<SeoActionState>({});
   const [pending, start] = useTransition();
   const [showMissing, setShowMissing] = useState(false);
@@ -262,7 +234,7 @@ export function SeoPanel({ productId, score, missing, changes }: { productId: st
           ))}
         </ul>
       ) : null}
-      {changes ? (
+      {changes.pending.length || changes.auto.length || changes.accepted.length ? (
         <div className="border-t border-warm-200 bg-white">
           <ChangesTable product={changes} />
           <p className="border-t border-warm-200 bg-warm-50 px-3 py-1.5 text-xs text-warm-600">كل قبول ولا تراجع كيحدّث هاد الصفحة: احفظ تعديلاتك ديال المنتج قبل.</p>
@@ -273,7 +245,7 @@ export function SeoPanel({ productId, score, missing, changes }: { productId: st
 }
 
 export function ScoreBadge({ score }: { score: number }) {
-  const tone = score >= 80 ? "bg-success-soft text-success" : score >= 60 ? "bg-yellow-100 text-yellow-900" : "bg-danger-soft text-danger";
+  const tone = { green: "bg-success-soft text-success", orange: "bg-warning-soft text-warning-text", red: "bg-danger-soft text-danger" }[scoreTone(score)];
   return (
     <span className={`inline-grid min-w-10 place-items-center rounded-full px-2 py-0.5 text-sm font-extrabold ${tone}`} title={`${score} من 100`}>
       {score}
