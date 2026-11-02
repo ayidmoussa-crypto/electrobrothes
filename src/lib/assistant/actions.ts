@@ -1,7 +1,8 @@
 import "server-only";
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
+import { cloudinaryConfigured, uploadImage } from "@/lib/cloudinary";
 import { db } from "@/lib/db";
 import { formatMAD } from "@/lib/money";
 import { slugify } from "@/lib/product-input";
@@ -166,30 +167,6 @@ export async function proposeDraft(input: z.infer<typeof draftProposal>, ctx: { 
   return toCard(row);
 }
 
-// ───────── Cloudinary (draft photo) ─────────
-
-const cloudinaryConfigured = () => !!(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET);
-
-/** Returns the hosted URL, or null when the upload fails: the draft is still worth creating. */
-async function uploadPhoto(base64: string) {
-  const timestamp = Math.floor(Date.now() / 1000);
-  const folder = "electrobrothers/products";
-  const signature = createHash("sha1").update(`folder=${folder}&timestamp=${timestamp}${process.env.CLOUDINARY_API_SECRET}`).digest("hex");
-  const body = new FormData();
-  body.set("file", `data:image/jpeg;base64,${base64}`);
-  body.set("api_key", process.env.CLOUDINARY_API_KEY!);
-  body.set("timestamp", String(timestamp));
-  body.set("folder", folder);
-  body.set("signature", signature);
-  try {
-    const res = await fetch(`https://api.cloudinary.com/v1_1/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload`, { method: "POST", body, signal: AbortSignal.timeout(20_000) });
-    if (!res.ok) return null;
-    return ((await res.json()) as { secure_url?: string }).secure_url ?? null;
-  } catch {
-    return null;
-  }
-}
-
 // ───────── Confirm / cancel / undo (admin only: callers run requireAdmin) ─────────
 
 /** Claims a row inside the transaction, so a double click or a second tab applies it only once. */
@@ -231,7 +208,7 @@ export async function applyAction(id: string, admin: string) {
 
   const p = row.payload as unknown as DraftPayload;
   // Outside the transaction: never hold a database connection during an upload.
-  const imageUrl = row.photo ? await uploadPhoto(row.photo) : null;
+  const imageUrl = row.photo ? await uploadImage(row.photo, "electrobrothers/products") : null;
   const suffix = randomBytes(3).toString("hex");
   const slugs = await db.$transaction(async (tx) => {
     await claim(tx, id, "PENDING", { status: "APPLIED", decidedBy: admin, decidedAt: new Date(), photo: null }, gone);

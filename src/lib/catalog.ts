@@ -17,7 +17,7 @@ const cardSelect = {
   brand: { select: { name: true, slug: true } },
   images: { select: { url: true, altAr: true, altEn: true }, orderBy: { sortOrder: "asc" }, take: 1 },
   variants: { select: { price: true, compareAtPrice: true, stock: true, storage: true }, orderBy: { sortOrder: "asc" } },
-  reviews: { select: { rating: true }, where: { isApproved: true } },
+  reviews: { select: { rating: true }, where: { isApproved: true, verified: true } },
   specs: { select: { key: true, valueEn: true, numericValue: true }, where: { key: { in: ["ram", "storage", "screen", "cpu"] } } },
 } satisfies Prisma.ProductSelect;
 
@@ -171,7 +171,8 @@ export async function getProduct(slug: string) {
       variants: { omit: { costPrice: true, lowStockAt: true }, orderBy: { sortOrder: "asc" } },
       specs: { orderBy: { sortOrder: "asc" } },
       faqs: { orderBy: { sortOrder: "asc" } },
-      reviews: { where: { isApproved: true }, orderBy: { createdAt: "desc" } },
+      reviews: { where: { isApproved: true, verified: true }, orderBy: { createdAt: "desc" } },
+      externalRatings: { where: { status: "APPROVED" }, orderBy: { source: "asc" }, select: { id: true, source: true, url: true, rating: true, ratingMax: true, ratingCount: true, summaryAr: true, summaryEn: true } },
     },
   });
   if (!p) return null;
@@ -205,7 +206,7 @@ export async function getTestimonials(take = 3) {
   cacheLife("hours");
   cacheTag("products");
   return db.review.findMany({
-    where: { isApproved: true, rating: 5 },
+    where: { isApproved: true, verified: true, rating: 5 },
     select: { id: true, authorName: true, city: true, rating: true, comment: true, product: { select: { nameAr: true, nameEn: true } } },
     orderBy: { createdAt: "desc" },
     take,

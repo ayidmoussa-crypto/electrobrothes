@@ -11,6 +11,8 @@ import { db } from "@/lib/db";
 import { formatMAD } from "@/lib/money";
 import { allowedNext, type OrderStatus } from "@/lib/order-rules";
 import { formatMoroccanPhone } from "@/lib/phone";
+import { reviewLink } from "@/lib/reviews/customer";
+import { reviewWhatsappMessage } from "@/lib/reviews/rules";
 import { TIME_ZONE } from "@/lib/time";
 
 const dateFmt = new Intl.DateTimeFormat("ar-MA", { dateStyle: "medium", timeStyle: "short", timeZone: TIME_ZONE });
@@ -31,9 +33,10 @@ export default async function OrderDetail({ params }: PageProps<"/admin/orders/[
     include: { items: true, logs: { orderBy: { createdAt: "asc" } } },
   });
   if (!order) notFound();
-  const [blacklisted, otherOrders] = await Promise.all([
+  const [blacklisted, otherOrders, reviewed] = await Promise.all([
     db.blacklist.findUnique({ where: { phone: order.phone } }),
     db.order.count({ where: { phone: order.phone, id: { not: order.id } } }),
+    db.review.count({ where: { orderItem: { orderId: order.id } } }),
   ]);
 
   const waNumber = order.phone.replace("+", "");
@@ -166,6 +169,19 @@ export default async function OrderDetail({ params }: PageProps<"/admin/orders/[
             )}
             <p className="mt-3 text-xs text-warm-600">يُخصم المخزون عند التأكيد ويُعاد عند الإلغاء أو الإرجاع.</p>
           </Panel>
+
+          {order.status === "DELIVERED" ? (
+            <Panel title="طلب التقييم">
+              <p className="text-sm text-warm-600">{reviewed} من {order.items.length} منتجات تقيّمات.</p>
+              <a href={`https://wa.me/${waNumber}?text=${encodeURIComponent(reviewWhatsappMessage(order.customerName, order.number, reviewLink(order.id)))}`} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-lg bg-whatsapp px-4 font-semibold text-ink hover:opacity-90">
+                <MessageCircle className="size-4" aria-hidden="true" />
+                رسالة التقييم فواتساب
+              </a>
+              <a href={reviewLink(order.id)} target="_blank" rel="noopener noreferrer" className="mt-2 block text-xs text-warm-600 underline underline-offset-2">
+                الرابط الخاص بهذا الطلب
+              </a>
+            </Panel>
+          ) : null}
 
           <Panel title="سجل الطلب">
             <ol className="flex flex-col gap-3 border-s-2 border-warm-200 ps-4 text-sm">

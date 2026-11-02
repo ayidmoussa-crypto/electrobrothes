@@ -11,6 +11,28 @@ function transport() {
   return nodemailer.createTransport({ host: SMTP_HOST, port, secure: port === 465, auth: { user: SMTP_USER, pass: SMTP_PASS } });
 }
 
+/** Warns the shop about a 1 or 2 star review, so they can call the customer. Plain text: the comment is untrusted. */
+export async function notifyNegativeReview(reviewId: string) {
+  const mailer = transport();
+  const [review, settings] = await Promise.all([
+    db.review.findUnique({ where: { id: reviewId }, select: { rating: true, comment: true, authorName: true, product: { select: { nameAr: true } }, orderItem: { select: { order: { select: { number: true, phone: true } } } } } }),
+    db.settings.findUnique({ where: { id: 1 } }),
+  ]);
+  const to = settings?.notifyEmail || process.env.NOTIFY_EMAIL;
+  if (!review || !mailer || !to) return;
+  const order = review.orderItem?.order;
+  try {
+    await mailer.sendMail({
+      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+      to,
+      subject: `تقييم سلبي (${review.rating}/5): ${review.product.nameAr}`.replace(/[\r\n]+/g, " "),
+      text: `${review.authorName}${order ? ` · ${order.number} · ${order.phone}` : ""}\n\n${review.comment}\n\nاتصل بالزبون، وراجع التقييم من لوحة التحكم: /admin/reviews`,
+    });
+  } catch (error) {
+    console.error("[notify] negative review: email failed", error);
+  }
+}
+
 /**
  * Emails the shop about a new order. Runs after the response (next/server `after`), so a slow
  * or failing mail server never delays or breaks the customer's checkout.

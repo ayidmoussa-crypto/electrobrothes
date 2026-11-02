@@ -33,20 +33,20 @@ model Brand {
 }
 
 model Product {
-  id                String          @id @default(cuid())
-  slug              String          @unique
+  id                String           @id @default(cuid())
+  slug              String           @unique
   nameAr            String
   nameEn            String
   descriptionAr     String
   descriptionEn     String
   categoryId        String
-  category          Category        @relation(fields: [categoryId], references: [id])
+  category          Category         @relation(fields: [categoryId], references: [id])
   brandId           String
-  brand             Brand           @relation(fields: [brandId], references: [id])
-  warrantyMonths    Int             @default(12)
-  isActive          Boolean         @default(true)
-  isFeatured        Boolean         @default(false)
-  isBestSeller      Boolean         @default(false)
+  brand             Brand            @relation(fields: [brandId], references: [id])
+  warrantyMonths    Int              @default(12)
+  isActive          Boolean          @default(true)
+  isFeatured        Boolean          @default(false)
+  isBestSeller      Boolean          @default(false)
   // Limited-time offer: shown with a countdown until this date.
   dealEndsAt        DateTime?
   // Purchase price (MAD), admin only: never selected for the storefront. A colour may override it.
@@ -62,11 +62,11 @@ model Product {
   focusKeywordAr    String?
   focusKeywordEn    String?
   // Rule-based SEO results, saved so lists stay fast: see lib/seo-content/score.ts.
-  seoScore          Int             @default(0)
-  seoScoreAr        Int             @default(0)
-  seoScoreEn        Int             @default(0)
-  seoProblems       Int             @default(0)
-  seoDuplicateTitle Boolean         @default(false)
+  seoScore          Int              @default(0)
+  seoScoreAr        Int              @default(0)
+  seoScoreEn        Int              @default(0)
+  seoProblems       Int              @default(0)
+  seoDuplicateTitle Boolean          @default(false)
   seoScoredAt       DateTime?
   images            ProductImage[]
   variants          Variant[]
@@ -76,8 +76,9 @@ model Product {
   faqs              ProductFaq[]
   seoSuggestions    SeoSuggestion[]
   slugRedirects     SlugRedirect[]
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  externalRatings   ExternalRating[]
 
   @@index([categoryId, isActive])
   @@index([brandId])
@@ -200,17 +201,59 @@ model Spec {
 }
 
 model Review {
-  id         String   @id @default(cuid())
-  productId  String
-  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  authorName String
-  city       String?
-  rating     Int
-  comment    String
-  isApproved Boolean  @default(true)
-  createdAt  DateTime @default(now())
+  id             String     @id @default(cuid())
+  productId      String
+  product        Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  authorName     String
+  city           String?
+  rating         Int
+  comment        String
+  isApproved     Boolean    @default(true)
+  createdAt      DateTime   @default(now())
+  // Set when a customer reviews a delivered order. Only these are shown and counted in aggregateRating.
+  orderItemId    String?    @unique
+  orderItem      OrderItem? @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+  verified       Boolean    @default(false)
+  photoUrl       String?
+  locale         String?
+  rejectedAt     DateTime?
+  decidedBy      String?
+  // Written by Claude, never shown until the owner publishes it as replyText.
+  suggestedReply String?
+  replyText      String?
 
   @@index([productId, isApproved])
+  @@index([isApproved, rejectedAt, createdAt])
+}
+
+enum ExternalRatingStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// A rating published on another website, for this exact model. Never counted in structured data.
+model ExternalRating {
+  id            String               @id @default(cuid())
+  productId     String
+  product       Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
+  source        String
+  url           String
+  rating        Float
+  ratingMax     Float                @default(5)
+  ratingCount   Int?
+  // Our own words, never the reviewers'.
+  summaryAr     String?
+  summaryEn     String?
+  status        ExternalRatingStatus @default(PENDING)
+  lastCheckedAt DateTime
+  suggestedByAi Boolean              @default(false)
+  decidedBy     String?
+  decidedAt     DateTime?
+  createdAt     DateTime             @default(now())
+
+  @@unique([productId, url])
+  @@index([status, lastCheckedAt])
 }
 
 // ───────────────────────── Delivery & settings ─────────────────────────
@@ -320,6 +363,7 @@ model OrderItem {
   variantLabel String?
   unitPrice    Int
   quantity     Int
+  review       Review?
 
   @@index([orderId])
   @@index([variantId])

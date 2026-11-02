@@ -13,12 +13,15 @@ const PRICES: Record<string, { input: number; output: number; cacheRead: number;
 // A refused Sonnet request can be served by another model: count it high rather than under the ceiling.
 const UNKNOWN_MODEL = { input: 5, output: 25, cacheRead: 0.5, cacheWrite: 6.25 };
 
-export type Tokens = { input: number; output: number; cacheRead?: number; cacheWrite?: number };
+export type Tokens = { input: number; output: number; cacheRead?: number; cacheWrite?: number; webSearches?: number };
+
+/** Web search is billed per search: $10 per 1,000. */
+const WEB_SEARCH_MICROS = 10_000;
 
 /** Cost of one API call in millionths of a dollar. A token at $1 per million is exactly 1 micro. */
 export function costMicros(model: string, t: Tokens) {
   const p = PRICES[model] ?? UNKNOWN_MODEL;
-  return Math.ceil(t.input * p.input + t.output * p.output + (t.cacheRead ?? 0) * p.cacheRead + (t.cacheWrite ?? 0) * p.cacheWrite);
+  return Math.ceil(t.input * p.input + t.output * p.output + (t.cacheRead ?? 0) * p.cacheRead + (t.cacheWrite ?? 0) * p.cacheWrite + (t.webSearches ?? 0) * WEB_SEARCH_MICROS);
 }
 
 const monthFormat = new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", timeZone: TIME_ZONE });

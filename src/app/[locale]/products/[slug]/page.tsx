@@ -1,5 +1,6 @@
-import { Banknote, BadgeCheck, Check, ChevronDown, GitCompareArrows, ShieldCheck, Star, Truck } from "lucide-react";
+import { Banknote, BadgeCheck, Check, ChevronDown, ExternalLink, GitCompareArrows, ShieldCheck, Star, Truck } from "lucide-react";
 import type { Metadata } from "next";
+import Image from "next/image";
 import { notFound, permanentRedirect } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Breadcrumbs } from "@/components/store/Breadcrumbs";
@@ -10,6 +11,7 @@ import { ProductPurchase } from "@/components/store/ProductPurchase";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { getProduct, getProductCards, getProductSlugs, getSlugRedirect } from "@/lib/catalog";
+import { formatCount, formatRating } from "@/lib/reviews/rules";
 import { localizedPath, pageMetadata } from "@/lib/seo";
 import { shareImageUrl } from "@/lib/seo-content/rules";
 import { getCheckoutConfig } from "@/lib/store-config";
@@ -112,6 +114,26 @@ export default async function ProductPage({ params }: PageProps<"/[locale]/produ
               <a href="#reviews" className="mt-2 inline-block">
                 <Rating value={product.rating} count={product.reviews.length} locale={locale} />
               </a>
+            ) : null}
+            {product.externalRatings.length ? (
+              <div className="mt-3">
+                <ul className="flex flex-col gap-1 text-sm">
+                  {product.externalRatings.map((r) => (
+                    <li key={r.id}>
+                      <a href={r.url} target="_blank" rel="noopener noreferrer nofollow" className="inline-flex min-h-6 items-center gap-1 font-semibold text-ink underline underline-offset-2">
+                        {r.ratingCount === null ? t("externalRowNoCount", { rating: formatRating(r.rating, r.ratingMax), source: r.source }) : t("externalRow", { rating: formatRating(r.rating, r.ratingMax), source: r.source, count: formatCount(r.ratingCount) })}
+                        <ExternalLink className="size-3.5 shrink-0" aria-hidden="true" />
+                      </a>
+                      {(ar ? r.summaryAr : r.summaryEn) ? (
+                        <p className="text-xs text-warm-600">
+                          {t("externalSummary")} {ar ? r.summaryAr : r.summaryEn}
+                        </p>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-1 text-xs text-warm-600">{t("externalNote")}</p>
+              </div>
             ) : null}
           </div>
 
@@ -242,7 +264,23 @@ export default async function ProductPage({ params }: PageProps<"/[locale]/produ
                       ))}
                     </span>
                   </div>
-                  <p className="mt-2 text-warm-800">{r.comment}</p>
+                  <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-success">
+                    <BadgeCheck className="size-3.5" aria-hidden="true" />
+                    {t("verifiedPurchase")}
+                  </p>
+                  <p className="mt-2 text-warm-800" dir="auto">
+                    {r.comment}
+                  </p>
+                  {r.photoUrl ? (
+                    <a href={r.photoUrl} target="_blank" rel="noopener noreferrer" className="relative mt-2 block size-24 overflow-hidden rounded-lg bg-warm-100">
+                      <Image src={r.photoUrl} alt="" fill sizes="96px" className="object-cover" />
+                    </a>
+                  ) : null}
+                  {r.replyText ? (
+                    <p className="mt-2 rounded-lg bg-warm-50 p-2.5 text-sm text-warm-800" dir="auto">
+                      <span className="font-semibold text-ink">{t("storeReply")}</span> {r.replyText}
+                    </p>
+                  ) : null}
                   <p className="mt-2 text-xs text-warm-500">{dateFormat[locale].format(r.createdAt)}</p>
                 </li>
               ))}
