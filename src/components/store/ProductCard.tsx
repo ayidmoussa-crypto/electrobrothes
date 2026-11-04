@@ -37,7 +37,8 @@ export async function ProductCard({
     .slice(0, 2);
 
   return (
-    <article className="group relative flex flex-col overflow-hidden rounded-xl border border-warm-200 bg-white transition-shadow duration-200 hover:shadow-lg hover:shadow-ink/5">
+    // h-full: every card in a row ends on the same line, whatever the length of its name.
+    <article className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-warm-200 bg-white transition-shadow duration-200 hover:shadow-lg hover:shadow-ink/5">
       <div className="relative aspect-square bg-warm-50">
         {p.image ? (
           <Image
