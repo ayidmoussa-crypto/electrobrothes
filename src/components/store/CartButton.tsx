@@ -21,8 +21,8 @@ export function CartButton() {
           e.preventDefault();
           openCartDrawer();
         }}
-        // Phones: a yellow round button, the one action colour standing out in the slim bar.
-        className="relative inline-flex size-11 items-center justify-center rounded-full transition-colors hover:text-yellow-500 max-md:bg-yellow-500 max-md:text-ink max-md:hover:bg-yellow-600 max-md:hover:text-ink max-md:active:bg-yellow-700"
+        // Phones: a yellow round button, smaller than the logo beside it; ::before keeps the 44px tap area.
+        className="relative inline-flex size-11 items-center justify-center rounded-full transition-colors hover:text-yellow-500 max-md:size-9 max-md:bg-yellow-500 max-md:text-ink max-md:before:absolute max-md:before:-inset-1 max-md:hover:bg-yellow-600 max-md:hover:text-ink max-md:active:bg-yellow-700"
       >
         <ShoppingBag className="size-6 max-md:size-5" aria-hidden="true" />
         <span className="sr-only">{t("cart")}</span>

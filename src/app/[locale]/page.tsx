@@ -29,7 +29,8 @@ async function Hero() {
 
   return (
     // Slides 1.5rem up under the header so its rounded bottom corners sit on the dark hero, not on white.
-    <section className="relative isolate -mt-6 overflow-hidden bg-ink pt-6">
+    // Runs up behind the floating header (its margin plus its height), so the bar sits on the photo.
+    <section className="relative isolate -mt-20 overflow-hidden bg-ink pt-20 md:-mt-[141px] md:pt-[141px]">
       {/* Store photo, full bleed. The products sit opposite the text: on the left in Arabic, mirrored for English. */}
       <Image
         src={heroPhoto}
@@ -78,10 +79,10 @@ async function Categories({ locale }: { locale: Locale }) {
       <SectionHeader title={t("categoriesTitle")} locale={locale} />
       {/*
         Round categories with a grey line icon of the product. Hover/focus: the disc turns ink, the icon brand
-        yellow, and it lifts on a soft neutral shadow. Phones swipe (native scroll + snap); from md the five
+        yellow, and it lifts on a soft neutral shadow. Phones swipe (native scroll + snap); from md the six
         sit in one row.
       */}
-      <ul className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-px-4 px-4 pt-3 pb-2 [scrollbar-width:none] sm:gap-6 md:mx-0 md:grid md:grid-cols-5 md:overflow-visible md:px-0 [&::-webkit-scrollbar]:hidden">
+      <ul className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-px-4 px-4 pt-3 pb-2 [scrollbar-width:none] sm:gap-6 md:mx-0 md:grid md:grid-cols-6 md:overflow-visible md:px-0 [&::-webkit-scrollbar]:hidden">
         {categories.map((c) => (
           <li key={c.slug} className="shrink-0 snap-start">
             <Link
@@ -107,6 +108,7 @@ async function BestSellers({ locale }: { locale: Locale }) {
     getTranslations("listing"),
     getProductCards({ bestSellers: true, take: 8 }),
   ]);
+  if (!products.length) return null;
   return (
     <section className="mx-auto max-w-7xl px-4 py-12">
       <SectionHeader title={t("bestSellersTitle")} href="/search?sort=rating" linkLabel={t("viewAll")} locale={locale} />

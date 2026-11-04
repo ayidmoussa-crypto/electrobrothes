@@ -1,4 +1,4 @@
-import { BatteryCharging, Headphones, Package, PlugZap, Speaker, Watch, type LucideIcon } from "lucide-react";
+import { BatteryCharging, Headphones, Package, PlugZap, Smartphone, Speaker, Watch, type LucideIcon } from "lucide-react";
 
 // Line icon that reads as the product itself; categories added later from the admin fall back to a parcel.
 const ICONS: Record<string, LucideIcon> = {
@@ -7,6 +7,7 @@ const ICONS: Record<string, LucideIcon> = {
   chargers: PlugZap,
   "power-banks": BatteryCharging,
   "other-devices": Speaker,
+  "phone-cases": Smartphone,
 };
 
 export function CategoryIcon({ slug, className }: { slug: string; className?: string }) {

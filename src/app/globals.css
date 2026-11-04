@@ -252,6 +252,11 @@ dialog.drawer:not([open])::backdrop {
     scroll-padding-top: 9rem;
   }
 
+  /* Focus inside the header itself: it is always in view, and the padding above would make the page jump up. */
+  html:has(header :focus) {
+    scroll-padding-top: 0;
+  }
+
   body {
     background-color: var(--color-white);
     color: var(--color-warm-800);

@@ -12,7 +12,7 @@ import { useSearchToggle } from "./HeaderShell";
 
 const iconButton = "grid size-11 cursor-pointer place-items-center rounded-full transition-colors hover:text-yellow-500";
 
-/** Phone-only search icon: unfolds the search box under the header row. */
+/** Phone-only search icon: unfolds the search box sideways, inside the header row. */
 export function SearchToggleButton() {
   const t = useTranslations("header");
   const { open, setOpen } = useSearchToggle();
@@ -51,7 +51,7 @@ export function SearchBox({ action }: { action: string }) {
 
   // Unfolded from the phone search icon: put the cursor straight in the field.
   useEffect(() => {
-    if (toggle.open) inputRef.current?.focus();
+    if (toggle.open) inputRef.current?.focus({ preventScroll: true });
   }, [toggle.open]);
 
   useEffect(() => {
@@ -91,8 +91,10 @@ export function SearchBox({ action }: { action: string }) {
       method="get"
       role="search"
       id="site-search-form"
-      // Phones: folded behind the search icon until opened.
-      className={`relative order-last flex w-full md:order-none md:mx-6 md:flex-1 ${toggle.open ? "" : "max-md:hidden"}`}
+      // Phones: folded to nothing beside the search icon, it grows sideways between the menu button and the
+      // icons. Not positioned there, so the suggestions open at the full width of the header, not of this box.
+      // Visible at once when opening (a hidden field cannot take the cursor), and only after folding when closing.
+      className={`flex min-w-0 duration-300 max-md:order-1 md:relative md:mx-6 md:flex-1 ${toggle.open ? "transition-[flex-grow] max-md:flex-[1_1_0%]" : "transition-[flex-grow,visibility] max-md:invisible max-md:flex-[0_0_0%]"}`}
       onSubmit={(e) => {
         if (active >= 0 && items[active]) {
           e.preventDefault();
@@ -135,9 +137,10 @@ export function SearchBox({ action }: { action: string }) {
         aria-autocomplete="list"
         aria-activedescendant={showList && active >= 0 ? optionId(active) : undefined}
         placeholder={t("searchPlaceholder")}
-        className="min-h-11 w-full min-w-0 rounded-s-lg border-0 bg-white px-4 text-base text-warm-800 placeholder:text-warm-400"
+        className="min-h-11 w-full min-w-0 rounded-s-lg border-0 bg-white px-4 text-base text-warm-800 text-ellipsis placeholder:text-warm-400 focus-visible:shadow-none focus-visible:outline-none [&::-webkit-search-cancel-button]:appearance-none max-md:min-h-10 max-md:rounded-full max-md:px-3"
       />
-      <button type="submit" className={buttonClass({ className: "rounded-s-none" })}>
+      {/* Phones search from the keyboard's own key: the narrow field needs this button's width. */}
+      <button type="submit" className={buttonClass({ className: "rounded-s-none max-md:hidden" })}>
         <Search className="size-5" aria-hidden="true" />
         <span className="sr-only md:not-sr-only">{t("searchButton")}</span>
       </button>

@@ -54,7 +54,7 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
           >
             {a11y("skipToContent")}
           </a>
-          <p className="bg-deep px-4 py-2 text-center text-xs font-medium text-warm-300">{t("cod")}</p>
+          <p className="relative z-10 bg-deep px-4 py-2 text-center text-xs font-medium text-warm-300">{t("cod")}</p>
           <Header />
           <main id="main" className="flex-1">
             {children}

@@ -96,7 +96,8 @@ export async function getBrands() {
   cacheLife("hours");
   cacheTag("products");
   return db.brand.findMany({
-    where: { products: { some: { isActive: true } } },
+    // "generic" only fills the required field on unbranded products: not a brand to show off.
+    where: { slug: { not: "generic" }, products: { some: { isActive: true } } },
     select: { slug: true, name: true },
     orderBy: { name: "asc" },
   });

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname } from "@/i18n/navigation";
 
 /** Phones show a search icon instead of the full box; this tracks whether the box is unfolded. */
@@ -26,13 +26,33 @@ export function HeaderShell({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  // The phone keyboard can pan the visible area past a sticky bar: keep the bar on screen while searching.
+  const header = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const view = window.visualViewport;
+    const el = header.current;
+    if (!searchOpen || !view || !el) return;
+    const follow = () => {
+      el.style.transform = view.offsetTop ? `translateY(${view.offsetTop}px)` : "";
+    };
+    follow();
+    view.addEventListener("resize", follow);
+    view.addEventListener("scroll", follow);
+    return () => {
+      view.removeEventListener("resize", follow);
+      view.removeEventListener("scroll", follow);
+      el.style.transform = "";
+    };
+  }, [searchOpen]);
+
   return (
     <SearchToggle.Provider value={{ open: searchOpen, setOpen: setSearchOpen }}>
       <header
+        ref={header}
         data-scrolled={scrolled}
         data-search={searchOpen ? "open" : "closed"}
-        // Bottom corners rounded; the sides stay straight.
-        className={`group/header sticky top-0 z-30 rounded-b-3xl bg-ink text-white ${scrolled ? "shadow-lg shadow-ink/25" : ""}`}
+        // A floating bar: it never touches the screen edges, at rest or while scrolling.
+        className={`group/header sticky top-3 z-30 mx-3 mt-3 rounded-3xl bg-ink text-white md:mx-4 ${scrolled ? "shadow-lg shadow-ink/25" : ""}`}
       >
         {children}
       </header>

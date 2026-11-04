@@ -15,11 +15,12 @@ export async function Header() {
 
   return (
     <HeaderShell>
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3 md:flex-nowrap">
+      <div className="mx-auto flex max-w-7xl items-center gap-x-2 px-3 py-3 md:gap-x-4 md:px-4">
         {/* Phones: the menu button leads the bar (its drawer slides out from this same edge); the logo closes it. */}
         <MobileMenu items={navItems} />
 
-        <Link href="/" aria-label={t("home")} className="flex shrink-0 items-center gap-2 rounded-md max-md:order-2">
+        {/* The smallest phones make room for the open search by folding the logo away. */}
+        <Link href="/" aria-label={t("home")} className="flex shrink-0 items-center gap-2 rounded-md max-md:order-3 group-data-[search=open]/header:max-[359px]:hidden">
           {/* Logo only: the link's aria-label carries the brand name for screen readers. */}
           <Logo className="h-10 w-auto text-white" />
         </Link>
@@ -28,7 +29,7 @@ export async function Header() {
         <SearchBox action={getPathname({ href: "/search", locale })} />
 
         {/* Phones: search icon and cart. The language switch and categories live in the side menu there. */}
-        <nav className="ms-auto flex items-center gap-1 max-md:order-1 md:ms-0">
+        <nav className="ms-auto flex shrink-0 items-center gap-1 max-md:order-2 md:ms-0">
           <Link
             href="/"
             locale={otherLocale}
