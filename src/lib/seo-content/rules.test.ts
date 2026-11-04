@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { movedProductPath } from "./slug";
+import { missingProductPath, movedProductPath } from "./slug";
 import { canonical, fieldLabel, fieldValue, isCleanSlug, NEEDS_CHECK_AR, needsApproval, previewValue, shareImageUrl, toSuggestionRows, unbackedClaim, type ClaimFacts, type GeneratedContent, type ProductContent } from "./rules";
 
 const product: ProductContent = {
@@ -175,6 +175,11 @@ test("values compare equal whatever the key order the database returns", () => {
 test("a moved product keeps the visitor's language", () => {
   assert.equal(movedProductPath("", "sony-xm5"), "/products/sony-xm5");
   assert.equal(movedProductPath("/en", "sony-xm5"), "/en/products/sony-xm5");
+});
+
+test("a missing product's 404 keeps the visitor's language", () => {
+  assert.equal(missingProductPath(""), "/ar/missing-product");
+  assert.equal(missingProductPath("/en"), "/en/missing-product");
 });
 
 test("clean slugs", () => {
