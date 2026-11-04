@@ -7,6 +7,7 @@ import { useActionState, useRef, useState } from "react";
 import { submitReview, type ReviewFormState } from "@/app/actions/review";
 import { buttonClass } from "@/components/ui/button";
 import { Field, Textarea } from "@/components/ui/Field";
+import { submitKeepingValues } from "@/lib/forms";
 
 const MAX_SIDE = 1280;
 
@@ -73,7 +74,7 @@ export function ReviewForm({ token, locale, item, photos }: { token: string; loc
   }
 
   return (
-    <form action={action} className="flex flex-col gap-4 rounded-xl border border-warm-200 bg-white p-4">
+    <form action={action} onSubmit={(e) => submitKeepingValues(e, action)} className="flex flex-col gap-4 rounded-xl border border-warm-200 bg-white p-4">
       {header}
       <fieldset>
         <legend className="mb-1 text-sm font-semibold text-ink">{t("stars")}</legend>

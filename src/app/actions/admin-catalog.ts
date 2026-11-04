@@ -5,6 +5,7 @@ import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import { requireAdmin } from "@/lib/admin";
 import { db } from "@/lib/db";
+import { whatsappDigits } from "@/lib/phone";
 import { slugify } from "@/lib/product-input";
 import { moroccanDate } from "@/lib/time";
 
@@ -140,8 +141,8 @@ export async function deleteCoupon(_: State, fd: FormData) {
 // ───────── Settings ─────────
 const settingsInput = z.object({
   freeShippingThreshold: z.coerce.number().int().min(0).max(1_000_000),
-  // International format without "+", e.g. 212612345678 (wa.me format).
-  whatsappNumber: z.string().trim().regex(/^(\d{11,15})?$/),
+  // Typed any way (0612345678, +212 6 12...), stored the way wa.me links expect. Empty hides the button.
+  whatsappNumber: z.string().trim().refine((v) => v === "" || whatsappDigits(v) !== null).transform((v) => (v ? whatsappDigits(v)! : "")),
   notifyEmail: z.union([z.literal(""), z.string().trim().email().max(120)]),
   // Entered in dollars, stored in cents.
   assistantBudgetCents: z.coerce.number().min(0).max(1000).transform((d) => Math.round(d * 100)),

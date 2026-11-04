@@ -17,8 +17,8 @@ export default async function SettingsPage() {
           <L label="حد التوصيل المجاني (درهم)">
             <input name="freeShippingThreshold" type="number" min={0} defaultValue={s?.freeShippingThreshold ?? 1000} required className={inputClass} />
           </L>
-          <L label="رقم واتساب المتجر (بالصيغة الدولية بدون +، مثال: 212612345678)">
-            <input name="whatsappNumber" inputMode="numeric" dir="ltr" defaultValue={s?.whatsappNumber ?? ""} className={inputClass} />
+          <L label="رقم واتساب المتجر (رقم مغربي، مثال: 0612345678)">
+            <input name="whatsappNumber" type="tel" inputMode="tel" dir="ltr" defaultValue={s?.whatsappNumber ?? ""} className={inputClass} />
           </L>
           <L label="البريد الإلكتروني لإشعارات الطلبات الجديدة">
             <input name="notifyEmail" type="email" dir="ltr" defaultValue={s?.notifyEmail ?? ""} className={inputClass} />

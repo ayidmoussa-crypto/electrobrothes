@@ -8,6 +8,11 @@ export function normalizeMoroccanPhone(input: string): string | null {
   return match ? `+212${match[1]}` : null;
 }
 
+/** Any way of writing a Moroccan number → the digits wa.me links expect (212612345678); null when not Moroccan. */
+export function whatsappDigits(input: string): string | null {
+  return normalizeMoroccanPhone(input)?.slice(1) ?? null;
+}
+
 /** "+212612345678" → "06 12 34 56 78" (how Moroccans write it). */
 export function formatMoroccanPhone(e164: string): string {
   const local = `0${e164.slice(4)}`;

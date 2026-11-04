@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useActionState, useState } from "react";
 import { deleteProduct, saveProduct, type ProductFormState } from "@/app/actions/admin-products";
 import { buttonClass } from "@/components/ui/button";
+import { submitKeepingValues } from "@/lib/forms";
 import { slugify, type ProductInput } from "@/lib/product-input";
 import { ActionForm } from "./ActionForm";
 import { FormMessage } from "./ui";
@@ -101,7 +102,7 @@ export function ProductEditor({
 
   return (
     <div className="flex flex-col gap-6">
-      <form action={action} className="flex flex-col gap-6">
+      <form action={action} onSubmit={(e) => submitKeepingValues(e, action)} className="flex flex-col gap-6">
         <input type="hidden" name="payload" value={JSON.stringify(p)} />
 
         {state.errors?.length ? (

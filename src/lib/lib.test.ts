@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { formatMAD } from "./money";
-import { formatMoroccanPhone, normalizeMoroccanPhone } from "./phone";
+import { formatMoroccanPhone, normalizeMoroccanPhone, whatsappDigits } from "./phone";
 import { computeTotals, type CouponRule } from "./pricing";
 
 test("normalizes every way Moroccans write a phone number", () => {
@@ -16,6 +16,14 @@ test("rejects non-Moroccan or malformed phone numbers", () => {
   for (const input of ["0812345678", "061234567", "06123456789", "+33612345678", "abc", ""]) {
     assert.equal(normalizeMoroccanPhone(input), null, input);
   }
+});
+
+test("the store's WhatsApp number is stored the way wa.me expects, however it was typed", () => {
+  for (const input of ["0612345678", "06 12 34 56 78", "+212612345678", "212612345678"]) {
+    assert.equal(whatsappDigits(input), "212612345678", input);
+  }
+  assert.equal(whatsappDigits("abc"), null);
+  assert.equal(whatsappDigits("+33612345678"), null);
 });
 
 test("formats a phone number the local way", () => {

@@ -1,8 +1,9 @@
 "use client";
 
 import { LoaderCircle } from "lucide-react";
-import { useActionState, type ReactNode } from "react";
+import { useActionState, useEffect, useRef, type ReactNode } from "react";
 import { buttonClass, type ButtonVariant } from "@/components/ui/button";
+import { submitKeepingValues } from "@/lib/forms";
 import { FormMessage } from "./ui";
 
 type State = { ok?: boolean; message?: string };
@@ -25,11 +26,18 @@ export function ActionForm({
   confirm?: string;
 }) {
   const [state, formAction, pending] = useActionState(action, {});
+  const form = useRef<HTMLFormElement>(null);
+  // A saved form shows the saved values and an "add" form empties; a failed one keeps what was typed.
+  useEffect(() => {
+    if (state.ok) form.current?.reset();
+  }, [state]);
   return (
     <form
+      ref={form}
       action={formAction}
       onSubmit={(e) => {
         if (confirm && !window.confirm(confirm)) e.preventDefault();
+        else submitKeepingValues(e, formAction);
       }}
       className={className}
     >

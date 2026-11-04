@@ -189,7 +189,7 @@ export default async function OrderDetail({ params }: PageProps<"/admin/orders/[
                 <li key={l.id}>
                   <p className="font-semibold text-ink">{STATUS_LABEL[l.toStatus]}</p>
                   <p className="text-xs text-warm-600">
-                    {dateFmt.format(l.createdAt)} · <span dir="ltr">{l.actor}</span>
+                    {dateFmt.format(l.createdAt)} · <span dir="ltr">{l.actor === "customer" ? "الزبون" : l.actor}</span>
                   </p>
                   {l.note ? <p className="mt-1 text-warm-800">{l.note}</p> : null}
                 </li>

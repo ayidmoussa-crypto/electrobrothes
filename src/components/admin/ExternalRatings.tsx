@@ -6,6 +6,7 @@ import { useActionState, useState, useTransition } from "react";
 import { findExternalRatings, rejectExternalRating, saveExternalRating, type ReviewActionState } from "@/app/actions/admin-reviews";
 import { Badge } from "@/components/ui/Badge";
 import { buttonClass } from "@/components/ui/button";
+import { submitKeepingValues } from "@/lib/forms";
 import { formatCount, formatRating } from "@/lib/reviews/rules";
 import { FormMessage, inputClass, L, Panel } from "./ui";
 
@@ -34,7 +35,7 @@ function RatingForm({ productId, row, onDone }: { productId: string; row?: Exter
     return result;
   }, {});
   return (
-    <form action={action} className="grid gap-2 sm:grid-cols-2">
+    <form action={action} onSubmit={(e) => submitKeepingValues(e, action)} className="grid gap-2 sm:grid-cols-2">
       <input type="hidden" name="productId" value={productId} />
       {row ? <input type="hidden" name="id" value={row.id} /> : null}
       <L label="الموقع">

@@ -9,6 +9,7 @@ import { buttonClass } from "@/components/ui/button";
 import { track } from "@/lib/analytics";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import type { Locale } from "@/i18n/routing";
+import { submitKeepingValues } from "@/lib/forms";
 import { formatMAD } from "@/lib/money";
 import { normalizeMoroccanPhone } from "@/lib/phone";
 import { computeTotals } from "@/lib/pricing";
@@ -64,7 +65,12 @@ export function OrderForm({
 
   // Bring the error summary into view after a failed submit.
   useEffect(() => {
-    if (state.error) summaryRef.current?.focus();
+    if (!state.error) return;
+    summaryRef.current?.focus();
+    // No order was placed: a later quick order from a product page must not empty this cart.
+    try {
+      sessionStorage.removeItem(CLEAR_CART_FLAG);
+    } catch {}
   }, [state]);
 
   const city = config.cities.find((c) => c.id === cityId);
@@ -109,12 +115,13 @@ export function OrderForm({
   return (
     <form
       action={action}
-      onSubmit={() => {
+      onSubmit={(e) => {
         if (source === "cart") {
           try {
             sessionStorage.setItem(CLEAR_CART_FLAG, "1");
           } catch {}
         }
+        submitKeepingValues(e, action);
       }}
       onFocus={trackCheckoutStart}
       className="flex flex-col gap-5"
@@ -131,7 +138,8 @@ export function OrderForm({
 
       <input type="hidden" name="items" value={JSON.stringify(lines.map((l) => ({ variantId: l.variantId, qty: l.qty })))} />
       <input type="hidden" name="locale" value={locale} />
-      <input type="hidden" name="startedAt" ref={startedRef} defaultValue="" />
+      {/* No value prop: React would write it back over the time set after mount on every render. */}
+      <input type="hidden" name="startedAt" ref={startedRef} />
       <input type="hidden" name="coupon" value={coupon?.code ?? ""} />
       {/* Honeypot: invisible to people, irresistible to bots. */}
       <div aria-hidden="true" className="pointer-events-none absolute size-px overflow-hidden opacity-0 [clip-path:inset(50%)]">
@@ -172,7 +180,6 @@ export function OrderForm({
       <Field id={`${source}-city`} label={t("city")} required error={fieldError("cityId")}>
         {(p) => (
           <Select {...p} name="cityId" value={cityId} onChange={(e) => setCityId(e.target.value)} autoComplete="address-level2">
-            {/* Not disabled: React's post-submit form reset would otherwise jump to the first city. */}
             <option value="">{t("chooseCity")}</option>
             {config.cities.map((c) => (
               <option key={c.id} value={c.id}>
