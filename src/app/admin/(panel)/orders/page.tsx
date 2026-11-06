@@ -1,4 +1,5 @@
-import { Download, ShieldAlert } from "lucide-react";
+import { Download, Plus, ShieldAlert } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { StatusButtons, type StatusOption } from "@/components/admin/StatusButtons";
 import { PageHeader, StatusBadge, tdClass, thClass } from "@/components/admin/ui";
@@ -7,6 +8,7 @@ import { Badge } from "@/components/ui/Badge";
 import { requireAdmin } from "@/lib/admin";
 import { filterQuery, orderWhere, parseOrderFilters } from "@/lib/admin-orders";
 import { db } from "@/lib/db";
+import { SOURCE_LABEL } from "@/lib/manual-order";
 import { formatMAD } from "@/lib/money";
 import { ORDER_STATUSES, type OrderStatus } from "@/lib/order-rules";
 import { formatMoroccanPhone } from "@/lib/phone";
@@ -39,7 +41,23 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
       orderBy: { createdAt: "desc" },
       skip: (f.page - 1) * PAGE,
       take: PAGE,
-      select: { id: true, number: true, createdAt: true, customerName: true, phone: true, cityName: true, total: true, status: true, riskScore: true, _count: { select: { items: true } } },
+      select: {
+        id: true,
+        number: true,
+        createdAt: true,
+        customerName: true,
+        phone: true,
+        cityName: true,
+        address: true,
+        total: true,
+        status: true,
+        riskScore: true,
+        source: true,
+        trackingNumber: true,
+        codReceivedAt: true,
+        _count: { select: { items: true } },
+        items: { take: 1, select: { nameAr: true, variant: { select: { product: { select: { images: { orderBy: { sortOrder: "asc" }, take: 1, select: { url: true } } } } } } } },
+      },
     }),
     db.order.count({ where }),
   ]);
@@ -52,17 +70,23 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
         title="الطلبات"
         description={`${total} طلب`}
         actions={
-          <a href={`/admin/orders/export${filterQuery({ ...f, page: 1 })}`} className={buttonClass({ variant: "dark" })}>
-            <Download className="size-4" aria-hidden="true" />
-            تصدير CSV لشركة التوصيل
-          </a>
+          <>
+            <Link href="/admin/orders/new" className={buttonClass()}>
+              <Plus className="size-4" aria-hidden="true" />
+              إضافة طلب
+            </Link>
+            <a href={`/admin/orders/export${filterQuery({ ...f, page: 1 })}`} className={buttonClass({ variant: "dark" })}>
+              <Download className="size-4" aria-hidden="true" />
+              تصدير CSV لشركة التوصيل
+            </a>
+          </>
         }
       />
 
       <form method="get" className="mb-4 flex flex-wrap items-end gap-2 admin-card p-3">
         <label className="flex flex-col gap-1 text-xs text-warm-600">
           بحث
-          <input name="q" defaultValue={f.q} placeholder="رقم الطلب، الاسم أو الهاتف" className={`${input} w-56`} />
+          <input name="q" defaultValue={f.q} placeholder="رقم الطلب، التتبع، الاسم أو الهاتف" className={`${input} w-56`} />
         </label>
         <label className="flex flex-col gap-1 text-xs text-warm-600">
           الحالة
@@ -96,30 +120,48 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
       </form>
 
       <div className="overflow-x-auto admin-card">
-        <table className="w-full min-w-[56rem]">
+        <table className="w-full min-w-[72rem]">
           <thead className="border-b border-white/70 bg-white/45">
             <tr>
               <th className={thClass}>الطلب</th>
               <th className={thClass}>التاريخ</th>
               <th className={thClass}>الزبون</th>
-              <th className={thClass}>المدينة</th>
-              <th className={thClass}>المبلغ</th>
+              <th className={thClass}>العنوان</th>
+              <th className={thClass}>التحصيل</th>
               <th className={thClass}>الحالة</th>
+              <th className={thClass}>المبلغ</th>
               <th className={thClass}>إجراء سريع</th>
             </tr>
           </thead>
           <tbody>
-            {orders.map((o) => (
+            {orders.map((o) => {
+              const first = o.items[0];
+              const image = first?.variant?.product.images[0]?.url;
+              return (
               <tr key={o.id} className="border-b border-warm-200/60 last:border-0 transition-colors hover:bg-white/60">
                 <td className={tdClass}>
-                  <Link href={`/admin/orders/${o.id}`} className="font-mono font-bold text-ink underline-offset-4 hover:underline" dir="ltr">
-                    {o.number}
-                  </Link>
-                  {o.riskScore >= 30 ? (
-                    <Badge tone="warning" className="ms-2" icon={<ShieldAlert className="size-3.5" aria-hidden="true" />}>
-                      مشبوه {o.riskScore}
-                    </Badge>
-                  ) : null}
+                  <div className="flex items-center gap-3">
+                    <span className="relative size-12 shrink-0 overflow-hidden rounded-lg bg-white">
+                      {image ? <Image src={image} alt="" fill sizes="48px" unoptimized className="object-contain p-1" /> : null}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="flex flex-wrap items-center gap-2">
+                        <Link href={`/admin/orders/${o.id}`} className="font-mono font-bold text-ink underline-offset-4 hover:underline" dir="ltr">
+                          {o.number}
+                        </Link>
+                        <span className="text-xs text-warm-600">{o._count.items > 1 ? `${o._count.items} منتجات` : "منتج واحد"}</span>
+                      </span>
+                      {first ? <span className="block max-w-56 truncate text-xs text-warm-600">{first.nameAr}</span> : null}
+                      <span className="mt-1 flex flex-wrap gap-1">
+                        {o.source !== "WEBSITE" ? <Badge tone="neutral">{SOURCE_LABEL[o.source]}</Badge> : null}
+                        {o.riskScore >= 30 ? (
+                          <Badge tone="warning" icon={<ShieldAlert className="size-3.5" aria-hidden="true" />}>
+                            مشبوه {o.riskScore}
+                          </Badge>
+                        ) : null}
+                      </span>
+                    </span>
+                  </div>
                 </td>
                 <td className={tdClass}>{dateFmt.format(o.createdAt)}</td>
                 <td className={tdClass}>
@@ -128,11 +170,24 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
                     {formatMoroccanPhone(o.phone)}
                   </a>
                 </td>
-                <td className={tdClass}>{o.cityName}</td>
-                <td className={`${tdClass} font-bold text-ink`}>{formatMAD(o.total, "ar")}</td>
+                <td className={tdClass}>
+                  <span className="block max-w-48 truncate" title={o.address}>
+                    {o.address}
+                  </span>
+                  <span className="text-xs text-warm-600">{o.cityName}</span>
+                </td>
+                <td className={tdClass}>
+                  {o.codReceivedAt ? <Badge tone="success">تحصّل</Badge> : o.status === "DELIVERED" ? <Badge tone="warning">عند شركة التوصيل</Badge> : <span className="text-warm-500">—</span>}
+                </td>
                 <td className={tdClass}>
                   <StatusBadge status={o.status} />
+                  {o.trackingNumber ? (
+                    <span className="mt-1 block text-xs text-warm-600" dir="ltr">
+                      {o.trackingNumber}
+                    </span>
+                  ) : null}
                 </td>
+                <td className={`${tdClass} font-bold text-ink`}>{formatMAD(o.total, "ar")}</td>
                 <td className={tdClass}>
                   {QUICK[o.status].length ? (
                     <StatusButtons orderId={o.id} options={QUICK[o.status]} />
@@ -143,10 +198,11 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
                   )}
                 </td>
               </tr>
-            ))}
+              );
+            })}
             {!orders.length ? (
               <tr>
-                <td colSpan={7} className="px-3 py-10 text-center text-warm-600">
+                <td colSpan={8} className="px-3 py-10 text-center text-warm-600">
                   لا توجد طلبات مطابقة.
                 </td>
               </tr>

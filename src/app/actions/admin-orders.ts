@@ -1,12 +1,20 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/admin";
+import { runDueAutomations } from "@/lib/automations";
+import { CARRIER_STATUSES } from "@/lib/carrier/status";
 import { db } from "@/lib/db";
+import { MANUAL_ERROR, manualOrderInput } from "@/lib/manual-order";
 import { ORDER_STATUSES } from "@/lib/order-rules";
-import { changeOrderStatus, OrderTransitionError } from "@/lib/orders";
+import { changeOrderStatus, createManualOrder, OrderTransitionError } from "@/lib/orders";
 import { normalizeMoroccanPhone } from "@/lib/phone";
+import { recordShipmentEvent } from "@/lib/shipments";
+
+const sendDueMessages = () => after(() => runDueAutomations().catch((e) => console.error("[automations]", e)));
 
 export type ActionState = { ok?: boolean; message?: string };
 
@@ -32,9 +40,73 @@ export async function setOrderStatus(_prev: ActionState, formData: FormData): Pr
     if (e instanceof OrderTransitionError) return { ok: false, message: `${REASONS[e.reason]}${e.sku ? ` (${e.sku})` : ""}` };
     throw e;
   }
+  sendDueMessages();
   revalidatePath("/admin/orders");
   revalidatePath("/admin");
   return { ok: true, message: "تم تحديث حالة الطلب." };
+}
+
+// ───────── An order typed in from WhatsApp, a call or social media ─────────
+
+export async function createOrderByHand(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const admin = await requireAdmin();
+  const parsed = manualOrderInput.safeParse(Object.fromEntries([...formData].filter(([, v]) => typeof v === "string")));
+  if (!parsed.success) return { ok: false, message: MANUAL_ERROR[parsed.error.issues[0]?.message] ?? "تحقق من الحقول." };
+
+  const result = await createManualOrder(parsed.data, admin.email);
+  if (!result.ok) {
+    const message = {
+      blocked: "هذا الرقم في القائمة السوداء.",
+      unavailable: "منتج أو مدينة لم تعد متوفرة. حدّث الصفحة.",
+      out_of_stock: `المخزون غير كافٍ${result.skus ? ` (${result.skus.join("، ")})` : ""}.`,
+      discount: "الخصم أكبر من ثمن المنتجات.",
+    }[result.error];
+    return { ok: false, message };
+  }
+  sendDueMessages();
+  revalidatePath("/admin/orders");
+  revalidatePath("/admin");
+  redirect(`/admin/orders/${result.orderId}${result.confirmError ? "?unconfirmed=1" : ""}`);
+}
+
+// ───────── Shipment ─────────
+
+const shipmentInput = z.object({
+  orderId: z.string().min(1).max(40),
+  trackingNumber: z.string().trim().max(60).optional().transform((v) => v || null),
+  carrierFee: z.preprocess((v) => (v === "" || v === undefined ? null : v), z.coerce.number().int().min(0).max(100_000).nullable()),
+});
+
+export async function saveShipment(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  await requireAdmin();
+  const parsed = shipmentInput.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { ok: false, message: "تحقق من رقم التتبع والرسوم." };
+  const { orderId, trackingNumber, carrierFee } = parsed.data;
+  const updated = await db.order.updateMany({ where: { id: orderId }, data: { trackingNumber, carrierFee, carrier: trackingNumber ? "express_relais" : null } });
+  if (!updated.count) return { ok: false, message: "الطلب غير موجود." };
+  revalidatePath(`/admin/orders/${orderId}`);
+  revalidatePath("/admin/orders");
+  revalidatePath("/admin/finance");
+  return { ok: true, message: "تم حفظ الشحنة." };
+}
+
+const eventInput = z.object({ orderId: z.string().min(1).max(40), status: z.enum(CARRIER_STATUSES), note: z.string().trim().max(300).optional() });
+
+export async function addShipmentEvent(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const admin = await requireAdmin();
+  const parsed = eventInput.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { ok: false, message: "طلب غير صالح." };
+  try {
+    await recordShipmentEvent(parsed.data.orderId, parsed.data.status, admin.email, parsed.data.note);
+  } catch (e) {
+    if (e instanceof OrderTransitionError) return { ok: false, message: e.reason === "not_allowed" ? "أكّد الطلب أولاً: هذه الخطوة لا تناسب حالته الحالية." : `${REASONS[e.reason]}${e.sku ? ` (${e.sku})` : ""}` };
+    throw e;
+  }
+  sendDueMessages();
+  revalidatePath(`/admin/orders/${parsed.data.orderId}`);
+  revalidatePath("/admin/orders");
+  revalidatePath("/admin");
+  return { ok: true, message: "تم تسجيل الخطوة." };
 }
 
 const blacklistInput = z.object({ phone: z.string().max(30), reason: z.string().trim().max(200).optional() });

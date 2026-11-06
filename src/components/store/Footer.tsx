@@ -76,8 +76,9 @@ export async function Footer({ locale }: { locale: Locale }) {
           aria-hidden="true"
           className="pointer-events-none absolute inset-x-10 -top-px h-px bg-linear-to-r from-transparent via-yellow-500 to-transparent opacity-70"
         />
-        <div className="grid gap-10 p-8 sm:p-10 lg:grid-cols-[1.4fr_1fr_1fr_1fr] lg:gap-8">
-          <div>
+        {/* Phones: the link columns sit two by two, so the footer stays short. */}
+        <div className="grid grid-cols-2 gap-x-6 gap-y-10 p-8 sm:grid-cols-3 sm:p-10 lg:grid-cols-[1.4fr_1fr_1fr_1fr] lg:gap-8">
+          <div className="col-span-full lg:col-span-1">
             <Link href="/" aria-label={t("home")} className="inline-flex items-center gap-3 rounded-md text-white">
               <Logo className="h-10 w-auto" />
               <span className="text-xl font-extrabold" dir="ltr">

@@ -8,6 +8,7 @@ import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { buttonClass } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/Field";
 import type { Locale } from "@/i18n/routing";
+import { CARRIER_LABEL, isCarrierStatus, type CarrierStatus } from "@/lib/carrier/status";
 import { formatMAD } from "@/lib/money";
 
 const tone: Record<string, BadgeTone> = {
@@ -81,6 +82,25 @@ export function TrackForm() {
               </li>
             ))}
           </ol>
+          {o.trackingNumber || o.events.length ? (
+            <>
+              <h2 className="mt-5 text-base">{t("shipment")}</h2>
+              {o.trackingNumber ? (
+                <p className="mt-1 text-sm text-warm-600">
+                  {t("trackingNumber")}: <span dir="ltr">{o.trackingNumber}</span>
+                </p>
+              ) : null}
+              <ol className="mt-2 flex flex-col gap-3 border-s-2 border-warm-200 ps-4">
+                {o.events.filter((e) => isCarrierStatus(e.status)).map((e, n) => (
+                  <li key={n} className="relative">
+                    <CircleCheck className="absolute -start-[1.6rem] top-0.5 size-4 bg-white text-success" aria-hidden="true" />
+                    <p className="font-semibold text-ink">{CARRIER_LABEL[e.status as CarrierStatus][locale]}</p>
+                    <p className="text-xs text-warm-600">{date.format(new Date(e.occurredAt))}</p>
+                  </li>
+                ))}
+              </ol>
+            </>
+          ) : null}
         </section>
       ) : null}
     </div>

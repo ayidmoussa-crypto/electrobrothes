@@ -11,30 +11,32 @@ import { cart, MAX_QTY } from "@/lib/cart-store";
 import { formatMAD } from "@/lib/money";
 import type { CheckoutConfig } from "@/lib/store-config";
 import { openCartDrawer } from "./CartDrawer";
-import { OrderForm } from "./OrderForm";
 import { QtyStepper } from "./QtyStepper";
+import { TopUpProducts } from "./TopUpProducts";
+import { useCartLines } from "./useCartLines";
 import { VariantPicker, type PickerVariant } from "./VariantPicker";
 
 /**
  * Everything the shopper does on a product page: choose a variant and quantity, add to cart,
- * or order this item straight away with the inline cash-on-delivery form.
+ * add other products towards free delivery, or go on to the order page.
  */
 export function ProductPurchase({
   variants,
   name,
+  slug,
   locale,
   config,
   children,
 }: {
   variants: PickerVariant[];
   name: string;
+  slug: string;
   locale: Locale;
   config: CheckoutConfig;
   children?: React.ReactNode;
 }) {
   const t = useTranslations("pdp");
   const tc = useTranslations("cart");
-  const tch = useTranslations("checkout");
   const tp = useTranslations("product");
   const [selected, setSelected] = useState(() => variants.find((v) => v.stock > 0) ?? variants[0]);
   const [qty, setQty] = useState(1);
@@ -49,9 +51,28 @@ export function ProductPurchase({
   }, [selected, name]);
 
   const soldOut = selected.stock <= 0;
+  // Tells the floating WhatsApp button to sit above the order bar. An effect, not a CSS :has() on the bar: Next keeps a
+  // left page in the DOM, hidden, and an effect is the part that does stop when the shopper leaves.
+  useEffect(() => {
+    if (soldOut) return;
+    document.documentElement.dataset.orderBar = "";
+    return () => {
+      delete document.documentElement.dataset.orderBar;
+    };
+  }, [soldOut]);
+
   const maxQty = Math.max(1, Math.min(MAX_QTY, selected.stock));
   const quantity = Math.min(qty, maxQty);
-  const label = [locale === "ar" ? selected.colorAr : selected.colorEn, selected.storage].filter(Boolean).join(" · ") || null;
+  // What the order would come to: this choice, plus whatever else is already in the cart.
+  const { rows } = useCartLines();
+  const others = rows.reduce((sum, r) => (r.line && r.item.variantId !== selected.id ? sum + r.line.price * Math.min(r.item.qty, r.line.stock) : sum), 0);
+  const spent = selected.price * quantity + others;
+
+  // The order form has its own page and works on the cart, so "order now" puts this choice there first.
+  const orderNow = () => {
+    cart.put(selected.id, quantity);
+    track({ name: "AddToCart", items: [{ id: selected.id, name, price: selected.price, quantity }] });
+  };
 
   return (
     <>
@@ -96,35 +117,26 @@ export function ProductPurchase({
         ) : null}
       </div>
 
-      <a
-        href="#order"
+      <Link
+        href="/checkout"
+        onClick={orderNow}
         aria-disabled={soldOut}
         className={buttonClass({ size: "lg", className: `w-full ${soldOut ? "pointer-events-none bg-warm-100 text-warm-400" : ""}` })}
       >
         {soldOut ? tp("outOfStock") : t("orderNow")}
-      </a>
+      </Link>
+
+      {soldOut ? null : <TopUpProducts spent={spent} threshold={config.freeShippingThreshold} excludeSlug={slug} locale={locale} />}
 
       {children}
-
-      {soldOut ? null : (
-        <section id="order" className="scroll-mt-24 rounded-xl border-2 border-ink p-4 sm:p-5">
-          <OrderForm
-            source="product"
-            title={tch("quickTitle")}
-            locale={locale}
-            config={config}
-            lines={[{ variantId: selected.id, name, label, price: selected.price, qty: quantity }]}
-          />
-        </section>
-      )}
 
       {/* Mobile: price + CTA always reachable, on light glass; padded for the iOS home indicator. */}
       {!soldOut ? (
         <div className="glass-light fixed inset-x-2 bottom-2 z-30 flex items-center gap-3 rounded-glass border px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden">
           <p className="min-w-0 flex-1 text-lg font-extrabold text-ink">{formatMAD(selected.price * quantity, locale)}</p>
-          <a href="#order" className={buttonClass({ className: "flex-1" })}>
+          <Link href="/checkout" onClick={orderNow} className={buttonClass({ className: "flex-1" })}>
             {t("orderNow")}
-          </a>
+          </Link>
         </div>
       ) : null}
     </>

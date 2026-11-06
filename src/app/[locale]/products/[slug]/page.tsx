@@ -101,7 +101,8 @@ export default async function ProductPage({ params }: PageProps<"/[locale]/produ
         items={[{ href: `/category/${product.category.slug}`, label: ar ? product.category.nameAr : product.category.nameEn }, { label: name }]}
       />
 
-      <div className="grid gap-8 lg:grid-cols-2 lg:gap-12">
+      {/* grid-cols-1, not the default auto column: a long row of thumbnails would otherwise widen the whole page on phones. */}
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-12">
         <ProductGallery images={product.images.map((i) => ({ url: i.url, alt: ar ? i.altAr : i.altEn }))} />
 
         <div className="flex flex-col gap-5">
@@ -140,6 +141,7 @@ export default async function ProductPage({ params }: PageProps<"/[locale]/produ
           <ProductPurchase
             locale={locale}
             name={name}
+            slug={product.slug}
             config={config}
             variants={product.variants.map((v) => ({
               id: v.id,
@@ -177,7 +179,7 @@ export default async function ProductPage({ params }: PageProps<"/[locale]/produ
         </div>
       </div>
 
-      <div className="mt-12 grid gap-10 lg:grid-cols-2">
+      <div className="mt-12 grid grid-cols-1 gap-10 lg:grid-cols-2">
         <section>
           <h2 className="text-xl">{t("description")}</h2>
           <p className="mt-3 leading-relaxed text-warm-800">{ar ? product.descriptionAr : product.descriptionEn}</p>

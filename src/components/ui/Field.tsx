@@ -3,7 +3,7 @@ import type { ComponentProps, ReactNode } from "react";
 
 // Inputs are 48px tall with a 16px font so iOS never zooms on focus.
 const control =
-  "w-full rounded-lg border bg-warm-100 px-4 text-base text-warm-800 transition-colors placeholder:text-warm-400 hover:border-warm-300 focus:bg-white disabled:cursor-not-allowed disabled:text-warm-400 aria-invalid:border-danger aria-invalid:bg-danger-soft";
+  "w-full rounded-lg border bg-warm-100 px-4 text-base text-warm-800 transition-colors placeholder:text-warm-400 hover:border-warm-300 disabled:cursor-not-allowed disabled:text-warm-400 aria-invalid:border-danger aria-invalid:bg-danger-soft";
 
 type FieldProps = {
   id: string;

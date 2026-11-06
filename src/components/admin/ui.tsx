@@ -62,6 +62,7 @@ export function Stat({
   hint,
   icon: Icon,
   empty = false,
+  tone,
 }: {
   label: string;
   value: string;
@@ -69,6 +70,8 @@ export function Stat({
   icon?: LucideIcon;
   /** No data yet: the value is a sentence, so it is set smaller and muted instead of as a hero number. */
   empty?: boolean;
+  /** A result that can be good or bad, such as profit. */
+  tone?: "success" | "danger";
 }) {
   return (
     <div className="admin-card p-4 md:p-5">
@@ -80,13 +83,13 @@ export function Stat({
           </span>
         ) : null}
       </div>
-      <p className={empty ? "mt-2 text-sm font-semibold text-warm-600" : "mt-1 text-2xl font-extrabold text-ink md:text-3xl"}>{value}</p>
+      <p className={empty ? "mt-2 text-sm font-semibold text-warm-600" : `mt-1 text-2xl font-extrabold md:text-3xl ${tone === "danger" ? "text-danger" : tone === "success" ? "text-success" : "text-ink"}`}>{value}</p>
       {hint ? <p className="mt-1 text-xs text-warm-500">{hint}</p> : null}
     </div>
   );
 }
 
-export const inputClass = "min-h-11 w-full admin-field rounded-lg px-3 text-base text-warm-800 focus:bg-white";
+export const inputClass = "min-h-11 w-full admin-field rounded-lg px-3 text-base text-warm-800";
 
 /** Small labelled field for admin row forms. */
 export function L({ label, children, className = "" }: { label: string; children: ReactNode; className?: string }) {

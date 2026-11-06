@@ -137,7 +137,7 @@ export function SearchBox({ action }: { action: string }) {
         aria-autocomplete="list"
         aria-activedescendant={showList && active >= 0 ? optionId(active) : undefined}
         placeholder={t("searchPlaceholder")}
-        className="min-h-11 w-full min-w-0 rounded-s-lg border-0 bg-white px-4 text-base text-warm-800 text-ellipsis placeholder:text-warm-400 focus-visible:shadow-none focus-visible:outline-none [&::-webkit-search-cancel-button]:appearance-none max-md:min-h-10 max-md:rounded-full max-md:px-3"
+        className="min-h-11 w-full min-w-0 rounded-s-lg border-0 bg-white px-4 text-base text-warm-800 text-ellipsis placeholder:text-warm-400 [&::-webkit-search-cancel-button]:appearance-none max-md:min-h-10 max-md:rounded-full max-md:px-3"
       />
       {/* Phones search from the keyboard's own key: the narrow field needs this button's width. */}
       <button type="submit" className={buttonClass({ className: "rounded-s-none max-md:hidden" })}>

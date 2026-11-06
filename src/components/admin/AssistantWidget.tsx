@@ -440,7 +440,7 @@ export function AssistantWidget() {
                 dir="auto"
                 placeholder="كتب هنا..."
                 aria-label="رسالتك للمساعد"
-                className="max-h-28 min-h-11 flex-1 resize-none rounded-lg bg-warm-100 px-3 py-2.5 text-base text-warm-800 placeholder:text-warm-400 focus:bg-white disabled:cursor-not-allowed"
+                className="max-h-28 min-h-11 flex-1 resize-none rounded-lg bg-warm-100 px-3 py-2.5 text-base text-warm-800 placeholder:text-warm-400 disabled:cursor-not-allowed"
               />
               <button
                 type="submit"

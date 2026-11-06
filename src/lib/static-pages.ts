@@ -102,6 +102,7 @@ export const staticPages: Record<StaticSlug, Omit<StaticPage, "slug">> = {
       blocks: [
         { h: "المعطيات التي نجمعها", p: ["الاسم ورقم الهاتف والمدينة والعنوان والملاحظات التي تكتبها عند الطلب، فقط لتوصيل طلبك والتواصل معك بشأنه."] },
         { h: "استعمالها", p: ["تأكيد الطلب وتوصيله وخدمة ما بعد البيع. لا نبيع معطياتك ولا نشاركها إلا مع شركة التوصيل لغرض التوصيل."] },
+        { h: "البريد الإلكتروني", p: ["إذا تركت بريدك في الصفحة الرئيسية، نحتفظ به لنخبرك بجديد المتجر فقط، ولا نشاركه مع أي جهة. يمكنك طلب حذفه في أي وقت."] },
         { h: "الإحصائيات والإعلانات", p: ["قد نستعمل أدوات قياس (Google Analytics وMeta وTikTok) لفهم استعمال الموقع وتحسين إعلاناتنا."] },
         { h: "حقوقك", p: ["وفقاً للقانون 09-08، يحق لك الاطلاع على معطياتك وتصحيحها وحذفها. تواصل معنا عبر واتساب لممارسة هذا الحق.", "[أضف هنا: اسم الشركة، العنوان، ورقم التصريح لدى اللجنة الوطنية لمراقبة حماية المعطيات CNDP]"] },
       ],
@@ -112,6 +113,7 @@ export const staticPages: Record<StaticSlug, Omit<StaticPage, "slug">> = {
       blocks: [
         { h: "Data we collect", p: ["The name, phone number, city, address and notes you enter when ordering, only to deliver your order and contact you about it."] },
         { h: "How we use it", p: ["To confirm, deliver and support your order. We never sell your data and only share it with the courier for delivery."] },
+        { h: "Your email", p: ["If you leave your email on the home page, we keep it only to tell you what's new in the store, and share it with no one. You can ask us to delete it at any time."] },
         { h: "Analytics and advertising", p: ["We may use measurement tools (Google Analytics, Meta, TikTok) to understand how the site is used and improve our ads."] },
         { h: "Your rights", p: ["Under law 09-08 you may access, correct and delete your data. Contact us on WhatsApp to exercise these rights.", "[Add here: company name, address and CNDP declaration number]"] },
       ],

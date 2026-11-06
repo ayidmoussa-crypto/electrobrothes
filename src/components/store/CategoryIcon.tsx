@@ -1,16 +1,19 @@
-import { BatteryCharging, Headphones, Package, PlugZap, Smartphone, Speaker, Watch, type LucideIcon } from "lucide-react";
+import { Package } from "lucide-react";
+import Image from "next/image";
 
-// Line icon that reads as the product itself; categories added later from the admin fall back to a parcel.
-const ICONS: Record<string, LucideIcon> = {
-  headphones: Headphones,
-  smartwatches: Watch,
-  chargers: PlugZap,
-  "power-banks": BatteryCharging,
-  "other-devices": Speaker,
-  "phone-cases": Smartphone,
-};
+// Real products cut out of their background by scripts/category-images.mjs.
+// A category added later from the admin has no photo yet and falls back to a parcel icon.
+const PHOTOS = new Set(["headphones", "smartwatches", "chargers", "power-banks", "other-devices", "phone-cases"]);
 
-export function CategoryIcon({ slug, className }: { slug: string; className?: string }) {
-  const Icon = ICONS[slug] ?? Package;
-  return <Icon aria-hidden="true" strokeWidth={1.5} className={className} />;
+/** The product inside a round category. It sizes itself to the disc, whose .cat-disc class moves it on hover. */
+export function CategoryIcon({ slug }: { slug: string }) {
+  return (
+    <span className="cat-product">
+      {PHOTOS.has(slug) ? (
+        <Image src={`/categories/${slug}.webp`} alt="" fill sizes="200px" className="object-contain" />
+      ) : (
+        <Package aria-hidden="true" strokeWidth={1.5} className="size-full text-warm-500" />
+      )}
+    </span>
+  );
 }

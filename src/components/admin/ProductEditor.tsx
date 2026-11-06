@@ -17,7 +17,7 @@ type Img = ProductInput["images"][number];
 
 const KNOWN_SPECS = ["ram", "storage", "screen", "cpu", "gpu", "camera", "battery", "type", "anc", "connectivity", "power", "port", "capacity", "length", "water"];
 
-const input = "min-h-11 w-full admin-field rounded-lg px-3 text-base text-warm-800 focus:bg-white";
+const input = "min-h-11 w-full admin-field rounded-lg px-3 text-base text-warm-800";
 const labelCls = "flex flex-col gap-1 text-sm font-semibold text-ink";
 const iconBtn = "grid size-10 shrink-0 cursor-pointer place-items-center rounded-lg text-warm-600 hover:bg-white/70 hover:text-ink disabled:opacity-40";
 

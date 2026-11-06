@@ -1,9 +1,10 @@
-import { AlertTriangle, CalendarClock, PackageX, PhoneCall, ShoppingCart, Truck, Wallet } from "lucide-react";
+import { AlertTriangle, CalendarClock, Megaphone, PackageX, PhoneCall, ReceiptText, ShoppingCart, TrendingDown, TrendingUp, Truck, Undo2, Wallet } from "lucide-react";
 import Link from "next/link";
 import { AreaChart } from "@/components/admin/AreaChart";
 import { PageHeader, Panel, Stat, StatusBadge } from "@/components/admin/ui";
 import { requireAdmin } from "@/lib/admin";
 import { db } from "@/lib/db";
+import { loadProfit } from "@/lib/finance-data";
 import { formatMAD } from "@/lib/money";
 import { ORDER_STATUSES, type OrderStatus } from "@/lib/order-rules";
 import { codRates, daysAgo, fillDays } from "@/lib/stats";
@@ -23,12 +24,12 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
   const days = (RANGES as readonly number[]).includes(raw) ? raw : 30;
   const since = daysAgo(days);
 
-  const [byStatus, perDay, revenue, top, today, risky, todayRow, lowStock] = await Promise.all([
+  const [profit, byStatus, perDay, top, today, risky, todayRow, lowStock] = await Promise.all([
+    loadProfit(since),
     db.order.groupBy({ by: ["status"], where: { createdAt: { gte: since } }, _count: true }),
     db.$queryRaw<{ day: string; count: number }[]>`
       SELECT to_char(("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE ${TZ}, 'YYYY-MM-DD') AS day, count(*)::int AS count
       FROM "Order" WHERE "createdAt" >= ${since} GROUP BY 1`,
-    db.order.aggregate({ where: { createdAt: { gte: since }, status: "DELIVERED" }, _sum: { total: true } }),
     db.orderItem.groupBy({
       by: ["nameAr"],
       where: { order: { createdAt: { gte: since }, status: { notIn: ["CANCELLED", "RETURNED"] } } },
@@ -127,8 +128,28 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
           empty={rates.delivery === null}
           hint={rates.returns === null ? undefined : `نسبة الإرجاع ${rates.returns}%`}
         />
-        <Stat icon={Wallet} label="المداخيل (المسلَّمة)" value={formatMAD(revenue._sum.total ?? 0, "ar")} />
+        <Stat icon={Wallet} label="المداخيل (المسلَّمة)" value={formatMAD(profit.revenue, "ar")} />
       </div>
+
+      {/* The same calculation as the finance page, so the two can never disagree. */}
+      <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Stat
+          icon={profit.netProfit < 0 ? TrendingDown : TrendingUp}
+          label="صافي الربح"
+          value={formatMAD(profit.netProfit, "ar")}
+          tone={profit.netProfit < 0 ? "danger" : profit.netProfit > 0 ? "success" : undefined}
+          hint={profit.margin === null ? "ما كاين حتى بيع" : profit.gaps.unitsWithoutCost ? `الهامش ${profit.margin}% بلا ثمن شراء ${profit.gaps.unitsWithoutCost} قطعة` : `الهامش ${profit.margin}%`}
+        />
+        <Stat icon={ReceiptText} label="تكلفة السلعة والتوصيل" value={formatMAD(profit.cogs + profit.deliveryCost, "ar")} />
+        <Stat icon={Undo2} label="خسائر الإرجاع" value={formatMAD(profit.returnsCost, "ar")} hint={`${profit.returnedCount} طلب راجع`} />
+        <Stat icon={Megaphone} label="مصاريف المشروع" value={formatMAD(profit.businessExpenses, "ar")} hint={profit.costPerDelivered === null ? undefined : `الإعلان لكل طلب مسلَّم ${formatMAD(profit.costPerDelivered, "ar")}`} />
+      </div>
+      {profit.gaps.unitsWithoutCost || profit.gaps.deliveredWithoutFee || profit.gaps.returnedWithoutFee ? (
+        <Link href="/admin/finance" className="mt-3 flex items-center gap-2 rounded-2xl border border-warning/40 bg-warning-soft/85 p-3 text-sm font-semibold text-warning-text hover:underline">
+          <AlertTriangle className="size-4 shrink-0" aria-hidden="true" />
+          الربح ناقص معلومات: ثمن شراء ولا رسوم توصيل ما محددينش. شوف التفاصيل فصفحة المالية.
+        </Link>
+      ) : null}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[2fr_1fr]">
         <AreaChart

@@ -13,15 +13,16 @@ import type { Locale } from "@/i18n/routing";
 import { track } from "@/lib/analytics";
 import { cart, MAX_QTY } from "@/lib/cart-store";
 import { formatMAD } from "@/lib/money";
+import { FreeDeliveryRail } from "./FreeDeliveryRail";
 import { computeTotals } from "@/lib/pricing";
 import type { CheckoutConfig } from "@/lib/store-config";
 import { QtyStepper } from "./QtyStepper";
-import { useCartLines } from "./useCartLines";
+import { packSaving, useCartLines } from "./useCartLines";
 
 export function CartView({ locale, config }: { locale: Locale; config: CheckoutConfig }) {
   const t = useTranslations("cart");
   const tc = useTranslations("checkout");
-  const { ready, loading, rows, upsell } = useCartLines();
+  const { ready, loading, rows, upsell, bundles } = useCartLines();
   const [cityId, setCityId] = useState("");
   const ar = locale === "ar";
 
@@ -55,12 +56,14 @@ export function CartView({ locale, config }: { locale: Locale; config: CheckoutC
 
   const available = rows.filter((r) => r.line && r.line.stock > 0);
   const city = config.cities.find((c) => c.id === cityId);
+  const priced = available.map((r) => ({ productId: r.line!.productId, price: r.line!.price, qty: Math.min(r.item.qty, r.line!.stock) }));
+  const pack = packSaving(priced, bundles, ar);
   const totals = computeTotals({
-    items: available.map((r) => ({ unitPrice: r.line!.price, quantity: Math.min(r.item.qty, r.line!.stock) })),
+    items: priced.map((l) => ({ unitPrice: l.price, quantity: l.qty })),
     shippingFee: city?.shippingFee ?? 0,
     freeShippingThreshold: config.freeShippingThreshold,
+    bundleDiscount: pack.discount,
   });
-  const missingForFree = config.freeShippingThreshold - totals.subtotal;
 
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_22rem]">
@@ -181,6 +184,15 @@ export function CartView({ locale, config }: { locale: Locale; config: CheckoutC
             <dt className="text-warm-600">{tc("subtotal")}</dt>
             <dd className="font-semibold text-ink">{formatMAD(totals.subtotal, locale)}</dd>
           </div>
+          {pack.discount ? (
+            <div className="flex justify-between gap-3">
+              <dt className="text-warm-600">
+                {tc("packDiscount")}
+                <span className="block text-xs">{pack.names.join("، ")}</span>
+              </dt>
+              <dd className="shrink-0 font-semibold text-success">−{formatMAD(pack.discount, locale)}</dd>
+            </div>
+          ) : null}
           <div className="flex justify-between">
             <dt className="text-warm-600">{tc("shipping")}</dt>
             <dd className="font-semibold text-ink">
@@ -192,7 +204,7 @@ export function CartView({ locale, config }: { locale: Locale; config: CheckoutC
             <dd className="text-xl font-extrabold text-ink">{formatMAD(totals.total, locale)}</dd>
           </div>
         </dl>
-        {missingForFree > 0 ? <p className="mt-2 text-xs text-warm-600">{tc("freeShippingHint", { amount: formatMAD(missingForFree, locale) })}</p> : null}
+        <FreeDeliveryRail spent={totals.subtotal - totals.discount} threshold={config.freeShippingThreshold} locale={locale} />
         <Link
           href="/checkout"
           aria-disabled={!available.length}

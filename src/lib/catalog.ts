@@ -96,8 +96,8 @@ export async function getBrands() {
   cacheLife("hours");
   cacheTag("products");
   return db.brand.findMany({
-    // "generic" only fills the required field on unbranded products: not a brand to show off.
-    where: { slug: { not: "generic" }, products: { some: { isActive: true } } },
+    // "generic" only fills the required field on unbranded products; the owner no longer works with Riversong.
+    where: { slug: { notIn: ["generic", "riversong"] }, products: { some: { isActive: true } } },
     select: { slug: true, name: true },
     orderBy: { name: "asc" },
   });
@@ -119,6 +119,11 @@ export async function getProductCards(filter: { categorySlug?: string; bestSelle
     take: filter.take,
   });
   return rows.map(toCard);
+}
+
+/** Everything on sale that can be bought now: an old price above the shown price, and stock. */
+export async function getPromoProducts() {
+  return (await getProductCards()).filter((p) => p.compareAtPrice && p.compareAtPrice > p.minPrice && p.stock > 0);
 }
 
 /** Deals still running right now, soonest-ending first. Request-time: callers must sit in <Suspense>. */

@@ -29,28 +29,41 @@
   "lenovo": {
     "ratio": 2.85
   },
-  "anker": {
-    "ratio": 2.75
-  },
   "baseus": {
     "ratio": 2.78
   },
   "soundcore": {
     "ratio": 3.97
   },
-  "ugreen": {
-    "ratio": 3.26
-  },
-  "edifier": {
-    "ratio": 3.08
-  },
-  "haylou": {
-    "ratio": 3.19
-  },
   "amazfit": {
     "ratio": 2.83
   },
+  "anker": {
+    "ratio": 4.19
+  },
+  "belkin": {
+    "ratio": 3.54
+  },
+  "edifier": {
+    "ratio": 4.73
+  },
+  "ugreen": {
+    "ratio": 6.01
+  },
+  "haylou": {
+    "ratio": 5.85,
+    "ext": "png"
+  },
+  "otterbox": {
+    "ratio": 6.4,
+    "ext": "png"
+  },
+  "oukitel": {
+    "ratio": 7.61,
+    "ext": "png"
+  },
   "qcy": {
-    "ratio": 1.68
+    "ratio": 2.43,
+    "ext": "png"
   }
 }

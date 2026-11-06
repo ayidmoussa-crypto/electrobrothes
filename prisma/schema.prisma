@@ -76,6 +76,7 @@ model Product {
   faqs              ProductFaq[]
   seoSuggestions    SeoSuggestion[]
   slugRedirects     SlugRedirect[]
+  bundleItems       BundleItem[]
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
   externalRatings   ExternalRating[]
@@ -284,11 +285,50 @@ model Settings {
   deliveryTimeEn        String  @default("2 to 5 days")
   replacementPolicyAr   String  @default("إلا وصلك المنتج فيه عطب، كنبدلوه ليك بمنتج جديد.")
   replacementPolicyEn   String  @default("If your product arrives defective, we replace it with a new one.")
+  // What the carrier charges the shop, used when an order has no fee of its own. 0 = not set yet.
+  defaultDeliveryCost   Int     @default(0)
+  defaultReturnCost     Int     @default(0)
 }
 
 enum CouponType {
   PERCENT
   FIXED
+}
+
+// A pack: products sold together for one price (lib/bundles.ts). In the cart its products are ordinary
+// lines; once all of them are there, the difference to `price` comes off the order.
+model Bundle {
+  id        String       @id @default(cuid())
+  slug      String       @unique
+  nameAr    String
+  nameEn    String
+  // One short selling line under the name.
+  taglineAr String?
+  taglineEn String?
+  // Photo of the pack; without one the products' own photos are shown side by side.
+  image     String?
+  // What the whole pack costs, MAD.
+  price     Int
+  isActive  Boolean      @default(true)
+  sortOrder Int          @default(0)
+  items     BundleItem[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@index([isActive, sortOrder])
+}
+
+model BundleItem {
+  id        String  @id @default(cuid())
+  bundleId  String
+  bundle    Bundle  @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity  Int     @default(1)
+  sortOrder Int     @default(0)
+
+  @@unique([bundleId, productId])
+  @@index([productId])
 }
 
 model Coupon {
@@ -316,38 +356,82 @@ enum OrderStatus {
   CANCELLED
 }
 
+enum OrderSource {
+  WEBSITE
+  WHATSAPP
+  PHONE
+  INSTAGRAM
+  FACEBOOK
+  TIKTOK
+  OTHER
+}
+
 model Order {
-  id            String           @id @default(cuid())
-  number        String           @unique
-  status        OrderStatus      @default(NEW)
-  customerName  String
+  id                String           @id @default(cuid())
+  number            String           @unique
+  status            OrderStatus      @default(NEW)
+  // Where the order came from; everything but WEBSITE was typed in by an admin.
+  source            OrderSource      @default(WEBSITE)
+  // Shipment: filled in by an admin today, by the carrier's API once it is connected.
+  carrier           String?
+  trackingNumber    String?
+  // Latest key from lib/carrier/status.ts.
+  carrierStatus     String?
+  // What the carrier actually charged for this parcel (delivery or return), MAD.
+  carrierFee        Int?
+  deliveredAt       DateTime?
+  returnedAt        DateTime?
+  // Cash the carrier really handed over for this order. Null = not received yet.
+  codReceivedAt     DateTime?
+  codReceivedAmount Int?
+  events            ShipmentEvent[]
+  customerName      String
   // Normalized E.164, e.g. +212612345678
-  phone         String
-  cityId        String
-  city          City             @relation(fields: [cityId], references: [id])
-  cityName      String
-  address       String
-  notes         String?
-  subtotal      Int
-  shippingFee   Int
-  discount      Int              @default(0)
-  total         Int
-  couponCode    String?
+  phone             String
+  cityId            String
+  city              City             @relation(fields: [cityId], references: [id])
+  cityName          String
+  address           String
+  notes             String?
+  subtotal          Int
+  shippingFee       Int
+  // Everything taken off the goods: pack savings + coupon. bundleDiscount is the pack part of it.
+  discount          Int              @default(0)
+  bundleDiscount    Int              @default(0)
+  total             Int
+  couponCode        String?
   // Anti-fraud: 0 = clean; flags explain the score (duplicate_phone, too_fast…).
-  riskScore     Int              @default(0)
-  riskFlags     String[]
+  riskScore         Int              @default(0)
+  riskFlags         String[]
   // Stock is taken on CONFIRMED and given back on CANCELLED/RETURNED; this keeps it idempotent.
-  stockDeducted Boolean          @default(false)
-  ip            String?
-  userAgent     String?
-  items         OrderItem[]
-  logs          OrderStatusLog[]
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
+  stockDeducted     Boolean          @default(false)
+  ip                String?
+  userAgent         String?
+  items             OrderItem[]
+  logs              OrderStatusLog[]
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 
   @@index([phone, createdAt])
   @@index([status, createdAt])
   @@index([createdAt])
+  @@index([trackingNumber])
+  @@index([status, deliveredAt])
+  @@index([status, returnedAt])
+}
+
+// One step of a parcel's journey, newest shown first.
+model ShipmentEvent {
+  id         String   @id @default(cuid())
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  // Key from lib/carrier/status.ts.
+  status     String
+  note       String?
+  actor      String
+  occurredAt DateTime @default(now())
+
+  @@index([orderId, occurredAt])
 }
 
 // Snapshot of what was bought, so later catalog edits never rewrite history.
@@ -362,6 +446,8 @@ model OrderItem {
   nameEn       String
   variantLabel String?
   unitPrice    Int
+  // Purchase price per unit when ordered, so profit never moves when a cost changes later. Null = unknown.
+  unitCost     Int?
   quantity     Int
   review       Review?
 
@@ -388,6 +474,146 @@ model Blacklist {
   phone     String   @unique
   reason    String?
   createdAt DateTime @default(now())
+}
+
+// Shoppers who left their email in the home page box. Listed in /admin/customers.
+model EmailSubscriber {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  locale    String   @default("ar")
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+// ───────────────────────── Finance ─────────────────────────
+
+enum ExpenseScope {
+  BUSINESS
+  PERSONAL
+}
+
+// Money that left the owner's pocket. PERSONAL never touches the shop's profit, but it does reduce the cash.
+model Expense {
+  id        String       @id @default(cuid())
+  scope     ExpenseScope @default(BUSINESS)
+  // Key from lib/finance.ts.
+  category  String
+  amount    Int
+  spentOn   DateTime
+  note      String?
+  actor     String
+  createdAt DateTime     @default(now())
+
+  @@index([scope, spentOn])
+}
+
+enum CapitalType {
+  INJECTION
+  WITHDRAWAL
+}
+
+// Money the owner put into the business or took out of it.
+model CapitalEntry {
+  id         String      @id @default(cuid())
+  type       CapitalType
+  amount     Int
+  occurredOn DateTime
+  note       String?
+  actor      String
+  createdAt  DateTime    @default(now())
+
+  @@index([occurredOn])
+}
+
+// ───────────────────────── WhatsApp ─────────────────────────
+
+enum WaDirection {
+  IN
+  OUT
+}
+
+model WaConversation {
+  id            String      @id @default(cuid())
+  // "+" and digits, as WhatsApp gives it. May be foreign: only orders are limited to Moroccan numbers.
+  phone         String      @unique
+  name          String?
+  lastMessageAt DateTime    @default(now())
+  // Free text is only allowed within 24 hours of this; after that, approved templates only.
+  lastInboundAt DateTime?
+  lastPreview   String?
+  unread        Int         @default(0)
+  messages      WaMessage[]
+  createdAt     DateTime    @default(now())
+
+  @@index([lastMessageAt])
+}
+
+model WaMessage {
+  id             String         @id @default(cuid())
+  conversationId String
+  conversation   WaConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  // Meta's id; unique, because Meta re-sends webhooks.
+  wamid          String?        @unique
+  direction      WaDirection
+  type           String         @default("text")
+  body           String
+  templateName   String?
+  // sent, delivered, read or failed (outgoing only).
+  status         String?
+  error          String?
+  // Admin email, or "automation".
+  actor          String?
+  createdAt      DateTime       @default(now())
+
+  @@index([conversationId, createdAt])
+}
+
+// ───────────────────────── Automations ─────────────────────────
+
+// When an order reaches `trigger`, wait `delayMinutes`, then send an approved WhatsApp template.
+model AutomationRule {
+  id           String          @id @default(cuid())
+  name         String
+  // Key from lib/automation-rules.ts.
+  trigger      String
+  delayMinutes Int             @default(0)
+  templateName String
+  languageCode String          @default("ar")
+  // Keys of the values that fill the template's {{1}}, {{2}}… in order.
+  params       String[]
+  // Off until the owner has an approved template and switches it on.
+  isActive     Boolean         @default(false)
+  jobs         AutomationJob[]
+  createdAt    DateTime        @default(now())
+
+  @@index([trigger, isActive])
+}
+
+enum AutomationJobStatus {
+  PENDING
+  SENDING
+  SENT
+  SKIPPED
+  FAILED
+}
+
+model AutomationJob {
+  id        String              @id @default(cuid())
+  ruleId    String
+  rule      AutomationRule      @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  orderId   String
+  status    AutomationJobStatus @default(PENDING)
+  dueAt     DateTime
+  attempts  Int                 @default(0)
+  error     String?
+  sentAt    DateTime?
+  createdAt DateTime            @default(now())
+
+  // One message per rule per order, even if the order goes back and forth between statuses.
+  @@unique([ruleId, orderId])
+  @@index([status, dueAt])
+  @@index([createdAt])
 }
 
 // Fixed-window counter keyed by e.g. "order:ip:1.2.3.4".

@@ -245,6 +245,390 @@ dialog.drawer:not([open])::backdrop {
   --drawer-from: -100%;
 }
 
+/*
+ * The hero's one button: an outlined frame. On hover, press or keyboard focus, yellow rises from the bottom behind an
+ * arched edge, fast then settling, and sinks back the same way; the arrow in its disc turns 45 degrees upward.
+ * The arch is a shape much wider and taller than the button, clipped by the button. It is 260% of the button's height
+ * and stops after rising 200% of it (-77% of its own height): the arch is past the top and its foot still below the bottom.
+ */
+.hero-cta {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  min-height: 3.75rem;
+  align-items: center;
+  gap: 1.25rem;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--color-white) 30%, transparent);
+  border-radius: 0.5rem;
+  padding-block: 0.5rem;
+  padding-inline: 1.75rem 0.5rem;
+  color: var(--color-white);
+  font-size: 1.125rem;
+  font-weight: 700;
+  transition: color 260ms ease-out 40ms;
+}
+.hero-cta::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset-inline: -20%;
+  top: 100%;
+  height: 260%;
+  border-radius: 50% 50% 0 0 / 22% 22% 0 0;
+  background: var(--color-yellow-500);
+  transition: transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.hero-cta-disc {
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  flex: none;
+  place-items: center;
+  border-radius: 9999px;
+  background: var(--color-yellow-500);
+  color: var(--color-ink);
+  transition: background-color 260ms ease-out, color 260ms ease-out;
+}
+.hero-cta-disc > svg {
+  transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.hero-cta:focus-visible,
+.hero-cta:active {
+  color: var(--color-ink);
+}
+.hero-cta:focus-visible::before,
+.hero-cta:active::before {
+  transform: translateY(-77%);
+}
+.hero-cta:focus-visible .hero-cta-disc,
+.hero-cta:active .hero-cta-disc {
+  background: var(--color-ink);
+  color: var(--color-yellow-500);
+}
+.hero-cta:focus-visible .hero-cta-disc > svg,
+.hero-cta:active .hero-cta-disc > svg {
+  transform: rotate(-45deg);
+}
+[dir="rtl"] .hero-cta:focus-visible .hero-cta-disc > svg,
+[dir="rtl"] .hero-cta:active .hero-cta-disc > svg {
+  transform: rotate(45deg);
+}
+@media (hover: hover) {
+  .hero-cta:hover {
+    color: var(--color-ink);
+  }
+  .hero-cta:hover::before {
+    transform: translateY(-77%);
+  }
+  .hero-cta:hover .hero-cta-disc {
+    background: var(--color-ink);
+    color: var(--color-yellow-500);
+  }
+  .hero-cta:hover .hero-cta-disc > svg {
+    transform: rotate(-45deg);
+  }
+  [dir="rtl"] .hero-cta:hover .hero-cta-disc > svg {
+    transform: rotate(45deg);
+  }
+}
+
+/*
+ * Round categories on the home page: the product fits the disc at rest. On hover, press or keyboard focus the disc
+ * fills with yellow, a ring bursts outwards and the product leaps past the edge on a springy curve that overshoots.
+ * The hover states sit behind (hover: hover) so a touch does not leave a tile stuck open.
+ */
+.cat-disc {
+  position: relative;
+  display: block;
+  border: 1px solid var(--color-warm-200);
+  border-radius: 9999px;
+  background: var(--color-warm-50);
+  transition: background-color 250ms ease-out, border-color 250ms ease-out;
+}
+.cat-disc::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border: 2px solid var(--color-yellow-500);
+  border-radius: 9999px;
+  opacity: 0;
+  pointer-events: none;
+}
+.cat-product {
+  position: absolute;
+  inset: 14%;
+  z-index: 1;
+  filter: drop-shadow(0 4px 5px color-mix(in srgb, var(--color-ink) 22%, transparent));
+  transition: transform 550ms cubic-bezier(0.34, 1.8, 0.5, 1), filter 300ms ease-out;
+}
+.cat-tile:active .cat-disc,
+.cat-tile:focus-visible .cat-disc {
+  border-color: var(--color-yellow-500);
+  background: var(--color-yellow-500);
+}
+.cat-tile:active .cat-disc::after,
+.cat-tile:focus-visible .cat-disc::after {
+  animation: cat-burst 600ms ease-out;
+}
+.cat-tile:active .cat-product,
+.cat-tile:focus-visible .cat-product {
+  filter: drop-shadow(0 14px 12px color-mix(in srgb, var(--color-ink) 38%, transparent));
+  transform: translateY(-20%) rotate(-7deg) scale(1.5);
+}
+@media (hover: hover) {
+  .cat-tile:hover .cat-disc {
+    border-color: var(--color-yellow-500);
+    background: var(--color-yellow-500);
+  }
+  .cat-tile:hover .cat-disc::after {
+    animation: cat-burst 600ms ease-out;
+  }
+  .cat-tile:hover .cat-product {
+    filter: drop-shadow(0 14px 12px color-mix(in srgb, var(--color-ink) 38%, transparent));
+    transform: translateY(-20%) rotate(-7deg) scale(1.5);
+  }
+}
+@keyframes cat-burst {
+  from {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.4);
+  }
+}
+
+/*
+ * Home promo band. --p is the scroll progress (0 → 1) written by PromoScroll; it defaults to 1, the finished poster.
+ * clip-path makes the band a window: a position:fixed child is cut to the band but stays still as the page moves.
+ */
+.promo {
+  --p: 1;
+  clip-path: inset(0);
+}
+.promo-bg {
+  position: fixed;
+  inset: 0;
+  height: 100lvh;
+  z-index: -1;
+  overflow: hidden;
+}
+.promo[data-visible="false"] .promo-bg {
+  visibility: hidden;
+}
+
+/* Giant tone-on-tone word: two rows sliding in opposite directions with the scroll. */
+.promo-ghost {
+  position: absolute;
+  inset-inline-start: -30vw;
+  white-space: nowrap;
+  font-size: clamp(9rem, 26vw, 24rem);
+  font-weight: 800;
+  line-height: 1;
+  color: var(--color-warm-900);
+}
+.promo-ghost-a {
+  top: 6lvh;
+  transform: translateX(calc((var(--p) - 0.5) * 18vw));
+}
+.promo-ghost-b {
+  bottom: 6lvh;
+  transform: translateX(calc((var(--p) - 0.5) * -18vw));
+}
+
+/* The logo's bolt, huge: the page slides over it, its outline drawn by the scroll, a spark running round it once drawn. */
+.promo-bolt {
+  position: absolute;
+  top: 50%;
+  inset-inline-end: 4vw;
+  height: 130lvh;
+  width: auto;
+  translate: 0 -50%;
+}
+.promo-bolt-fill {
+  fill: var(--color-ink);
+}
+.promo-bolt-line,
+.promo-bolt-spark {
+  fill: none;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+.promo-bolt-line {
+  stroke: var(--color-warm-700);
+  stroke-width: 1.5px;
+  stroke-dasharray: 1;
+  stroke-dashoffset: calc(1 - var(--p));
+}
+.promo-bolt-spark {
+  stroke: var(--color-yellow-500);
+  stroke-width: 2.5px;
+  stroke-dasharray: 0.09 0.91;
+  animation: promo-spark 7s linear infinite;
+  animation-play-state: paused;
+  opacity: 0;
+  transition: opacity 400ms;
+}
+.promo[data-charged="true"][data-visible="true"] .promo-bolt-spark {
+  animation-play-state: running;
+  opacity: 1;
+}
+@keyframes promo-spark {
+  to {
+    stroke-dashoffset: -1;
+  }
+}
+
+/* Title: each word rises out of its own mask, one after the other. */
+.promo-word {
+  display: inline-block;
+  overflow: clip;
+  overflow-clip-margin: 0.1em;
+  padding-block: 0.08em;
+  margin-block: -0.08em;
+}
+.promo-word-in {
+  display: inline-block;
+  transform: translateY(calc((1 - clamp(0, (var(--p) - 0.12 - var(--i) * 0.05) * 4, 1)) * 115%));
+}
+/* The key word: an ink-on-yellow copy wiped over the white one from the reading edge. */
+.promo-mark {
+  position: relative;
+  display: inline-block;
+  padding-inline: 0.18em;
+}
+.promo-mark-on {
+  position: absolute;
+  inset: 0;
+  padding-inline: 0.18em;
+  border-radius: 0.12em;
+  background: var(--color-yellow-500);
+  color: var(--color-ink);
+  --wipe: calc((1 - clamp(0, (var(--p) - 0.42) * 3, 1)) * 100%);
+  clip-path: inset(0 var(--wipe) 0 0);
+}
+[dir="rtl"] .promo-mark-on {
+  clip-path: inset(0 0 0 var(--wipe));
+}
+.promo-fade {
+  opacity: clamp(0, (var(--p) - 0.3) * 3, 1);
+  transform: translateY(calc((1 - clamp(0, (var(--p) - 0.3) * 3, 1)) * 1.5rem));
+}
+
+/* The discount charges like a battery: yellow rises inside the outlined number, the gauge beside it keeps pace. */
+.promo-number {
+  position: relative;
+  font-size: clamp(6rem, 29vw, 13.5rem);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.045em;
+  white-space: nowrap;
+  --level: calc((1 - clamp(0, (var(--p) - 0.15) * 1.25, 1)) * 100%);
+}
+.promo-number-off {
+  display: block;
+  padding-inline-end: 0.05em;
+  color: transparent;
+  -webkit-text-stroke: 1.5px var(--color-warm-600);
+}
+.promo-number-on {
+  position: absolute;
+  inset: 0;
+  padding-inline-end: 0.05em;
+  color: var(--color-yellow-500);
+  clip-path: inset(var(--level) 0 0 0);
+}
+.promo-gauge {
+  position: relative;
+  width: 0.75rem;
+  flex: none;
+  margin-block: 0.75rem;
+  background: repeating-linear-gradient(to top, var(--color-warm-700) 0 2px, transparent 2px 8px);
+}
+.promo-gauge::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(to top, var(--color-yellow-500) 0 2px, transparent 2px 8px);
+  clip-path: inset(calc((1 - clamp(0, (var(--p) - 0.15) * 1.25, 1)) * 100%) 0 0 0);
+}
+
+/*
+ * The button: the yellow arrow cell is the visible end of a full-size yellow layer. On hover the layer's clip opens,
+ * so the cell grows across the label and the text turns ink. Touch screens have no hover: it fills once, when the charge arrives.
+ */
+.promo-cta {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: stretch;
+  min-height: 4.25rem;
+  overflow: hidden;
+  border-radius: 0.5rem;
+  background: var(--color-warm-900);
+  box-shadow: inset 0 0 0 1px var(--color-warm-700);
+  color: var(--color-white);
+  font-size: 1.25rem;
+  font-weight: 800;
+  transition: color 300ms 80ms;
+}
+.promo-cta::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--color-yellow-500);
+  clip-path: inset(0 calc(100% - 4.25rem) 0 0 round 0.5rem);
+  transition: clip-path 450ms cubic-bezier(0.65, 0, 0.15, 1);
+}
+[dir="rtl"] .promo-cta::before {
+  clip-path: inset(0 0 0 calc(100% - 4.25rem) round 0.5rem);
+}
+.promo-cta:focus-visible,
+.promo-cta:active {
+  color: var(--color-ink);
+}
+.promo-cta:focus-visible::before,
+.promo-cta:active::before,
+[dir="rtl"] .promo-cta:focus-visible::before,
+[dir="rtl"] .promo-cta:active::before {
+  clip-path: inset(0 round 0.5rem);
+}
+.promo-cta:active::before {
+  background: var(--color-yellow-700);
+}
+@media (hover: hover) {
+  .promo-cta:hover {
+    color: var(--color-ink);
+  }
+  .promo-cta:hover::before,
+  [dir="rtl"] .promo-cta:hover::before {
+    clip-path: inset(0 round 0.5rem);
+  }
+}
+@media (hover: none) {
+  .promo[data-charged="true"] .promo-cta {
+    color: var(--color-ink);
+  }
+  .promo[data-charged="true"] .promo-cta::before,
+  [dir="rtl"] .promo[data-charged="true"] .promo-cta::before {
+    clip-path: inset(0 round 0.5rem);
+  }
+}
+.promo-cta-label {
+  display: grid;
+  align-items: center;
+  padding-inline: 2rem;
+}
+.promo-cta-arrow {
+  display: grid;
+  width: 4.25rem;
+  place-items: center;
+  color: var(--color-ink);
+}
+
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;
@@ -284,6 +668,15 @@ dialog.drawer:not([open])::backdrop {
     outline: 3px solid var(--color-yellow-300);
     outline-offset: 2px;
     box-shadow: 0 0 0 2px var(--color-ink);
+  }
+
+  /* Exception asked by the owner: fields stay plain when clicked, the blinking cursor shows where you are typing.
+     Checkboxes and radios have no cursor, so they keep the ring. */
+  input:not([type="checkbox"]):not([type="radio"]):focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline-style: none;
+    box-shadow: none;
   }
 
   @media (prefers-reduced-motion: reduce) {

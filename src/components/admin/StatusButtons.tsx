@@ -22,7 +22,7 @@ export function StatusButtons({ orderId, options, withNote = false }: { orderId:
       {withNote ? (
         <label className="flex flex-col gap-1 text-sm font-semibold text-ink">
           ملاحظة (اختياري)
-          <textarea name="note" rows={2} maxLength={500} className="admin-field rounded-lg px-3 py-2 text-base font-normal text-warm-800 focus:bg-white" />
+          <textarea name="note" rows={2} maxLength={500} className="admin-field rounded-lg px-3 py-2 text-base font-normal text-warm-800" />
         </label>
       ) : null}
       <div className="flex flex-wrap gap-1">

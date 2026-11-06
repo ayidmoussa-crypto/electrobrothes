@@ -1,17 +1,20 @@
-import { ChevronLeft, ChevronRight, Quote, Star } from "lucide-react";
-import Image from "next/image";
+import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, Quote, Star } from "lucide-react";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Suspense } from "react";
 import { BrandStrip } from "@/components/store/BrandStrip";
+import { BundlesSection } from "@/components/store/BundlesSection";
 import { CategoryIcon } from "@/components/store/CategoryIcon";
 import { CategoryTabs } from "@/components/store/CategoryTabs";
+import { HeroParticles } from "@/components/store/HeroParticles";
+import { EmailBox } from "@/components/store/EmailBox";
 import { Countdown } from "@/components/store/Countdown";
 import { ProductCard } from "@/components/store/ProductCard";
 import { ProductGrid, SectionHeader } from "@/components/store/ProductGrid";
 import { ProductSlider } from "@/components/store/ProductSlider";
+import { PromoBand } from "@/components/store/PromoBand";
+import { ScrollRail } from "@/components/store/ScrollRail";
 import { TrustBar } from "@/components/store/TrustBar";
 import { Badge } from "@/components/ui/Badge";
-import { buttonClass } from "@/components/ui/button";
 import { ProductGridSkeleton } from "@/components/ui/Skeleton";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
@@ -20,52 +23,31 @@ import { pageMetadata } from "@/lib/seo";
 import { organizationLd } from "@/lib/structured-data";
 import { JsonLd } from "@/components/seo/JsonLd";
 import type { Metadata } from "next";
-// Canva Pro photo, 2400 × 1350 mozjpeg (~150 KB); next/image serves AVIF/WebP at the viewport width.
-import heroPhoto from "@/assets/hero.jpg";
 
-async function Hero() {
-  const [t, products] = await Promise.all([getTranslations("home"), getProductCards()]);
-  const hero = products.find((p) => p.isFeatured && p.dealEndsAt) ?? products.find((p) => p.isFeatured) ?? products[0];
+async function Hero({ locale }: { locale: Locale }) {
+  const t = await getTranslations("home");
+  const Arrow = locale === "ar" ? ArrowLeft : ArrowRight;
 
   return (
     // Slides 1.5rem up under the header so its rounded bottom corners sit on the dark hero, not on white.
     // Runs up behind the floating header (its margin plus its height), so the bar sits on the photo.
-    <section className="relative isolate -mt-20 overflow-hidden bg-ink pt-20 md:-mt-[141px] md:pt-[141px]">
-      {/* Store photo, full bleed. The products sit opposite the text: on the left in Arabic, mirrored for English. */}
-      <Image
-        src={heroPhoto}
-        alt=""
-        fill
-        priority
-        placeholder="blur"
-        sizes="100vw"
-        quality={75}
-        className="-z-20 object-cover object-left ltr:-scale-x-100"
-      />
-      {/* Ink veil from the text side so the copy reads on any part of the photo (heavier on phones, where text covers it). */}
-      <div
-        aria-hidden="true"
-        className="absolute inset-0 -z-10 bg-ink/70 md:bg-transparent md:from-ink md:via-ink/80 md:to-ink/10 md:ltr:bg-linear-to-r md:rtl:bg-linear-to-l"
-      />
-      <div aria-hidden="true" className="absolute inset-x-0 bottom-0 -z-10 h-24 bg-linear-to-t from-ink to-transparent" />
+    <section className="relative isolate -mt-20 overflow-hidden bg-linear-to-b from-deep to-ink pt-20 md:-mt-[141px] md:pt-[141px]">
+      {/* Night sky with glowing dots gathering into products: above the text on phones, opposite it from md. */}
+      <HeroParticles />
 
-      <div className="mx-auto flex min-h-[28rem] max-w-7xl items-center px-4 py-14 md:min-h-[34rem] md:py-20">
+      <div className="mx-auto flex min-h-[42rem] max-w-7xl items-end px-4 pt-56 pb-10 md:min-h-[34rem] md:items-center md:py-20">
         <div className="max-w-xl">
           <Badge tone="accent" className="text-sm">
             {t("heroEyebrow")}
           </Badge>
           <h1 className="mt-4 text-4xl text-white md:text-5xl">{t("heroTitle")}</h1>
           <p className="mt-4 text-lg text-warm-300">{t("heroSubtitle")}</p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            {hero ? (
-              <Link href={`/products/${hero.slug}`} className={buttonClass({ size: "lg" })}>
-                {t("heroCta")}
-              </Link>
-            ) : null}
-            <a href="#categories" className={buttonClass({ variant: "outlineDark", size: "lg" })}>
-              {t("heroSecondary")}
-            </a>
-          </div>
+          <a href="#categories" className="hero-cta mt-8">
+            <span className="relative">{t("heroSecondary")}</span>
+            <span aria-hidden="true" className="hero-cta-disc">
+              <Arrow className="size-5" />
+            </span>
+          </a>
         </div>
       </div>
     </section>
@@ -78,26 +60,27 @@ async function Categories({ locale }: { locale: Locale }) {
     <section id="categories" className="mx-auto max-w-7xl scroll-mt-4 px-4 py-12">
       <SectionHeader title={t("categoriesTitle")} locale={locale} />
       {/*
-        Round categories with a grey line icon of the product. Hover/focus: the disc turns ink, the icon brand
-        yellow, and it lifts on a soft neutral shadow. Phones swipe (native scroll + snap); from md the six
-        sit in one row.
+        Round categories holding a real product. Hover, press or keyboard focus: the disc fills with yellow and the
+        product leaps out of it (.cat-* in globals.css). The top padding is the room it leaps into, because the
+        swipeable row on phones would otherwise clip it. From md the six sit in one row.
       */}
-      <ul className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-px-4 px-4 pt-3 pb-2 [scrollbar-width:none] sm:gap-6 md:mx-0 md:grid md:grid-cols-6 md:overflow-visible md:px-0 [&::-webkit-scrollbar]:hidden">
+      <ul className="-mx-4 -mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-px-4 px-4 pt-10 pb-2 [scrollbar-width:none] sm:gap-6 sm:pt-14 md:mx-0 md:grid md:grid-cols-6 md:overflow-visible md:px-0 [&::-webkit-scrollbar]:hidden">
         {categories.map((c) => (
-          <li key={c.slug} className="shrink-0 snap-start">
+          <li key={c.slug} className="relative shrink-0 snap-start hover:z-10 focus-within:z-10">
             <Link
               href={`/category/${c.slug}`}
-              // Keyboard focus is shown on the round disc (ink + yellow + Yellow 300 ring), not as a box around the whole link.
-              className="group flex w-24 flex-col items-center gap-3 text-center focus-visible:shadow-none focus-visible:outline-none sm:w-32 md:w-full"
+              // Keyboard focus is shown on the round disc (Yellow 300 ring), not as a box around the whole link.
+              className="cat-tile group flex w-28 flex-col items-center gap-3 text-center focus-visible:shadow-none focus-visible:outline-none sm:w-36 md:w-full"
             >
-              <span className="grid size-20 place-items-center rounded-full border border-warm-200 bg-warm-50 text-warm-500 shadow-sm shadow-ink/5 transition-[background-color,border-color,color,translate,box-shadow] duration-300 ease-out group-hover:-translate-y-1 group-hover:border-ink group-hover:bg-ink group-hover:text-yellow-500 group-hover:shadow-xl group-hover:shadow-ink/20 group-focus-visible:border-ink group-focus-visible:bg-ink group-focus-visible:text-yellow-500 group-focus-visible:ring-3 group-focus-visible:ring-yellow-300 group-focus-visible:ring-offset-2 sm:size-28">
-                <CategoryIcon slug={c.slug} className="size-9 transition-transform duration-300 group-hover:scale-110 sm:size-11" />
+              <span className="cat-disc size-24 group-focus-visible:ring-3 group-focus-visible:ring-yellow-300 group-focus-visible:ring-offset-2 sm:size-32">
+                <CategoryIcon slug={c.slug} />
               </span>
               <span className="text-sm font-bold text-ink sm:text-base">{locale === "ar" ? c.nameAr : c.nameEn}</span>
             </Link>
           </li>
         ))}
       </ul>
+      <ScrollRail className="mt-3 md:hidden" />
     </section>
   );
 }
@@ -156,8 +139,9 @@ async function ShopByCategory({ locale }: { locale: Locale }) {
   if (!tabs.length) return null;
 
   return (
-    <section className="mx-auto max-w-7xl px-4 py-12">
-      <div className="rounded-[2rem] border border-warm-200 bg-warm-50 px-3 py-5 sm:p-8">
+    // Phones: no frame inside the frame. The section itself is the warm surface, so the cards get the full width.
+    <section className="mx-auto max-w-7xl bg-warm-50 px-4 py-10 sm:bg-transparent sm:py-12">
+      <div className="sm:rounded-[2rem] sm:border sm:border-warm-200 sm:bg-warm-50 sm:p-8">
         <div className="mb-2">
           <h2 className="text-2xl md:text-3xl">{t("tabsTitle")}</h2>
           <p className="mt-1 mb-5 text-warm-600">{t("tabsSubtitle")}</p>
@@ -201,7 +185,7 @@ async function Deals({ locale }: { locale: Locale }) {
 async function Brands() {
   const [t, brands] = await Promise.all([getTranslations("home"), getBrands()]);
   return (
-    <section className="border-y border-warm-200 bg-white">
+    <section className="border-t border-warm-200 bg-white">
       <div className="mx-auto max-w-7xl px-4 py-8">
         <h2 className="mb-4 text-center text-xl">{t("brandsTitle")}</h2>
         <BrandStrip brands={brands} />
@@ -259,16 +243,19 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
   return (
     <>
       <JsonLd data={organizationLd(locale)} />
-      <Hero />
+      <Hero locale={locale} />
       <TrustBar />
       <Categories locale={locale} />
       <BestSellers locale={locale} />
       <Suspense fallback={<div className="mx-auto max-w-7xl px-4 py-12"><ProductGridSkeleton count={4} label={t("loading")} /></div>}>
         <Deals locale={locale} />
       </Suspense>
+      <BundlesSection locale={locale} />
       <Brands />
+      <PromoBand locale={locale} />
       <ShopByCategory locale={locale} />
       <Testimonials locale={locale} />
+      <EmailBox />
     </>
   );
 }

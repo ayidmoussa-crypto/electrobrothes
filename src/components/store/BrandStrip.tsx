@@ -5,7 +5,7 @@ import logos from "@/data/brand-logos.json";
 import { Link } from "@/i18n/navigation";
 
 type Brand = { slug: string; name: string };
-const LOGOS = logos as Record<string, { ratio: number }>;
+const LOGOS = logos as Record<string, { ratio: number; ext?: string }>;
 
 /**
  * Thin, self-scrolling strip of real brand logos. Grey by default, brand colour on hover,
@@ -29,9 +29,9 @@ export function BrandStrip({ brands }: { brands: Brand[] }) {
           className="group/logo flex h-14 items-center justify-center rounded-lg px-4"
         >
           {logo ? (
-            // eslint-disable-next-line @next/next/no-img-element -- tiny static SVGs; next/image adds nothing here
+            // eslint-disable-next-line @next/next/no-img-element -- tiny static logos; next/image adds nothing here
             <img
-              src={`/brands/${b.slug}.svg`}
+              src={`/brands/${b.slug}.${logo.ext ?? "svg"}`}
               alt=""
               loading="lazy"
               height={height}

@@ -53,7 +53,7 @@ export function VariantPicker({
   const stockFor = (attr: "colorEn" | "storage", value: string) => variants.filter((v) => v[attr] === value).reduce((s, v) => s + v.stock, 0);
 
   const optionClass = (active: boolean) =>
-    `flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border-2 px-4 text-sm font-semibold transition-colors has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-yellow-300 ${
+    `flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border px-4 text-sm font-semibold transition-colors has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-yellow-300 ${
       active ? "border-ink bg-yellow-100 text-yellow-900" : "border-warm-200 bg-white text-ink hover:border-warm-300"
     }`;
 

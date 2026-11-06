@@ -4,18 +4,21 @@ import { Banknote, CircleAlert, LoaderCircle, Lock } from "lucide-react";
 import Script from "next/script";
 import { useTranslations } from "next-intl";
 import { useActionState, useEffect, useRef, useState } from "react";
+import type { CartBundle } from "@/app/actions/cart";
 import { previewCoupon, submitOrder, type OrderFormState } from "@/app/actions/order";
 import { buttonClass } from "@/components/ui/button";
 import { track } from "@/lib/analytics";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import type { Locale } from "@/i18n/routing";
 import { submitKeepingValues } from "@/lib/forms";
+import { FreeDeliveryRail } from "./FreeDeliveryRail";
 import { formatMAD } from "@/lib/money";
 import { normalizeMoroccanPhone } from "@/lib/phone";
 import { computeTotals } from "@/lib/pricing";
 import type { CheckoutConfig } from "@/lib/store-config";
+import { packSaving } from "./useCartLines";
 
-export type OrderLine = { variantId: string; name: string; label: string | null; price: number; qty: number };
+export type OrderLine = { variantId: string; productId: string; name: string; label: string | null; price: number; qty: number };
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 export const CLEAR_CART_FLAG = "eb_clear_cart";
@@ -32,8 +35,10 @@ export function OrderForm({
   locale,
   source,
   title,
+  bundles = [],
 }: {
   lines: OrderLine[];
+  bundles?: CartBundle[];
   config: CheckoutConfig;
   locale: Locale;
   source: "cart" | "product";
@@ -74,15 +79,16 @@ export function OrderForm({
   }, [state]);
 
   const city = config.cities.find((c) => c.id === cityId);
+  const pack = packSaving(lines, bundles, locale === "ar");
   const totals = computeTotals({
     items: lines.map((l) => ({ unitPrice: l.price, quantity: l.qty })),
     shippingFee: city?.shippingFee ?? 0,
     freeShippingThreshold: config.freeShippingThreshold,
+    bundleDiscount: pack.discount,
     coupon: coupon
       ? { type: "FIXED", value: coupon.discount, minSubtotal: null, maxUses: null, usedCount: 0, startsAt: null, expiresAt: null, isActive: true }
       : null,
   });
-  const missingForFree = config.freeShippingThreshold - (totals.subtotal - totals.discount);
 
   const fieldError = (f: keyof typeof FIELD_ERROR_KEY) =>
     state.fieldErrors?.[f] ? t(`errors.${FIELD_ERROR_KEY[f]}`) : undefined;
@@ -100,7 +106,8 @@ export function OrderForm({
   async function applyCoupon() {
     const code = couponRef.current?.value ?? "";
     if (!code.trim()) return;
-    const res = await previewCoupon(code, totals.subtotal);
+    // The coupon applies to what is left after the packs, as in the order action.
+    const res = await previewCoupon(code, totals.subtotal - totals.bundleDiscount);
     if (res.discount !== undefined) {
       setCoupon({ code: code.trim().toUpperCase(), discount: res.discount });
       setCouponMsg(t("couponApplied", { amount: formatMAD(res.discount, locale) }));
@@ -232,10 +239,19 @@ export function OrderForm({
             <dt className="text-warm-600">{t("subtotal")}</dt>
             <dd className="font-semibold text-ink">{formatMAD(totals.subtotal, locale)}</dd>
           </div>
-          {totals.discount ? (
+          {totals.bundleDiscount ? (
+            <div className="flex justify-between gap-3">
+              <dt className="text-warm-600">
+                {t("packDiscount")}
+                <span className="block text-xs">{pack.names.join("، ")}</span>
+              </dt>
+              <dd className="shrink-0 font-semibold text-success">−{formatMAD(totals.bundleDiscount, locale)}</dd>
+            </div>
+          ) : null}
+          {totals.discount - totals.bundleDiscount ? (
             <div className="flex justify-between">
               <dt className="text-warm-600">{t("discount")}</dt>
-              <dd className="font-semibold text-success">−{formatMAD(totals.discount, locale)}</dd>
+              <dd className="font-semibold text-success">−{formatMAD(totals.discount - totals.bundleDiscount, locale)}</dd>
             </div>
           ) : null}
           <div className="flex justify-between">
@@ -249,10 +265,8 @@ export function OrderForm({
             <dd className="text-xl font-extrabold text-ink">{formatMAD(totals.total, locale)}</dd>
           </div>
         </dl>
-        {missingForFree > 0 ? (
-          <p className="mt-2 text-xs text-warm-600">{t("freeShippingHint", { amount: formatMAD(missingForFree, locale) })}</p>
-        ) : null}
         {city ? <p className="mt-1 text-xs text-warm-600">{t("deliveryIn", { days: city.deliveryDays })}</p> : null}
+        <FreeDeliveryRail spent={totals.subtotal - totals.discount} threshold={config.freeShippingThreshold} locale={locale} />
       </div>
 
       <div className="flex items-start gap-3 rounded-xl bg-ink p-4 text-white">

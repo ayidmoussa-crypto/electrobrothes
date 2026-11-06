@@ -101,7 +101,7 @@ export async function Listing({
                 min={0}
                 defaultValue={params[k] ?? ""}
                 placeholder={k === "max" ? String(facets.priceMax) : "0"}
-                className="min-h-11 w-full rounded-lg border border-warm-200 bg-warm-100 px-3 text-base text-warm-800 placeholder:text-warm-400 focus:bg-white"
+                className="min-h-11 w-full rounded-lg border border-warm-200 bg-warm-100 px-3 text-base text-warm-800 placeholder:text-warm-400"
               />
             </label>
           ))}

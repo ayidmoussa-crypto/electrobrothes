@@ -2,13 +2,30 @@
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Children, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { ScrollRail } from "./ScrollRail";
 
 /**
  * Horizontal product row: native scroll + snap (swipe, trackpad, keyboard), no autoplay.
- * From md, round arrow buttons page through it and dim at either end. Works in RTL:
- * "next" always moves toward the reading end.
+ * From md, round arrow buttons page through it and dim at either end; on phones and tablets a thin
+ * bar shows there is more to swipe. Works in RTL: "next" always moves toward the reading end.
  */
-export function ProductSlider({ children, label, prevLabel, nextLabel }: { children: ReactNode; label: string; prevLabel: string; nextLabel: string }) {
+// Exactly 2 whole cards on phones (the bar below says there are more), 3 on tablets, 4 on desktop.
+const DEFAULT_ITEM = "w-[calc((100%-0.75rem)/2)] sm:w-[31%] lg:w-[calc((100%-3rem)/4)]";
+
+export function ProductSlider({
+  children,
+  label,
+  prevLabel,
+  nextLabel,
+  itemClassName = DEFAULT_ITEM,
+}: {
+  children: ReactNode;
+  label: string;
+  prevLabel: string;
+  nextLabel: string;
+  /** Width of each card, for rows that sit in a narrower column. */
+  itemClassName?: string;
+}) {
   const track = useRef<HTMLUListElement>(null);
   const [edges, setEdges] = useState({ start: true, end: false });
 
@@ -48,12 +65,12 @@ export function ProductSlider({ children, label, prevLabel, nextLabel }: { child
         className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-px-4 px-4 pb-2 [scrollbar-width:none] sm:gap-4 [&::-webkit-scrollbar]:hidden"
       >
         {Children.map(children, (child) => (
-          // 2 cards and a peek on phones, 3 on tablets, 4 on desktop.
-          <li className="flex w-[44%] shrink-0 snap-start sm:w-[31%] lg:w-[calc((100%-3rem)/4)]">
+          <li className={`flex shrink-0 snap-start ${itemClassName}`}>
             <div className="flex-1">{child}</div>
           </li>
         ))}
       </ul>
+      <ScrollRail className="mt-3 md:hidden" />
       <button type="button" onClick={() => page(-1)} disabled={edges.start} aria-label={prevLabel} className={`${arrow} -start-3`}>
         <ChevronRight className="size-5 ltr:hidden" aria-hidden="true" />
         <ChevronLeft className="size-5 rtl:hidden" aria-hidden="true" />

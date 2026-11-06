@@ -74,6 +74,12 @@ export const cart = {
         : [...items, { variantId, qty: Math.min(qty, MAX_QTY) }].slice(0, MAX_LINES),
     );
   },
+  /** Makes this line exactly `qty`, adding it if needed: "order now" pressed twice must not double it. */
+  put(variantId: string, qty: number) {
+    const items = snapshot();
+    if (items.some((i) => i.variantId === variantId)) cart.setQty(variantId, qty);
+    else cart.add(variantId, qty);
+  },
   setQty(variantId: string, qty: number) {
     write(snapshot().map((i) => (i.variantId === variantId ? { ...i, qty: Math.min(Math.max(qty, 1), MAX_QTY) } : i)));
   },

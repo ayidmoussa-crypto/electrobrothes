@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { ScrollRail } from "./ScrollRail";
 
 type Tab = { slug: string; label: string; panel: ReactNode };
 
@@ -35,15 +36,32 @@ export function CategoryTabs({ tabs, label }: { tabs: Tab[]; label: string }) {
     if (e.key === "End") next = tabs.length - 1;
     if (next < 0) return;
     e.preventDefault();
-    setActive(next);
+    select(next);
     buttons.current[next]?.focus();
+  };
+
+  // On phones the track scrolls: bring the chosen tab to its middle, so the next ones show on both sides.
+  const select = (i: number) => {
+    setActive(i);
+    const tab = buttons.current[i];
+    const track = tab?.parentElement;
+    if (!tab || !track) return;
+    // Moves the track only, never the page. A physical distance, so it holds in RTL too.
+    const a = tab.getBoundingClientRect();
+    const b = track.getBoundingClientRect();
+    track.scrollBy({ left: a.left + a.width / 2 - (b.left + b.width / 2), behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
   };
 
   return (
     <>
-      {/* Phones: the track spans the width and every tab shares it (no sideways scrolling); from sm it hugs its tabs. */}
+      {/* Phones: full names at a readable size, in a track you swipe, cut off by its own rounded end; from sm it hugs its tabs. */}
       <div className="py-1">
-        <div role="tablist" aria-label={label} onKeyDown={onKey} className="relative isolate flex w-full rounded-full bg-yellow-500 p-1 shadow-md shadow-ink/10 sm:inline-flex sm:w-auto">
+        <div
+          role="tablist"
+          aria-label={label}
+          onKeyDown={onKey}
+          className="relative isolate flex w-full overflow-x-auto rounded-full bg-yellow-500 p-1 shadow-md shadow-ink/10 [scrollbar-width:none] sm:inline-flex sm:w-auto sm:overflow-visible [&::-webkit-scrollbar]:hidden"
+        >
           <span
             aria-hidden="true"
             style={{ transform: `translateX(${thumb.x}px)`, width: thumb.w }}
@@ -63,9 +81,8 @@ export function CategoryTabs({ tabs, label }: { tabs: Tab[]; label: string }) {
               aria-selected={i === active}
               aria-controls={`${id}-panel-${i}`}
               tabIndex={i === active ? 0 : -1}
-              onClick={() => setActive(i)}
-              // Phones: equal share of the width, small type, and a long name may break onto a second line.
-              className={`min-h-11 min-w-0 flex-1 cursor-pointer rounded-full px-1 text-[0.6875rem] leading-tight font-extrabold text-ink transition-opacity duration-300 min-[400px]:text-xs sm:flex-none sm:shrink-0 sm:px-6 sm:text-base sm:whitespace-nowrap ${
+              onClick={() => select(i)}
+              className={`min-h-12 shrink-0 cursor-pointer rounded-full px-5 text-[0.9375rem] font-extrabold whitespace-nowrap text-ink transition-opacity duration-300 sm:min-h-11 sm:px-6 sm:text-base ${
                 i === active ? "" : "opacity-75 hover:opacity-100"
               }`}
             >
@@ -73,6 +90,7 @@ export function CategoryTabs({ tabs, label }: { tabs: Tab[]; label: string }) {
             </button>
           ))}
         </div>
+        <ScrollRail className="mx-auto mt-3 w-1/2 sm:hidden" />
       </div>
 
       {tabs.map((tab, i) => (

@@ -28,23 +28,29 @@ export function computeTotals(input: {
   shippingFee: number;
   freeShippingThreshold: number;
   coupon?: CouponRule | null;
+  /** Saving from complete packs in the cart (lib/bundles.ts). A coupon applies to what is left after it. */
+  bundleDiscount?: number;
   now?: Date;
 }) {
   const subtotal = input.items.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0);
+  const bundleDiscount = Math.min(Math.max(input.bundleDiscount ?? 0, 0), subtotal);
+  const goods = subtotal - bundleDiscount;
 
-  let discount = 0;
+  let couponDiscount = 0;
   let error: CouponError | null = null;
   if (input.coupon) {
-    error = couponError(input.coupon, subtotal, input.now ?? new Date());
+    error = couponError(input.coupon, goods, input.now ?? new Date());
     if (!error) {
-      discount =
+      couponDiscount =
         input.coupon.type === "PERCENT"
-          ? Math.floor((subtotal * input.coupon.value) / 100)
-          : Math.min(input.coupon.value, subtotal);
+          ? Math.floor((goods * input.coupon.value) / 100)
+          : Math.min(input.coupon.value, goods);
     }
   }
 
+  // `discount` is everything taken off (packs + coupon); the pack part is also given on its own.
+  const discount = bundleDiscount + couponDiscount;
   // Free delivery is judged on what the customer actually pays for the goods.
   const shipping = subtotal - discount >= input.freeShippingThreshold ? 0 : input.shippingFee;
-  return { subtotal, discount, shipping, total: subtotal - discount + shipping, couponError: error };
+  return { subtotal, discount, bundleDiscount, shipping, total: subtotal - discount + shipping, couponError: error };
 }

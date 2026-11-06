@@ -4,10 +4,15 @@ import { revalidateTag } from "next/cache";
 import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import { db } from "./db";
+import { TRIGGER_OF_STATUS } from "./automation-rules";
+import { fireOrderEvent } from "./automations";
+import { manualTotals, type ManualOrderInput } from "./manual-order";
+import { bundleDiscount } from "./bundles";
+import { bundleRulesFor } from "./bundles-data";
 import { assessRisk, newOrderNumber, transitionPlan, type OrderStatus } from "./order-rules";
 import { normalizeMoroccanPhone } from "./phone";
 import { computeTotals } from "./pricing";
-import { InsufficientStockError, moveStock } from "./stock";
+import { effectiveCost, InsufficientStockError, moveStock } from "./stock";
 
 /** httpOnly cookie holding the id of the order this browser just placed (confirmation page). */
 export const ORDER_COOKIE = "eb_order";
@@ -58,7 +63,7 @@ export async function placeOrder(input: OrderInput, ctx: { ip: string; userAgent
   const [variants, city, settings, coupon, blacklisted, recentSamePhone] = await Promise.all([
     db.variant.findMany({
       where: { id: { in: variantIds }, product: { isActive: true } },
-      include: { product: { select: { nameAr: true, nameEn: true } } },
+      include: { product: { select: { nameAr: true, nameEn: true, costPrice: true } } },
     }),
     db.city.findFirst({ where: { id: input.cityId, isActive: true } }),
     db.settings.findUnique({ where: { id: 1 } }),
@@ -83,11 +88,17 @@ export async function placeOrder(input: OrderInput, ctx: { ip: string; userAgent
   if (input.coupon && !coupon) return { ok: false, error: "coupon", couponError: "not_found" } satisfies PlaceOrderResult;
 
   const lines = input.items.map((i) => ({ ...i, v: byId.get(i.variantId)! }));
+  // Complete packs in the basket come off first; the coupon applies to the rest.
+  const bundles = bundleDiscount(
+    lines.map((l) => ({ productId: l.v.productId, unitPrice: l.v.price, quantity: l.qty })),
+    await bundleRulesFor([...new Set(lines.map((l) => l.v.productId))]),
+  );
   const totals = computeTotals({
     items: lines.map((l) => ({ unitPrice: l.v.price, quantity: l.qty })),
     shippingFee: city.shippingFee,
     freeShippingThreshold: settings?.freeShippingThreshold ?? 1000,
     coupon,
+    bundleDiscount: bundles.discount,
   });
   if (totals.couponError) return { ok: false, error: "coupon", couponError: totals.couponError } satisfies PlaceOrderResult;
 
@@ -130,6 +141,7 @@ export async function placeOrder(input: OrderInput, ctx: { ip: string; userAgent
             subtotal: totals.subtotal,
             shippingFee: totals.shipping,
             discount: totals.discount,
+            bundleDiscount: totals.bundleDiscount,
             total: totals.total,
             couponCode: coupon?.code ?? null,
             riskScore: risk.score,
@@ -144,6 +156,7 @@ export async function placeOrder(input: OrderInput, ctx: { ip: string; userAgent
                 nameEn: l.v.product.nameEn,
                 variantLabel: [l.v.colorAr, l.v.storage].filter(Boolean).join(" · ") || null,
                 unitPrice: l.v.price,
+                unitCost: effectiveCost(l.v.costPrice, l.v.product.costPrice),
                 quantity: l.qty,
               })),
             },
@@ -164,6 +177,93 @@ export async function placeOrder(input: OrderInput, ctx: { ip: string; userAgent
 }
 
 class CouponUsedUp extends Error {}
+
+// ───────────────────────── An order typed in by the owner ─────────────────────────
+
+export type ManualOrderResult =
+  | { ok: true; orderId: string; number: string; confirmError?: string }
+  | { ok: false; error: "blocked" | "unavailable" | "out_of_stock" | "discount"; skus?: string[] };
+
+/** From a WhatsApp, phone or social conversation. No captcha or rate limit; the blacklist and the stock still apply. */
+export async function createManualOrder(input: ManualOrderInput, actor: string): Promise<ManualOrderResult> {
+  const quantities = new Map<string, number>();
+  for (const l of input.items) quantities.set(l.variantId, (quantities.get(l.variantId) ?? 0) + l.qty);
+  const ids = [...quantities.keys()];
+
+  const [variants, city, blacklisted, recent] = await Promise.all([
+    db.variant.findMany({ where: { id: { in: ids } }, include: { product: { select: { nameAr: true, nameEn: true, costPrice: true } } } }),
+    db.city.findFirst({ where: { id: input.cityId, isActive: true } }),
+    db.blacklist.findUnique({ where: { phone: input.phone } }),
+    db.order.count({ where: { phone: input.phone, createdAt: { gt: new Date(Date.now() - 24 * 3600 * 1000) }, status: { in: ["NEW", "CONFIRMED"] } } }),
+  ]);
+  if (blacklisted) return { ok: false, error: "blocked" };
+  if (!city || variants.length !== ids.length) return { ok: false, error: "unavailable" };
+  const short = variants.filter((v) => v.stock < quantities.get(v.id)!);
+  if (short.length) return { ok: false, error: "out_of_stock", skus: short.map((v) => v.sku) };
+
+  const totals = manualTotals(input.items, input.shippingFee, input.discount);
+  if (totals.total === null) return { ok: false, error: "discount" };
+
+  const byId = new Map(variants.map((v) => [v.id, v]));
+  const risk = assessRisk({ blacklisted: false, honeypotFilled: false, recentOrdersSamePhone: recent, fillSeconds: null, ordersFromIpLastHour: 0, total: totals.total });
+
+  let order: { id: string; number: string } | null = null;
+  for (let attempt = 0; attempt < 3 && !order; attempt++) {
+    try {
+      order = await db.order.create({
+        data: {
+          number: newOrderNumber(randomBytes),
+          source: input.source,
+          customerName: input.name,
+          phone: input.phone,
+          cityId: city.id,
+          cityName: city.nameAr,
+          address: input.address,
+          notes: input.notes,
+          subtotal: totals.subtotal,
+          shippingFee: totals.shippingFee,
+          discount: totals.discount,
+          total: totals.total,
+          riskScore: risk.score,
+          riskFlags: risk.flags,
+          items: {
+            create: input.items.map((l) => {
+              const v = byId.get(l.variantId)!;
+              return {
+                variantId: v.id,
+                sku: v.sku,
+                nameAr: v.product.nameAr,
+                nameEn: v.product.nameEn,
+                variantLabel: [v.colorAr, v.storage].filter(Boolean).join(" · ") || null,
+                unitPrice: l.unitPrice,
+                unitCost: effectiveCost(v.costPrice, v.product.costPrice),
+                quantity: l.qty,
+              };
+            }),
+          },
+          logs: { create: { toStatus: "NEW", actor } },
+        },
+        select: { id: true, number: true },
+      });
+    } catch (error) {
+      if (!(error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002")) throw error;
+    }
+  }
+  if (!order) return { ok: false, error: "unavailable" };
+
+  if (!input.confirmNow) {
+    await fireOrderEvent(order.id, "order_created");
+    return { ok: true, orderId: order.id, number: order.number };
+  }
+  try {
+    await changeOrderStatus(order.id, "CONFIRMED", actor);
+    return { ok: true, orderId: order.id, number: order.number };
+  } catch (e) {
+    // Someone else took the last piece in between: the order exists, unconfirmed, and the owner is told.
+    if (e instanceof OrderTransitionError) return { ok: true, orderId: order.id, number: order.number, confirmError: e.sku ?? e.reason };
+    throw e;
+  }
+}
 
 // ───────────────────────── Status changes + inventory ─────────────────────────
 
@@ -210,6 +310,8 @@ export async function changeOrderStatus(orderId: string, to: OrderStatus, actor:
       where: { id: orderId },
       data: {
         status: to,
+        ...(to === "DELIVERED" ? { deliveredAt: new Date() } : {}),
+        ...(to === "RETURNED" ? { returnedAt: new Date() } : {}),
         ...(plan.stock ? { stockDeducted: plan.stock === "take" } : {}),
         logs: { create: { fromStatus: order.status, toStatus: to, actor, note: note?.slice(0, 500) } },
       },
@@ -218,4 +320,6 @@ export async function changeOrderStatus(orderId: string, to: OrderStatus, actor:
   });
   // Stock shown on product pages changed.
   if (stockMoved) revalidateTag("products", "max");
+  const trigger = TRIGGER_OF_STATUS[to];
+  if (trigger) await fireOrderEvent(orderId, trigger);
 }

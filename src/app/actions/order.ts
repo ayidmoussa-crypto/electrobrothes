@@ -4,6 +4,7 @@ import { cookies, headers } from "next/headers";
 import { after } from "next/server";
 import { redirect } from "@/i18n/navigation";
 import { routing, type Locale } from "@/i18n/routing";
+import { fireOrderEvent, runDueAutomations } from "@/lib/automations";
 import { db } from "@/lib/db";
 import { clientIp, hit, verifyTurnstile } from "@/lib/guard";
 import { notifyNewOrder } from "@/lib/notify";
@@ -52,7 +53,13 @@ export async function submitOrder(_prev: OrderFormState, formData: FormData): Pr
   if (!result.ok) return { error: result.error, couponError: result.couponError, variantIds: result.variantIds, values };
 
   // Email the shop after the response is sent; a re-submitted duplicate is not announced twice.
-  if (!result.duplicate) after(() => notifyNewOrder(result.orderId));
+  if (!result.duplicate) {
+    after(async () => {
+      await notifyNewOrder(result.orderId);
+      await fireOrderEvent(result.orderId, "order_created");
+      await runDueAutomations().catch((e) => console.error("[automations]", e));
+    });
+  }
 
   // The confirmation page shows the order only to the browser that placed it (no PII behind a guessable URL).
   (await cookies()).set(ORDER_COOKIE, result.orderId, {
@@ -94,6 +101,8 @@ export type TrackState = {
     total: number;
     items: { nameAr: string; nameEn: string; variantLabel: string | null; quantity: number }[];
     logs: { toStatus: string; createdAt: string }[];
+    trackingNumber: string | null;
+    events: { status: string; occurredAt: string }[];
   };
 };
 
@@ -113,6 +122,7 @@ export async function trackOrder(_prev: TrackState, formData: FormData): Promise
     include: {
       items: { select: { nameAr: true, nameEn: true, variantLabel: true, quantity: true } },
       logs: { select: { toStatus: true, createdAt: true }, orderBy: { createdAt: "asc" } },
+      events: { select: { status: true, occurredAt: true }, orderBy: { occurredAt: "asc" } },
     },
   });
   if (!order) return { error: "not_found", values };
@@ -127,6 +137,8 @@ export async function trackOrder(_prev: TrackState, formData: FormData): Promise
       total: order.total,
       items: order.items,
       logs: order.logs.map((l) => ({ toStatus: l.toStatus, createdAt: l.createdAt.toISOString() })),
+      trackingNumber: order.trackingNumber,
+      events: order.events.map((e) => ({ status: e.status, occurredAt: e.occurredAt.toISOString() })),
     },
   };
 }

@@ -12,7 +12,7 @@ import { fontClasses } from "../fonts";
 import "../globals.css";
 
 // Namespaces used with useTranslations() in client components. Add one here when a client component needs it.
-const CLIENT_NAMESPACES = ["header", "pdp", "product", "cart", "checkout", "order", "track", "states", "countdown", "brands", "reviewForm"] as const;
+const CLIENT_NAMESPACES = ["header", "pdp", "product", "cart", "checkout", "order", "track", "states", "countdown", "brands", "reviewForm", "emailBox", "bundles"] as const;
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));

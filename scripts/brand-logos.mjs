@@ -20,14 +20,20 @@ const ICONS = {
 };
 // Not in Simple Icons: wordmark in the brand colour.
 const WORDMARKS = {
-  anker: { text: "ANKER", hex: "00A7E1" },
   baseus: { text: "Baseus", hex: "1A1A1A" },
   soundcore: { text: "soundcore", hex: "00A7E1" },
-  ugreen: { text: "UGREEN", hex: "16A34A" },
-  edifier: { text: "EDIFIER", hex: "1A1A1A" },
-  haylou: { text: "HAYLOU", hex: "1A1A1A" },
   amazfit: { text: "amazfit", hex: "1A1A1A" },
-  qcy: { text: "QCY", hex: "1A1A1A" },
+};
+// Real logos cropped by hand, from the brand's own site or Wikimedia Commons: already in public/brands, never regenerated.
+const SAVED = {
+  anker: { ratio: 4.19 },
+  belkin: { ratio: 3.54 },
+  edifier: { ratio: 4.73 },
+  ugreen: { ratio: 6.01 },
+  haylou: { ratio: 5.85, ext: "png" },
+  otterbox: { ratio: 6.4, ext: "png" },
+  oukitel: { ratio: 7.61, ext: "png" },
+  qcy: { ratio: 2.43, ext: "png" },
 };
 
 // Real drawing boxes [x, y, w, h], measured with getBBox() in the browser. Simple Icons draw every
@@ -37,9 +43,7 @@ const BOXES = {
   apple: [2.22, 0, 19.55, 24], samsung: [0, 10.17, 24, 3.67], xiaomi: [0, 0, 24, 24], jbl: [0, 5.26, 24, 13.47],
   sony: [0, 9.89, 24, 4.22], honor: [0, 9.69, 24, 4.62], hp: [0, 0, 24, 24], dell: [0, 0, 24, 24],
   asus: [0, 9.52, 24, 4.96], lenovo: [0, 8, 24, 8.01],
-  anker: [-6.22, -2.35, 97.29, 33.72], baseus: [0.49, -2.33, 99.01, 33.83], soundcore: [1.37, -2.34, 142.25, 33.83],
-  ugreen: [-8.15, -2.33, 116.31, 33.83], edifier: [2.41, -2.45, 110.18, 33.92], haylou: [-6.94, -2.33, 113.87, 33.83],
-  amazfit: [7.08, -2.45, 100.84, 33.92], qcy: [-1.91, -2.4, 58.83, 33.83],
+  baseus: [0.49, -2.33, 99.01, 33.83], soundcore: [1.37, -2.34, 142.25, 33.83], amazfit: [7.08, -2.45, 100.84, 33.92],
 };
 const viewBox = (slug, fallback) => {
   const [x, y, w, h] = BOXES[slug] ?? fallback;
@@ -66,6 +70,8 @@ for (const [slug, { text, hex }] of Object.entries(WORDMARKS)) {
   fs.writeFileSync(`public/brands/${slug}.svg`, svg);
   manifest[slug] = { ratio };
 }
+
+Object.assign(manifest, SAVED);
 
 fs.mkdirSync("src/data", { recursive: true });
 fs.writeFileSync("src/data/brand-logos.json", JSON.stringify(manifest, null, 2) + "\n");

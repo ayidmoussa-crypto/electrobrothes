@@ -39,6 +39,7 @@ export function orderWhere(f: OrderFilters): Prisma.OrderWhereInput {
       ? {
           OR: [
             { number: { contains: f.q.toUpperCase() } },
+            { trackingNumber: { contains: f.q, mode: "insensitive" } },
             { customerName: { contains: f.q, mode: "insensitive" } },
             ...(phone ? [{ phone }] : []),
           ],

@@ -50,7 +50,7 @@ export function ProductGallery({ images }: { images: Img[] }) {
                 onClick={() => setIndex(i)}
                 aria-label={labels.imageOf(i + 1)}
                 aria-current={i === index}
-                className={`relative size-16 overflow-hidden rounded-lg border-2 bg-warm-50 ${i === index ? "border-ink" : "border-warm-200 hover:border-warm-300"}`}
+                className={`relative size-16 overflow-hidden rounded-lg border bg-warm-50 ${i === index ? "border-ink" : "border-warm-200 hover:border-warm-300"}`}
               >
                 <Image src={img.url} alt="" fill sizes="64px" unoptimized={svg(img.url)} className="object-contain p-1" />
               </button>

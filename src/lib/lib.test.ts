@@ -47,7 +47,7 @@ const base = { shippingFee: 35, freeShippingThreshold: 1000, now };
 
 test("charges shipping below the free-delivery threshold", () => {
   const t = computeTotals({ ...base, items: [{ unitPrice: 149, quantity: 2 }] });
-  assert.deepEqual(t, { subtotal: 298, discount: 0, shipping: 35, total: 333, couponError: null });
+  assert.deepEqual(t, { subtotal: 298, discount: 0, bundleDiscount: 0, shipping: 35, total: 333, couponError: null });
 });
 
 test("free delivery at exactly the threshold", () => {
