@@ -5,6 +5,7 @@ import { z } from "zod";
 import { requireAdmin } from "@/lib/admin";
 import { db } from "@/lib/db";
 import { BUSINESS_CATEGORIES, expectedFromCarrier, PERSONAL_CATEGORIES } from "@/lib/finance";
+import { feeFields, toFeeOrder } from "@/lib/finance-data";
 import { moroccanDate } from "@/lib/time";
 
 type State = { ok?: boolean; message?: string };
@@ -64,16 +65,13 @@ export async function markCodReceived(_: State, fd: FormData): Promise<State> {
   await requireAdmin();
   const ids = z.array(z.string().min(1).max(40)).min(1).max(200).safeParse(fd.getAll("orderId"));
   if (!ids.success) return { ok: false, message: "اختر طلباً واحداً على الأقل." };
-  const [orders, settings] = await Promise.all([
-    db.order.findMany({ where: { id: { in: ids.data }, status: "DELIVERED", codReceivedAt: null }, select: { id: true, total: true, carrierFee: true } }),
-    db.settings.findUnique({ where: { id: 1 }, select: { defaultDeliveryCost: true } }),
-  ]);
+  const orders = await db.order.findMany({ where: { id: { in: ids.data }, status: "DELIVERED", codReceivedAt: null }, select: { id: true, ...feeFields } });
   const now = new Date();
   await db.$transaction(
     orders.map((o) =>
       db.order.updateMany({
         where: { id: o.id, codReceivedAt: null },
-        data: { codReceivedAt: now, codReceivedAmount: expectedFromCarrier(o.total, o.carrierFee, settings?.defaultDeliveryCost ?? 0) },
+        data: { codReceivedAt: now, codReceivedAmount: expectedFromCarrier(toFeeOrder(o)) },
       }),
     ),
   );

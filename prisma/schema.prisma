@@ -285,9 +285,7 @@ model Settings {
   deliveryTimeEn        String  @default("2 to 5 days")
   replacementPolicyAr   String  @default("إلا وصلك المنتج فيه عطب، كنبدلوه ليك بمنتج جديد.")
   replacementPolicyEn   String  @default("If your product arrives defective, we replace it with a new one.")
-  // What the carrier charges the shop, used when an order has no fee of its own. 0 = not set yet.
-  defaultDeliveryCost   Int     @default(0)
-  defaultReturnCost     Int     @default(0)
+  // The carrier's cut is not a setting: it is the city's delivery price, and a refused parcel costs nothing (lib/finance.ts).
 }
 
 enum CouponType {

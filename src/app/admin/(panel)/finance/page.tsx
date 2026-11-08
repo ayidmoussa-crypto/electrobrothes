@@ -1,31 +1,111 @@
-import { AlertTriangle, Banknote, Landmark, PiggyBank, ShoppingBag, Trash2, TrendingDown, TrendingUp, Undo2, Wallet } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowDown,
+  ArrowUp,
+  CalendarRange,
+  ChartColumnBig,
+  ChartPie,
+  ChevronLeft,
+  Landmark,
+  Lightbulb,
+  ListOrdered,
+  Megaphone,
+  Package,
+  Receipt,
+  ShoppingBag,
+  Tag,
+  Trash2,
+  TrendingDown,
+  TrendingUp,
+  Undo2,
+} from "lucide-react";
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { addCapital, addExpense, deleteCapital, deleteExpense, markCodReceived } from "@/app/actions/admin-finance";
 import { ActionForm } from "@/components/admin/ActionForm";
-import { inputClass, L, PageHeader, Panel, Stat, tdClass, thClass } from "@/components/admin/ui";
-import { buttonClass } from "@/components/ui/button";
+import { TrendChart } from "@/components/admin/finance/TrendChart";
 import { requireAdmin } from "@/lib/admin";
 import { db } from "@/lib/db";
-import { BUSINESS_CATEGORIES, categoryLabel, expectedFromCarrier, PERSONAL_CATEGORIES } from "@/lib/finance";
-import { loadCapital, loadProfit } from "@/lib/finance-data";
+import { BUSINESS_CATEGORIES, categoryLabel, changePct, expectedFromCarrier, PERSONAL_CATEGORIES } from "@/lib/finance";
+import { feeFields, loadCapital, loadPeriod, toFeeOrder } from "@/lib/finance-data";
+import { SOURCE_LABEL } from "@/lib/manual-order";
 import { formatMAD } from "@/lib/money";
-import { daysAgo } from "@/lib/stats";
 import { TIME_ZONE, toMoroccanInput } from "@/lib/time";
 
 const RANGES = [7, 30, 90, 365] as const;
 const dayFmt = new Intl.DateTimeFormat("ar-MA", { dateStyle: "medium", timeZone: TIME_ZONE });
+const shortFmt = new Intl.DateTimeFormat("fr-MA", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: TIME_ZONE });
 const mad = (v: number) => formatMAD(v, "ar");
-const tone = (v: number) => (v < 0 ? ("danger" as const) : v > 0 ? ("success" as const) : undefined);
 
-function Row({ label, value, minus, strong, hint }: { label: string; value: number; minus?: boolean; strong?: boolean; hint?: string }) {
+// The finance page is dark, like a trading screen: cards on warm-900 over ink, yellow only for what matters.
+const card = "rounded-3xl bg-warm-900 p-4 ring-1 ring-warm-700/70 md:p-5";
+const field = "min-h-11 w-full rounded-lg border border-warm-700 bg-ink px-3 text-base text-white placeholder:text-warm-400 [color-scheme:dark]";
+const th = "px-3 py-2.5 text-start text-xs font-semibold text-warm-300";
+const td = "px-3 py-2.5 align-middle text-sm text-white";
+// Slice colours of the sources ring, by rank; literal class names so Tailwind keeps them.
+const SLICES = [
+  { stroke: "stroke-yellow-500", dot: "bg-yellow-500" },
+  { stroke: "stroke-warm-300", dot: "bg-warm-300" },
+  { stroke: "stroke-warm-600", dot: "bg-warm-600" },
+  { stroke: "stroke-yellow-700", dot: "bg-yellow-700" },
+];
+
+function CardTitle({ icon: Icon, children, action }: { icon: LucideIcon; children: ReactNode; action?: ReactNode }) {
   return (
-    // Totals sit in a black box so they stand apart from the lines that make them up.
-    <div className={`flex items-baseline justify-between gap-3 ${strong ? "my-2 rounded-xl bg-ink px-4 py-3 text-base font-extrabold text-white" : "border-t border-warm-200/60 py-2"}`}>
-      <dt className={strong ? "" : "text-warm-600"}>
+    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <h2 className="flex items-center gap-2 text-base text-white md:text-lg">
+        <Icon className="size-5 shrink-0 text-yellow-500" aria-hidden="true" />
+        {children}
+      </h2>
+      {action}
+    </div>
+  );
+}
+
+/** Up or down against the period before, on a solid chip so the colour stays readable on black. */
+function Change({ pct }: { pct: number | null }) {
+  if (pct === null) return null;
+  const up = pct >= 0;
+  const Icon = up ? ArrowUp : ArrowDown;
+  return (
+    <span className={`inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-xs font-bold text-white ${up ? "bg-success" : "bg-danger"}`} dir="ltr">
+      {up ? "+" : ""}
+      {pct}%
+      <Icon className="size-3" aria-hidden="true" />
+    </span>
+  );
+}
+
+function Kpi({ icon: Icon, label, value, hint, pct, highlight }: { icon: LucideIcon; label: string; value: number; hint?: string; pct?: number | null; highlight?: boolean }) {
+  return (
+    <div className={`relative isolate overflow-hidden ${card} ${highlight ? "ring-yellow-500/60" : ""}`}>
+      {highlight ? <div aria-hidden="true" className="absolute -end-10 -top-12 -z-10 size-40 rounded-full bg-yellow-500/15 blur-2xl" /> : null}
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className={`text-2xl font-extrabold md:text-3xl ${value < 0 ? "text-danger-soft" : "text-white"}`}>{mad(value)}</p>
+          <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-warm-300">
+            {label}
+            <Change pct={pct ?? null} />
+          </p>
+        </div>
+        <span className={`grid size-12 shrink-0 place-items-center rounded-2xl ${highlight ? "bg-yellow-500 text-ink" : "bg-ink text-yellow-500"}`}>
+          <Icon className="size-6" aria-hidden="true" />
+        </span>
+      </div>
+      {hint ? <p className="mt-3 border-t border-warm-700/70 pt-2 text-xs text-warm-300">{hint}</p> : null}
+    </div>
+  );
+}
+
+function Line({ label, value, minus, total, hint }: { label: string; value: number; minus?: boolean; total?: boolean; hint?: string }) {
+  return (
+    <div className={`flex items-baseline justify-between gap-3 ${total ? "my-2 rounded-xl border-s-4 border-yellow-500 bg-ink px-4 py-3 text-base font-extrabold" : "border-t border-warm-700/70 py-2.5"}`}>
+      <dt className={total ? "text-white" : "text-warm-300"}>
         {label}
-        {hint ? <span className={`block text-xs font-normal ${strong ? "text-warm-300" : "text-warm-500"}`}>{hint}</span> : null}
+        {hint ? <span className="block text-xs font-normal text-warm-400">{hint}</span> : null}
       </dt>
-      <dd className={`shrink-0 ${strong ? "text-white" : "text-warm-800"}`}>
+      <dd className="shrink-0 text-white">
         {minus && value ? "− " : ""}
         {mad(value)}
       </dd>
@@ -33,18 +113,63 @@ function Row({ label, value, minus, strong, hint }: { label: string; value: numb
   );
 }
 
-function BoxTitle({ children }: { children: string }) {
-  return <h2 className="mb-3 rounded-xl bg-ink px-4 py-3 text-base text-white">{children}</h2>;
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="flex flex-col gap-1 text-xs font-semibold text-warm-300">
+      {label}
+      {children}
+    </label>
+  );
 }
 
 function DeleteButton({ action, id, label }: { action: (fd: FormData) => Promise<void>; id: string; label: string }) {
   return (
     <form action={action}>
       <input type="hidden" name="id" value={id} />
-      <button type="submit" aria-label={label} className={buttonClass({ variant: "ghost", size: "icon" })}>
+      <button type="submit" aria-label={label} className="grid size-11 cursor-pointer place-items-center rounded-lg text-warm-300 transition-colors hover:bg-ink hover:text-white">
         <Trash2 className="size-4" aria-hidden="true" />
       </button>
     </form>
+  );
+}
+
+/** Revenue share of each order source, as a ring. */
+function SourcesRing({ sources }: { sources: { source: string; revenue: number }[] }) {
+  const total = sources.reduce((s, x) => s + x.revenue, 0);
+  if (!total) return <p className="py-10 text-center text-sm text-warm-300">ما تسلم حتى طلب فهاد الفترة.</p>;
+  const R = 52;
+  const C = 2 * Math.PI * R;
+  // Four slices at most: the rest is grouped.
+  const shown = sources.length > 4 ? [...sources.slice(0, 3), { source: "OTHER", revenue: sources.slice(3).reduce((s, x) => s + x.revenue, 0) }] : sources;
+  const lens = shown.map((s) => (s.revenue / total) * C);
+  const starts = lens.map((_, i) => lens.slice(0, i).reduce((a, b) => a + b, 0));
+  const pct = (v: number) => Math.round((v / total) * 100);
+  return (
+    <div>
+      <div className="relative mx-auto size-44">
+        <svg viewBox="0 0 140 140" className="size-full -rotate-90" aria-hidden="true">
+          <circle cx="70" cy="70" r={R} fill="none" className="stroke-ink" strokeWidth="20" />
+          {shown.map((s, i) => (
+            <circle key={s.source} cx="70" cy="70" r={R} fill="none" className={SLICES[i].stroke} strokeWidth="20" strokeDasharray={`${lens[i]} ${C - lens[i]}`} strokeDashoffset={-starts[i]} />
+          ))}
+        </svg>
+        <div className="absolute inset-0 grid place-content-center text-center">
+          <p className="text-3xl font-extrabold text-white">{pct(shown[0].revenue)}%</p>
+          <p className="text-xs text-warm-300">{SOURCE_LABEL[shown[0].source] ?? "أخرى"}</p>
+        </div>
+      </div>
+      <ul className="mt-4 flex flex-col gap-2 text-sm">
+        {shown.map((s, i) => (
+          <li key={s.source} className="flex items-center justify-between gap-3">
+            <span className="flex items-center gap-2 text-warm-300">
+              <span className={`size-2.5 rounded-full ${SLICES[i].dot}`} aria-hidden="true" />
+              {s.source === "OTHER" ? "أخرى" : (SOURCE_LABEL[s.source] ?? s.source)}
+            </span>
+            <span className="font-bold text-white">{pct(s.revenue)}%</span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -53,271 +178,396 @@ export default async function FinancePage({ searchParams }: PageProps<"/admin/fi
   const raw = Number((await searchParams).days);
   const days = (RANGES as readonly number[]).includes(raw) ? raw : 30;
 
-  const [p, c, settings, uncollected, expenses, capitalEntries] = await Promise.all([
-    loadProfit(daysAgo(days)),
+  const [{ profit: p, trend, sources, before }, c, uncollected, expenses, capitalEntries, received] = await Promise.all([
+    loadPeriod(days),
     loadCapital(),
-    db.settings.findUnique({ where: { id: 1 }, select: { defaultDeliveryCost: true } }),
     db.order.findMany({
       where: { status: "DELIVERED", codReceivedAt: null },
       orderBy: { deliveredAt: "asc" },
       take: 100,
-      select: { id: true, number: true, customerName: true, total: true, carrierFee: true, deliveredAt: true },
+      select: { id: true, number: true, customerName: true, deliveredAt: true, ...feeFields },
     }),
     db.expense.findMany({ orderBy: { spentOn: "desc" }, take: 40 }),
     db.capitalEntry.findMany({ orderBy: { occurredOn: "desc" }, take: 20 }),
+    db.order.findMany({
+      where: { codReceivedAt: { not: null } },
+      orderBy: { codReceivedAt: "desc" },
+      take: 8,
+      select: { id: true, number: true, codReceivedAt: true, codReceivedAmount: true },
+    }),
   ]);
 
   const today = toMoroccanInput(new Date(), 10);
   const gaps = [
     p.gaps.unitsWithoutCost ? `${p.gaps.unitsWithoutCost} قطعة مبيوعة بلا ثمن شراء: الربح الحقيقي أقل من الرقم اللي هنا. زيد ثمن الشراء فصفحة المنتج.` : null,
-    p.gaps.deliveredWithoutFee ? `${p.gaps.deliveredWithoutFee} طلب مسلَّم بلا رسوم توصيل. حدد الرسوم فالإعدادات ولا فالطلب.` : null,
-    p.gaps.returnedWithoutFee ? `${p.gaps.returnedWithoutFee} طلب راجع بلا رسوم. حدد رسوم الإرجاع فالإعدادات ولا فالطلب.` : null,
+    p.gaps.deliveredWithoutFee ? `${p.gaps.deliveredWithoutFee} طلب مسلَّم بلا رسوم توصيل. حدد ثمن التوصيل ديال المدينة فـ«المدن والتوصيل» ولا الرسوم فالطلب.` : null,
     c.gaps.unitsWithoutCost ? `${c.gaps.unitsWithoutCost} قطعة فالمخزون بلا ثمن شراء: قيمة المخزون ناقصة.` : null,
     c.gaps.movesWithoutCost ? `${c.gaps.movesWithoutCost} قطعة دخلات للمخزون بلا ثمن شراء: الكاش ورأس المال ما كيحسبوش ثمنها.` : null,
-  ].filter(Boolean);
+    c.hiddenUnits ? `${c.hiddenUnits} قطعة ديال منتجات مخبية من المتجر ما داخلاش فالحساب. إلا كان شي منتج مخبي وشريتيه بصح، ظهّرو باش يتحسب.` : null,
+  ].filter((g): g is string => Boolean(g));
+
+  // Every movement of money, newest first: carrier transfers, expenses, money put in or taken out.
+  const moves = [
+    ...received.map((o) => ({ id: `o${o.id}`, in: true, kind: "تحويل التوصيل", amount: o.codReceivedAmount ?? 0, at: o.codReceivedAt!, note: o.number, href: `/admin/orders/${o.id}` })),
+    ...expenses.map((e) => ({ id: `e${e.id}`, in: false, kind: e.scope === "PERSONAL" ? "مصروف شخصي" : "مصروف المشروع", amount: e.amount, at: e.spentOn, note: [categoryLabel(e.scope, e.category), e.note].filter(Boolean).join(" · "), href: undefined })),
+    ...capitalEntries.map((e) => ({ id: `c${e.id}`, in: e.type === "INJECTION", kind: e.type === "INJECTION" ? "دخلت فلوس" : "سحبت فلوس", amount: e.amount, at: e.occurredOn, note: e.note ?? "", href: undefined })),
+  ]
+    .sort((a, b) => b.at.getTime() - a.at.getTime())
+    .slice(0, 6);
+
+  const revenueChange = changePct(p.revenue, before.revenue);
+  const netChange = before.netProfit > 0 ? changePct(p.netProfit, before.netProfit) : null;
+  const insight = !p.deliveredCount
+    ? `ما تسلم حتى طلب فآخر ${days} يوم.`
+    : revenueChange === null
+      ? `المبيعات المسلَّمة فآخر ${days} يوم هي ${mad(p.revenue)}، وما كاين حتى بيع فالفترة اللي قبلها باش نقارنو.`
+      : `المبيعات المسلَّمة فآخر ${days} يوم هي ${mad(p.revenue)}، ${revenueChange >= 0 ? "زايدة" : "ناقصة"} ب ${Math.abs(revenueChange)}% على ${days} يوم اللي قبلها.`;
 
   return (
-    <>
-      <PageHeader
-        title="المالية"
-        description={`آخر ${days} يوم`}
-        actions={RANGES.map((r) => (
-          <Link
-            key={r}
-            href={`/admin/finance?days=${r}`}
-            aria-current={r === days ? "page" : undefined}
-            className={`inline-flex min-h-11 items-center rounded-full px-4 text-sm font-semibold transition-colors ${r === days ? "bg-ink text-white shadow-lg shadow-ink/20" : "admin-field text-ink hover:bg-white"}`}
-          >
-            {r} يوم
-          </Link>
-        ))}
-      />
+    <div className="-mx-1 rounded-[2rem] bg-ink p-3 text-white sm:p-5">
+      <div className="mb-5 flex flex-wrap items-end justify-between gap-3 px-1">
+        <div>
+          <h1 className="text-2xl text-white md:text-3xl">المالية</h1>
+          <p className="mt-1 text-sm text-warm-300">
+            الأرباح على آخر {days} يوم، ورأس المال من البداية.
+          </p>
+        </div>
+        <nav aria-label="الفترة" className="flex flex-wrap gap-1 rounded-full bg-warm-900 p-1 ring-1 ring-warm-700/70">
+          {RANGES.map((r) => (
+            <Link
+              key={r}
+              href={`/admin/finance?days=${r}`}
+              aria-current={r === days ? "page" : undefined}
+              className={`inline-flex min-h-11 items-center rounded-full px-4 text-sm font-semibold transition-colors ${r === days ? "bg-yellow-500 text-ink" : "text-warm-300 hover:bg-ink hover:text-white"}`}
+            >
+              {r} يوم
+            </Link>
+          ))}
+        </nav>
+      </div>
 
       {gaps.length ? (
-        <section aria-label="أرقام ناقصة" className="mb-6 rounded-2xl border border-warning/40 bg-warning-soft/85 p-4 text-sm text-warning-text">
-          <p className="flex items-center gap-2 font-bold">
+        <details className="mb-5 rounded-2xl bg-warning-soft p-4 text-sm text-warning-text">
+          <summary className="flex cursor-pointer items-center gap-2 font-bold">
             <AlertTriangle className="size-5 shrink-0" aria-hidden="true" />
-            أرقام ناقصة كتأثر على الحساب
-          </p>
+            {gaps.length} ديال الأرقام ناقصة وكتأثر على الحساب
+          </summary>
           <ul className="mt-2 list-inside list-disc">
             {gaps.map((g) => (
               <li key={g}>{g}</li>
             ))}
           </ul>
+        </details>
+      ) : null}
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Kpi icon={p.netProfit < 0 ? TrendingDown : TrendingUp} label="صافي الربح" value={p.netProfit} pct={netChange} highlight hint={p.margin === null ? "ما كاين حتى بيع" : `الهامش ${p.margin}% · بعد مصاريفك الشخصية ${mad(p.afterPersonal)}`} />
+        <Kpi icon={ShoppingBag} label="المبيعات المسلَّمة" value={p.revenue} pct={revenueChange} hint={`${p.deliveredCount} طلب مسلَّم · ${p.returnedCount} راجع`} />
+        <Kpi icon={Package} label="قيمة السلعة" value={c.inventoryValue + c.goodsInTransit} hint={`فالمخزون ${mad(c.inventoryValue)} · فالطريق ${mad(c.goodsInTransit)}`} />
+        <Kpi icon={Landmark} label="رأس المال اليوم" value={c.position} pct={c.resultPct} hint={`${c.result < 0 ? "خسارة" : "ربح"} منذ البداية ${mad(c.result)} على ${mad(c.invested)} مستثمرة`} />
+      </div>
+
+      <div className="mt-3 grid gap-3 lg:grid-cols-2 xl:grid-cols-4">
+        <section className={`${card} xl:order-3 xl:col-span-2 lg:col-span-2`} aria-labelledby="trend-title">
+          <CardTitle icon={ChartColumnBig}>
+            <span id="trend-title">تطور المبيعات والربح خلال آخر {days} يوم</span>
+          </CardTitle>
+          <TrendChart data={trend} />
         </section>
-      ) : null}
-      {c.hiddenUnits ? (
-        <p className="mb-6 text-sm text-warm-600">
-          {c.hiddenUnits} قطعة ديال منتجات مخبية من المتجر ما داخلاش فالحساب. إلا كان شي منتج مخبي وشريتيه بصح، ظهّرو باش يتحسب.
-        </p>
-      ) : null}
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat icon={p.netProfit < 0 ? TrendingDown : TrendingUp} label="صافي الربح" value={mad(p.netProfit)} tone={tone(p.netProfit)} hint={p.margin === null ? "ما كاين حتى بيع" : p.gaps.unitsWithoutCost ? `الهامش ${p.margin}% بلا ثمن شراء ${p.gaps.unitsWithoutCost} قطعة` : `الهامش ${p.margin}%`} />
-        <Stat icon={ShoppingBag} label="المبيعات المسلَّمة" value={mad(p.revenue)} hint={`${p.deliveredCount} طلب`} />
-        <Stat icon={Undo2} label="خسائر الإرجاع" value={mad(p.returnsCost)} hint={`${p.returnedCount} طلب راجع`} />
-        <Stat icon={Wallet} label="بعد مصاريفك الشخصية" value={mad(p.afterPersonal)} tone={tone(p.afterPersonal)} hint={`مصاريف شخصية ${mad(p.personalExpenses)}`} />
+        <section className={`${card} xl:order-2`} aria-labelledby="sources-title">
+          <CardTitle icon={ChartPie}>
+            <span id="sources-title">مصادر المبيعات</span>
+          </CardTitle>
+          <SourcesRing sources={sources} />
+        </section>
+
+        <section className={`${card} xl:order-1`} aria-labelledby="period-title">
+          <CardTitle icon={CalendarRange}>
+            <span id="period-title">أداء الفترة الحالية</span>
+          </CardTitle>
+          <dl className="flex flex-col divide-y divide-warm-700/70 text-sm">
+            {[
+              { icon: ShoppingBag, label: "المبيعات المسلَّمة", value: mad(p.revenue) },
+              { icon: TrendingUp, label: "الربح الخام", value: mad(p.grossProfit) },
+              { icon: Tag, label: "متوسط الصافي لكل طلب", value: p.perOrder === null ? "—" : mad(p.perOrder) },
+              { icon: ListOrdered, label: "الطلبات المسلَّمة", value: String(p.deliveredCount) },
+              { icon: Undo2, label: "الطلبات الراجعة", value: String(p.returnedCount) },
+              { icon: Megaphone, label: "الإعلان لكل طلب مسلَّم", value: p.costPerDelivered === null ? "—" : mad(p.costPerDelivered) },
+            ].map((r) => (
+              <div key={r.label} className="flex items-center justify-between gap-3 py-2.5">
+                <dt className="flex items-center gap-2 text-warm-300">
+                  <r.icon className="size-4 shrink-0 text-yellow-500" aria-hidden="true" />
+                  {r.label}
+                </dt>
+                <dd className="font-bold text-white">{r.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <Panel>
-          <BoxTitle>حساب الربح</BoxTitle>
-          <dl className="text-sm">
-            <Row label="المبيعات المسلَّمة" value={p.revenue} />
-            <Row label="تكلفة السلعة" value={p.cogs} minus />
-            <Row label="رسوم التوصيل" value={p.deliveryCost} minus />
-            <Row label="الربح الخام" value={p.grossProfit} strong />
-            <Row label="رسوم الطرود الراجعة" value={p.returnsCost} minus hint="السلعة الراجعة كترجع للمخزون، فالخسارة هي الرسوم." />
-            <Row label="مصاريف المشروع" value={p.businessExpenses} minus />
-            <Row label="نقص فالمخزون" value={p.stockLoss} minus hint="التعديلات بالناقص من صفحة المنتج." />
-            <Row label="صافي الربح" value={p.netProfit} strong />
-          </dl>
-          {p.costPerDelivered !== null ? <p className="mt-3 text-sm text-warm-600">تكلفة الإعلانات لكل طلب مسلَّم: <b className="text-ink">{mad(p.costPerDelivered)}</b></p> : null}
-          {p.perOrder !== null ? <p className="mt-1 text-sm text-warm-600">متوسط الصافي لكل طلب: <b className="text-ink">{mad(p.perOrder)}</b></p> : null}
-        </Panel>
+      <div className="mt-3 grid gap-3 lg:grid-cols-3">
+        <section className="flex flex-col justify-between gap-4 rounded-3xl bg-warm-900 p-5 ring-2 ring-yellow-500/70" aria-labelledby="insight-title">
+          <div>
+            <h2 id="insight-title" className="flex items-center gap-2 text-lg text-white">
+              <Lightbulb className="size-5 text-yellow-500" aria-hidden="true" />
+              معلومة مهمة
+            </h2>
+            <p className="mt-3 leading-relaxed text-warm-300">{insight}</p>
+          </div>
+          <a href="#details" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-yellow-500 px-5 font-extrabold text-ink transition-colors hover:bg-yellow-600 active:bg-yellow-700">
+            <ChartColumnBig className="size-4" aria-hidden="true" />
+            عرض التفاصيل الكاملة
+          </a>
+        </section>
 
-        <Panel>
-          <BoxTitle>رأس المال: فين كاينين الفلوس (من البداية)</BoxTitle>
-          <dl className="text-sm">
-            <Row label="الكاش" value={c.cash} hint="اللي دخلتي + تحويلات التوصيل − المشتريات − كل المصاريف" />
-            <Row label="السلعة فالمخزون" value={c.inventoryValue} hint="بثمن الشراء" />
-            <Row label="سلعة فالطريق" value={c.goodsInTransit} hint="طلبات مأكدة ولا فالشحن، مازال ما توصلوش. بثمن الشراء." />
-            <Row label="فلوس عند شركة التوصيل" value={c.owedByCarrier} hint="طلبات تسلمات للزبون، والفلوس مازال ما حولتهاش ليك الشركة. بثمن البيع ناقص الرسوم." />
-            <Row label="المجموع اليوم" value={c.position} strong />
-            <Row label="اللي استثمرتي" value={c.invested} hint={`دخلتي ${mad(c.injections)} + سلعة البداية ${mad(c.openingStockValue)} − سحبتي ${mad(c.withdrawals)}`} />
-            <Row label={c.result < 0 ? "الخسارة منذ البداية" : "الربح منذ البداية"} value={c.result} strong hint={c.resultPct === null ? undefined : `${c.resultPct}% من اللي استثمرتي، والمصاريف الشخصية محسوبة`} />
-          </dl>
-        </Panel>
-      </div>
-
-      <Panel title={`عند شركة التوصيل (${uncollected.length})`} className="mt-6">
-        {uncollected.length ? (
-          <ActionForm action={markCodReceived} submitLabel="توصلت بالطلبات المحددة" className="flex flex-col gap-3">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[36rem]">
-                <thead>
+        <section className={`${card} lg:col-span-2`} aria-labelledby="moves-title">
+          <CardTitle icon={Receipt}>
+            <span id="moves-title">أحدث المعاملات</span>
+          </CardTitle>
+          {moves.length ? (
+            <div className="overflow-x-auto rounded-2xl ring-1 ring-warm-700/70">
+              <table className="w-full min-w-[34rem]">
+                <thead className="bg-ink">
                   <tr>
-                    <th className={thClass}>
-                      <span className="sr-only">اختيار</span>
-                    </th>
-                    <th className={thClass}>الطلب</th>
-                    <th className={thClass}>الزبون</th>
-                    <th className={thClass}>تسلّم</th>
-                    <th className={thClass}>المنتظر</th>
+                    <th className={th}>النوع</th>
+                    <th className={th}>المبلغ</th>
+                    <th className={th}>التاريخ</th>
+                    <th className={th}>ملاحظات</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {uncollected.map((o) => (
-                    <tr key={o.id} className="border-t border-warm-200/60">
-                      <td className={tdClass}>
-                        <input type="checkbox" name="orderId" value={o.id} aria-label={`اختيار ${o.number}`} className="size-5 accent-ink" />
+                  {moves.map((m) => (
+                    <tr key={m.id} className="border-t border-warm-700/70">
+                      <td className={td}>
+                        <span className="flex items-center gap-2">
+                          <span className={`grid size-6 shrink-0 place-items-center rounded-full text-white ${m.in ? "bg-success" : "bg-danger"}`}>
+                            {m.in ? <ArrowUp className="size-3.5" aria-label="داخل" /> : <ArrowDown className="size-3.5" aria-label="خارج" />}
+                          </span>
+                          {m.kind}
+                        </span>
                       </td>
-                      <td className={tdClass}>
-                        <Link href={`/admin/orders/${o.id}`} className="font-mono font-bold text-ink underline-offset-4 hover:underline" dir="ltr">
-                          {o.number}
-                        </Link>
+                      <td className={`${td} font-bold`}>
+                        <span dir="ltr">{m.in ? "+" : "−"}</span>
+                        {mad(m.amount)}
                       </td>
-                      <td className={tdClass}>{o.customerName}</td>
-                      <td className={tdClass}>{o.deliveredAt ? dayFmt.format(o.deliveredAt) : "—"}</td>
-                      <td className={`${tdClass} font-bold text-ink`}>{mad(expectedFromCarrier(o.total, o.carrierFee, settings?.defaultDeliveryCost ?? 0))}</td>
+                      <td className={`${td} text-warm-300`} dir="ltr">
+                        {shortFmt.format(m.at)}
+                      </td>
+                      <td className={`${td} max-w-56 truncate text-warm-300`}>
+                        {m.href ? (
+                          <Link href={m.href} className="font-mono text-white underline-offset-4 hover:underline" dir="ltr">
+                            {m.note}
+                          </Link>
+                        ) : (
+                          m.note || "—"
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            <p className="text-xs text-warm-600">المنتظر هو المبلغ ناقص رسوم التوصيل. إلا توصلتي بمبلغ آخر، سجلو من صفحة الطلب.</p>
+          ) : (
+            <p className="text-sm text-warm-300">مازال ما كاين حتى معاملة: تحويلات التوصيل، المصاريف وحركات رأس المال كيبانو هنا.</p>
+          )}
+          <a href="#records" className="mt-3 inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-white underline-offset-4 hover:text-yellow-500 hover:underline">
+            كل المصاريف وحركات رأس المال
+            <ChevronLeft className="size-4" aria-hidden="true" />
+          </a>
+        </section>
+      </div>
+
+      <div id="details" className="mt-3 grid scroll-mt-28 gap-3 lg:grid-cols-2">
+        <section className={card}>
+          <CardTitle icon={TrendingUp}>حساب الربح (آخر {days} يوم)</CardTitle>
+          <dl className="text-sm">
+            <Line label="المبيعات المسلَّمة" value={p.revenue} />
+            <Line label="تكلفة السلعة" value={p.cogs} minus />
+            <Line label="رسوم التوصيل" value={p.deliveryCost} minus hint="ثمن المدينة على الطلبات اللي التوصيل فيها مجاني ولا خلصو الزبون." />
+            <Line label="الربح الخام" value={p.grossProfit} total />
+            <Line label="رسوم الطرود الراجعة" value={p.returnsCost} minus hint="الطرد الراجع ما كتخلص عليه والو، والسلعة كترجع للمخزون. غير إلا كتبتي رسوم فالطلب." />
+            <Line label="مصاريف المشروع" value={p.businessExpenses} minus />
+            <Line label="نقص فالمخزون" value={p.stockLoss} minus hint="التعديلات بالناقص من صفحة المنتج." />
+            <Line label="صافي الربح" value={p.netProfit} total />
+            <Line label="مصاريفك الشخصية" value={p.personalExpenses} minus />
+            <Line label="اللي بقا بعد مصاريفك" value={p.afterPersonal} total />
+          </dl>
+        </section>
+
+        <section className={card}>
+          <CardTitle icon={Landmark}>رأس المال: فين كاينين الفلوس (من البداية)</CardTitle>
+          <dl className="text-sm">
+            <Line label="الكاش" value={c.cash} hint="اللي دخلتي + تحويلات التوصيل − المشتريات − كل المصاريف" />
+            <Line label="السلعة فالمخزون" value={c.inventoryValue} hint="بثمن الشراء" />
+            <Line label="سلعة فالطريق" value={c.goodsInTransit} hint="طلبات مأكدة ولا فالشحن، مازال ما توصلوش. بثمن الشراء." />
+            <Line label="فلوس عند شركة التوصيل" value={c.owedByCarrier} hint="طلبات تسلمات للزبون، والفلوس مازال ما حولتهاش ليك الشركة. بثمن البيع ناقص الرسوم." />
+            <Line label="المجموع اليوم" value={c.position} total />
+            <Line label="اللي استثمرتي" value={c.invested} hint={`دخلتي ${mad(c.injections)} + سلعة البداية ${mad(c.openingStockValue)} − سحبتي ${mad(c.withdrawals)}`} />
+            <Line label={c.result < 0 ? "الخسارة منذ البداية" : "الربح منذ البداية"} value={c.result} total hint={c.resultPct === null ? undefined : `${c.resultPct}% من اللي استثمرتي، والمصاريف الشخصية محسوبة`} />
+          </dl>
+        </section>
+      </div>
+
+      <section className={`${card} mt-3`} aria-labelledby="cod-title">
+        <CardTitle icon={Receipt}>
+          <span id="cod-title">عند شركة التوصيل ({uncollected.length})</span>
+        </CardTitle>
+        {uncollected.length ? (
+          <ActionForm action={markCodReceived} submitLabel="توصلت بالطلبات المحددة" className="flex flex-col gap-3">
+            <div className="overflow-x-auto rounded-2xl ring-1 ring-warm-700/70">
+              <table className="w-full min-w-[36rem]">
+                <thead className="bg-ink">
+                  <tr>
+                    <th className={th}>
+                      <span className="sr-only">اختيار</span>
+                    </th>
+                    <th className={th}>الطلب</th>
+                    <th className={th}>الزبون</th>
+                    <th className={th}>تسلّم</th>
+                    <th className={th}>المنتظر</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {uncollected.map((o) => (
+                    <tr key={o.id} className="border-t border-warm-700/70">
+                      <td className={td}>
+                        <input type="checkbox" name="orderId" value={o.id} aria-label={`اختيار ${o.number}`} className="size-5 accent-yellow-500" />
+                      </td>
+                      <td className={td}>
+                        <Link href={`/admin/orders/${o.id}`} className="font-mono font-bold text-white underline-offset-4 hover:underline" dir="ltr">
+                          {o.number}
+                        </Link>
+                      </td>
+                      <td className={td}>{o.customerName}</td>
+                      <td className={`${td} text-warm-300`}>{o.deliveredAt ? dayFmt.format(o.deliveredAt) : "—"}</td>
+                      <td className={`${td} font-bold`}>{mad(expectedFromCarrier(toFeeOrder(o)))}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="text-xs text-warm-300">المنتظر هو المبلغ ناقص رسوم التوصيل. إلا توصلتي بمبلغ آخر، سجلو من صفحة الطلب.</p>
           </ActionForm>
         ) : (
-          <p className="text-sm text-warm-600">ما كاين حتى طلب مسلَّم كيتسنى التحويل.</p>
+          <p className="text-sm text-warm-300">ما كاين حتى طلب مسلَّم كيتسنى التحويل.</p>
         )}
-      </Panel>
+      </section>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        <Panel title="مصروف ديال المشروع">
-          <ActionForm action={addExpense} submitLabel="إضافة" variant="dark">
-            <input type="hidden" name="scope" value="BUSINESS" />
-            <L label="النوع">
-              <select name="category" className={inputClass}>
-                {Object.entries(BUSINESS_CATEGORIES).map(([k, label]) => (
-                  <option key={k} value={k}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </L>
-            <L label="المبلغ (درهم)">
-              <input name="amount" type="number" min={1} required className={inputClass} />
-            </L>
-            <L label="التاريخ">
-              <input name="spentOn" type="date" required defaultValue={today} className={inputClass} />
-            </L>
-            <L label="ملاحظة">
-              <input name="note" maxLength={200} className={inputClass} />
-            </L>
-          </ActionForm>
-        </Panel>
+      <div className="mt-3 grid gap-3 lg:grid-cols-3">
+        {(
+          [
+            { scope: "BUSINESS", title: "مصروف ديال المشروع", categories: BUSINESS_CATEGORIES, note: undefined },
+            { scope: "PERSONAL", title: "مصروف ولا خسارة شخصية", categories: PERSONAL_CATEGORIES, note: "ما كيدخلش فربح المشروع، ولكن كينقص من الكاش ومن نتيجة رأس المال." },
+          ] as const
+        ).map((f) => (
+          <section key={f.scope} className={card}>
+            <h2 className="mb-3 text-base text-white">{f.title}</h2>
+            <ActionForm action={addExpense} submitLabel="إضافة">
+              <input type="hidden" name="scope" value={f.scope} />
+              <Field label="النوع">
+                <select name="category" className={field}>
+                  {Object.entries(f.categories).map(([k, label]) => (
+                    <option key={k} value={k}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="المبلغ (درهم)">
+                <input name="amount" type="number" min={1} required className={field} />
+              </Field>
+              <Field label="التاريخ">
+                <input name="spentOn" type="date" required defaultValue={today} className={field} />
+              </Field>
+              <Field label="ملاحظة">
+                <input name="note" maxLength={200} className={field} />
+              </Field>
+            </ActionForm>
+            {f.note ? <p className="mt-3 text-xs text-warm-300">{f.note}</p> : null}
+          </section>
+        ))}
 
-        <Panel title="مصروف ولا خسارة شخصية">
-          <ActionForm action={addExpense} submitLabel="إضافة" variant="dark">
-            <input type="hidden" name="scope" value="PERSONAL" />
-            <L label="النوع">
-              <select name="category" className={inputClass}>
-                {Object.entries(PERSONAL_CATEGORIES).map(([k, label]) => (
-                  <option key={k} value={k}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </L>
-            <L label="المبلغ (درهم)">
-              <input name="amount" type="number" min={1} required className={inputClass} />
-            </L>
-            <L label="التاريخ">
-              <input name="spentOn" type="date" required defaultValue={today} className={inputClass} />
-            </L>
-            <L label="ملاحظة">
-              <input name="note" maxLength={200} className={inputClass} />
-            </L>
-          </ActionForm>
-          <p className="mt-3 text-xs text-warm-600">ما كيدخلش فربح المشروع، ولكن كينقص من الكاش ومن نتيجة رأس المال.</p>
-        </Panel>
-
-        <Panel title="حركة رأس المال">
-          <ActionForm action={addCapital} submitLabel="إضافة" variant="dark">
-            <L label="النوع">
-              <select name="type" className={inputClass}>
+        <section className={card}>
+          <h2 className="mb-3 text-base text-white">حركة رأس المال</h2>
+          <ActionForm action={addCapital} submitLabel="إضافة">
+            <Field label="النوع">
+              <select name="type" className={field}>
                 <option value="INJECTION">دخلت فلوس للمشروع</option>
                 <option value="WITHDRAWAL">سحبت فلوس من المشروع</option>
               </select>
-            </L>
-            <L label="المبلغ (درهم)">
-              <input name="amount" type="number" min={1} required className={inputClass} />
-            </L>
-            <L label="التاريخ">
-              <input name="occurredOn" type="date" required defaultValue={today} className={inputClass} />
-            </L>
-            <L label="ملاحظة">
-              <input name="note" maxLength={200} className={inputClass} />
-            </L>
+            </Field>
+            <Field label="المبلغ (درهم)">
+              <input name="amount" type="number" min={1} required className={field} />
+            </Field>
+            <Field label="التاريخ">
+              <input name="occurredOn" type="date" required defaultValue={today} className={field} />
+            </Field>
+            <Field label="ملاحظة">
+              <input name="note" maxLength={200} className={field} />
+            </Field>
           </ActionForm>
-        </Panel>
+        </section>
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <Panel title="آخر المصاريف">
+      <div id="records" className="mt-3 grid scroll-mt-28 gap-3 lg:grid-cols-2">
+        <section className={card}>
+          <h2 className="mb-3 text-base text-white">آخر المصاريف</h2>
           {expenses.length ? (
-            <ul className="flex flex-col divide-y divide-warm-200/60 text-sm">
+            <ul className="flex flex-col divide-y divide-warm-700/70 text-sm">
               {expenses.map((e) => (
                 <li key={e.id} className="flex items-center justify-between gap-3 py-1.5">
                   <span className="min-w-0">
-                    <span className="flex items-center gap-1.5 font-semibold text-ink">
-                      {e.scope === "PERSONAL" ? <PiggyBank className="size-4 shrink-0 text-warm-500" aria-label="شخصي" /> : <Banknote className="size-4 shrink-0 text-warm-500" aria-label="المشروع" />}
+                    <span className="font-semibold text-white">
                       {categoryLabel(e.scope, e.category)}
+                      <span className="ms-2 rounded-md bg-ink px-1.5 py-0.5 text-xs font-normal text-warm-300">{e.scope === "PERSONAL" ? "شخصي" : "المشروع"}</span>
                     </span>
-                    <span className="block truncate text-xs text-warm-600">
+                    <span className="block truncate text-xs text-warm-300">
                       {dayFmt.format(e.spentOn)}
                       {e.note ? ` · ${e.note}` : ""}
                     </span>
                   </span>
                   <span className="flex shrink-0 items-center gap-1">
-                    <b className="text-ink">{mad(e.amount)}</b>
+                    <b className="text-white">{mad(e.amount)}</b>
                     <DeleteButton action={deleteExpense} id={e.id} label="حذف المصروف" />
                   </span>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-warm-600">مازال ما تسجل حتى مصروف.</p>
+            <p className="text-sm text-warm-300">مازال ما تسجل حتى مصروف.</p>
           )}
-        </Panel>
+        </section>
 
-        <Panel title="حركات رأس المال">
+        <section className={card}>
+          <h2 className="mb-3 text-base text-white">حركات رأس المال</h2>
           {capitalEntries.length ? (
-            <ul className="flex flex-col divide-y divide-warm-200/60 text-sm">
+            <ul className="flex flex-col divide-y divide-warm-700/70 text-sm">
               {capitalEntries.map((e) => (
                 <li key={e.id} className="flex items-center justify-between gap-3 py-1.5">
                   <span className="min-w-0">
-                    <span className="flex items-center gap-1.5 font-semibold text-ink">
-                      <Landmark className="size-4 shrink-0 text-warm-500" aria-hidden="true" />
-                      {e.type === "INJECTION" ? "دخلت فلوس" : "سحبت فلوس"}
-                    </span>
-                    <span className="block truncate text-xs text-warm-600">
+                    <span className="font-semibold text-white">{e.type === "INJECTION" ? "دخلت فلوس" : "سحبت فلوس"}</span>
+                    <span className="block truncate text-xs text-warm-300">
                       {dayFmt.format(e.occurredOn)}
                       {e.note ? ` · ${e.note}` : ""}
                     </span>
                   </span>
                   <span className="flex shrink-0 items-center gap-1">
-                    <b className={e.type === "INJECTION" ? "text-success" : "text-danger"}>{mad(e.amount)}</b>
+                    <b className="text-white">
+                      <span dir="ltr">{e.type === "INJECTION" ? "+" : "−"}</span>
+                      {mad(e.amount)}
+                    </b>
                     <DeleteButton action={deleteCapital} id={e.id} label="حذف الحركة" />
                   </span>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-warm-600">سجل شحال دخلتي فالمشروع باش يتحسب رأس المال بالصح.</p>
+            <p className="text-sm text-warm-300">سجل شحال دخلتي فالمشروع باش يتحسب رأس المال بالصح.</p>
           )}
-        </Panel>
+        </section>
       </div>
-    </>
+    </div>
   );
 }

@@ -35,17 +35,16 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
   const { id } = await params;
   const order = await db.order.findUnique({
     where: { id },
-    include: { items: true, logs: { orderBy: { createdAt: "asc" } }, events: { orderBy: { occurredAt: "desc" } } },
+    include: { items: true, logs: { orderBy: { createdAt: "asc" } }, events: { orderBy: { occurredAt: "desc" } }, city: { select: { shippingFee: true } } },
   });
   if (!order) notFound();
-  const [blacklisted, otherOrders, reviewed, settings, query] = await Promise.all([
+  const [blacklisted, otherOrders, reviewed, query] = await Promise.all([
     db.blacklist.findUnique({ where: { phone: order.phone } }),
     db.order.count({ where: { phone: order.phone, id: { not: order.id } } }),
     db.review.count({ where: { orderItem: { orderId: order.id } } }),
-    db.settings.findUnique({ where: { id: 1 }, select: { defaultDeliveryCost: true } }),
     searchParams,
   ]);
-  const expected = expectedFromCarrier(order.total, order.carrierFee, settings?.defaultDeliveryCost ?? 0);
+  const expected = expectedFromCarrier({ ...order, cityFee: order.city.shippingFee });
   // Cost of the goods in this order, when every line's purchase price is known.
   const goodsCost = order.items.every((i) => i.unitCost !== null) ? order.items.reduce((s, i) => s + (i.unitCost ?? 0) * i.quantity, 0) : null;
   const shippable = order.status === "CONFIRMED" || order.status === "SHIPPING" || order.status === "DELIVERED";

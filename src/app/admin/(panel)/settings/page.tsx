@@ -25,15 +25,6 @@ export default async function SettingsPage() {
           </L>
           <p className="text-xs text-warm-600">رقم واتساب يُستعمل في زر واتساب العائم وزر «أكّد طلبك عبر واتساب» في صفحة الشكر.</p>
           <div className="grid gap-3 sm:grid-cols-2">
-            <L label="شنو كتخلص شركة التوصيل على طرد مسلَّم (درهم)">
-              <input name="defaultDeliveryCost" type="number" min={0} defaultValue={s?.defaultDeliveryCost ?? 0} required className={inputClass} />
-            </L>
-            <L label="شنو كتخلص على طرد راجع (درهم)">
-              <input name="defaultReturnCost" type="number" min={0} defaultValue={s?.defaultReturnCost ?? 0} required className={inputClass} />
-            </L>
-          </div>
-          <p className="text-xs text-warm-600">يُستعمل في حساب الأرباح للطلبات اللي ما تسجلاتش ليها الرسوم الحقيقية.</p>
-          <div className="grid gap-3 sm:grid-cols-2">
             <L label="مدة التوصيل بالعربية">
               <input name="deliveryTimeAr" defaultValue={s?.deliveryTimeAr ?? "2 إلى 5 أيام"} required maxLength={60} className={inputClass} />
             </L>

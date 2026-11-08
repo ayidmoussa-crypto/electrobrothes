@@ -151,8 +151,6 @@ const settingsInput = z.object({
   deliveryTimeEn: z.string().trim().min(1).max(60),
   replacementPolicyAr: z.string().trim().min(1).max(500),
   replacementPolicyEn: z.string().trim().min(1).max(500),
-  defaultDeliveryCost: z.coerce.number().int().min(0).max(100_000),
-  defaultReturnCost: z.coerce.number().int().min(0).max(100_000),
 });
 
 export async function saveSettings(_: State, fd: FormData) {

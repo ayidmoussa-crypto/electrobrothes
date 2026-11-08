@@ -144,7 +144,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
         <Stat icon={Undo2} label="خسائر الإرجاع" value={formatMAD(profit.returnsCost, "ar")} hint={`${profit.returnedCount} طلب راجع`} />
         <Stat icon={Megaphone} label="مصاريف المشروع" value={formatMAD(profit.businessExpenses, "ar")} hint={profit.costPerDelivered === null ? undefined : `الإعلان لكل طلب مسلَّم ${formatMAD(profit.costPerDelivered, "ar")}`} />
       </div>
-      {profit.gaps.unitsWithoutCost || profit.gaps.deliveredWithoutFee || profit.gaps.returnedWithoutFee ? (
+      {profit.gaps.unitsWithoutCost || profit.gaps.deliveredWithoutFee ? (
         <Link href="/admin/finance" className="mt-3 flex items-center gap-2 rounded-2xl border border-warning/40 bg-warning-soft/85 p-3 text-sm font-semibold text-warning-text hover:underline">
           <AlertTriangle className="size-4 shrink-0" aria-hidden="true" />
           الربح ناقص معلومات: ثمن شراء ولا رسوم توصيل ما محددينش. شوف التفاصيل فصفحة المالية.
