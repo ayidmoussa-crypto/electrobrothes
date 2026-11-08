@@ -12,6 +12,7 @@ import { CARRIER_NAME, CARRIER_TRACKING_PAGE, carrierHasLogin } from "@/lib/carr
 import { CARRIER_LABEL, CARRIER_STATUSES, isCarrierStatus } from "@/lib/carrier/status";
 import { db } from "@/lib/db";
 import { expectedFromCarrier } from "@/lib/finance";
+import { channelLabel } from "@/lib/attribution";
 import { SOURCE_LABEL } from "@/lib/manual-order";
 import { formatMAD } from "@/lib/money";
 import { allowedNext, type OrderStatus } from "@/lib/order-rules";
@@ -62,7 +63,7 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
       </Link>
       <PageHeader
         title={`الطلب ${order.number}`}
-        description={`${dateFmt.format(order.createdAt)} · المصدر: ${SOURCE_LABEL[order.source]}`}
+        description={`${dateFmt.format(order.createdAt)} · المصدر: ${SOURCE_LABEL[order.source]} · جا من: ${channelLabel(order.channel)}${order.channelDetail ? ` (${order.channelDetail})` : ""}`}
         actions={<StatusBadge status={order.status} />}
       />
       {query.unconfirmed ? (

@@ -37,7 +37,7 @@ export async function loadProfit(since: Date, until = new Date()) {
 export async function loadPeriod(days: number, now = new Date()) {
   const since = new Date(now.getTime() - days * 24 * 3600 * 1000);
   const range = { gte: since, lte: now };
-  const dated = { ...orderFields, source: true, deliveredAt: true, returnedAt: true } as const;
+  const dated = { ...orderFields, channel: true, deliveredAt: true, returnedAt: true } as const;
   const [delivered, returned, expenses, adjustments, before] = await Promise.all([
     db.order.findMany({ where: { status: "DELIVERED", deliveredAt: range }, select: dated }),
     db.order.findMany({ where: { status: "RETURNED", returnedAt: range }, select: dated }),
@@ -52,9 +52,14 @@ export async function loadPeriod(days: number, now = new Date()) {
 
   const profit = computeProfit({ delivered: d, returned: r, expenses: e, stockAdjustmentValue: a.reduce((s, x) => s + x.value, 0) });
   const trend = profitTrend(trendBuckets(days, now), { delivered: d, returned: r, expenses: e, adjustments: a });
-  const bySource = new Map<string, number>();
-  for (const o of delivered) bySource.set(o.source, (bySource.get(o.source) ?? 0) + o.total);
-  const sources = [...bySource].map(([source, revenue]) => ({ source, revenue })).sort((x, y) => y.revenue - x.revenue);
+  // Sales by where the buyer came from; "" = an order from before tracking started.
+  const byChannel = new Map<string, { revenue: number; orders: number }>();
+  for (const o of delivered) {
+    const k = o.channel ?? "";
+    const c = byChannel.get(k) ?? { revenue: 0, orders: 0 };
+    byChannel.set(k, { revenue: c.revenue + o.total, orders: c.orders + 1 });
+  }
+  const sources = [...byChannel].map(([channel, c]) => ({ channel, ...c })).sort((x, y) => y.revenue - x.revenue);
   return { profit, trend, sources, before };
 }
 

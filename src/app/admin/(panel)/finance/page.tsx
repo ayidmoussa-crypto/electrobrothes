@@ -29,7 +29,7 @@ import { requireAdmin } from "@/lib/admin";
 import { db } from "@/lib/db";
 import { BUSINESS_CATEGORIES, categoryLabel, changePct, expectedFromCarrier, PERSONAL_CATEGORIES } from "@/lib/finance";
 import { feeFields, loadCapital, loadPeriod, toFeeOrder } from "@/lib/finance-data";
-import { SOURCE_LABEL } from "@/lib/manual-order";
+import { channelLabel } from "@/lib/attribution";
 import { formatMAD } from "@/lib/money";
 import { TIME_ZONE, toMoroccanInput } from "@/lib/time";
 
@@ -49,6 +49,7 @@ const SLICES = [
   { stroke: "stroke-warm-300", dot: "bg-warm-300" },
   { stroke: "stroke-warm-600", dot: "bg-warm-600" },
   { stroke: "stroke-yellow-700", dot: "bg-yellow-700" },
+  { stroke: "stroke-white", dot: "bg-white" },
 ];
 
 function CardTitle({ icon: Icon, children, action }: { icon: LucideIcon; children: ReactNode; action?: ReactNode }) {
@@ -133,14 +134,16 @@ function DeleteButton({ action, id, label }: { action: (fd: FormData) => Promise
   );
 }
 
-/** Revenue share of each order source, as a ring. */
-function SourcesRing({ sources }: { sources: { source: string; revenue: number }[] }) {
+/** Revenue share of each channel the buyers came from, as a ring. */
+function SourcesRing({ sources }: { sources: { channel: string; revenue: number; orders: number }[] }) {
   const total = sources.reduce((s, x) => s + x.revenue, 0);
   if (!total) return <p className="py-10 text-center text-sm text-warm-300">ما تسلم حتى طلب فهاد الفترة.</p>;
   const R = 52;
   const C = 2 * Math.PI * R;
-  // Four slices at most: the rest is grouped.
-  const shown = sources.length > 4 ? [...sources.slice(0, 3), { source: "OTHER", revenue: sources.slice(3).reduce((s, x) => s + x.revenue, 0) }] : sources;
+  // Five slices at most: the rest is grouped.
+  const rest = sources.slice(4);
+  const shown = rest.length > 1 ? [...sources.slice(0, 4), { channel: "REST", revenue: rest.reduce((s, x) => s + x.revenue, 0), orders: rest.reduce((s, x) => s + x.orders, 0) }] : sources;
+  const name = (c: string) => (c === "REST" ? "الباقي" : channelLabel(c || null));
   const lens = shown.map((s) => (s.revenue / total) * C);
   const starts = lens.map((_, i) => lens.slice(0, i).reduce((a, b) => a + b, 0));
   const pct = (v: number) => Math.round((v / total) * 100);
@@ -150,25 +153,30 @@ function SourcesRing({ sources }: { sources: { source: string; revenue: number }
         <svg viewBox="0 0 140 140" className="size-full -rotate-90" aria-hidden="true">
           <circle cx="70" cy="70" r={R} fill="none" className="stroke-ink" strokeWidth="20" />
           {shown.map((s, i) => (
-            <circle key={s.source} cx="70" cy="70" r={R} fill="none" className={SLICES[i].stroke} strokeWidth="20" strokeDasharray={`${lens[i]} ${C - lens[i]}`} strokeDashoffset={-starts[i]} />
+            <circle key={s.channel} cx="70" cy="70" r={R} fill="none" className={SLICES[i].stroke} strokeWidth="20" strokeDasharray={`${lens[i]} ${C - lens[i]}`} strokeDashoffset={-starts[i]} />
           ))}
         </svg>
         <div className="absolute inset-0 grid place-content-center text-center">
           <p className="text-3xl font-extrabold text-white">{pct(shown[0].revenue)}%</p>
-          <p className="text-xs text-warm-300">{SOURCE_LABEL[shown[0].source] ?? "أخرى"}</p>
+          <p className="max-w-24 text-xs text-warm-300">{name(shown[0].channel)}</p>
         </div>
       </div>
       <ul className="mt-4 flex flex-col gap-2 text-sm">
         {shown.map((s, i) => (
-          <li key={s.source} className="flex items-center justify-between gap-3">
+          <li key={s.channel} className="flex items-center justify-between gap-3">
             <span className="flex items-center gap-2 text-warm-300">
-              <span className={`size-2.5 rounded-full ${SLICES[i].dot}`} aria-hidden="true" />
-              {s.source === "OTHER" ? "أخرى" : (SOURCE_LABEL[s.source] ?? s.source)}
+              <span className={`size-2.5 shrink-0 rounded-full ${SLICES[i].dot}`} aria-hidden="true" />
+              {name(s.channel)}
+              <span className="text-xs text-warm-400">({s.orders})</span>
             </span>
             <span className="font-bold text-white">{pct(s.revenue)}%</span>
           </li>
         ))}
       </ul>
+      <Link href="/admin/settings#tracking" className="mt-4 inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-white underline-offset-4 hover:text-yellow-500 hover:underline">
+        روابط التتبع لإنستغرام وتيك توك
+        <ChevronLeft className="size-4" aria-hidden="true" />
+      </Link>
     </div>
   );
 }

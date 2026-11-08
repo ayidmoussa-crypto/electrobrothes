@@ -4,6 +4,7 @@ import { cookies, headers } from "next/headers";
 import { after } from "next/server";
 import { redirect } from "@/i18n/navigation";
 import { routing, type Locale } from "@/i18n/routing";
+import { CHANNEL_COOKIE, decodeTouch } from "@/lib/attribution";
 import { fireOrderEvent, runDueAutomations } from "@/lib/automations";
 import { db } from "@/lib/db";
 import { clientIp, hit, verifyTurnstile } from "@/lib/guard";
@@ -49,6 +50,7 @@ export async function submitOrder(_prev: OrderFormState, formData: FormData): Pr
     ip,
     userAgent: (await headers()).get("user-agent"),
     ordersFromIpLastHour: fromIp - 1,
+    touch: decodeTouch((await cookies()).get(CHANNEL_COOKIE)?.value),
   });
   if (!result.ok) return { error: result.error, couponError: result.couponError, variantIds: result.variantIds, values };
 

@@ -370,6 +370,10 @@ model Order {
   status            OrderStatus      @default(NEW)
   // Where the order came from; everything but WEBSITE was typed in by an admin.
   source            OrderSource      @default(WEBSITE)
+  // Where the buyer came from (lib/attribution.ts): INSTAGRAM, SEO, META_ADS... Null on orders from before tracking.
+  channel           String?
+  // The ad campaign or referring site, when known.
+  channelDetail     String?
   // Shipment: filled in by an admin today, by the carrier's API once it is connected.
   carrier           String?
   trackingNumber    String?

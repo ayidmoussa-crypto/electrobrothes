@@ -1,5 +1,8 @@
 import { saveSettings } from "@/app/actions/admin-catalog";
 import { ActionForm } from "@/components/admin/ActionForm";
+import { CopyLink } from "@/components/admin/CopyLink";
+import { trackingLinks } from "@/lib/attribution";
+import { siteUrl } from "@/lib/seo";
 import { inputClass, L, PageHeader, Panel } from "@/components/admin/ui";
 import { requireAdmin } from "@/lib/admin";
 import { usageSummary } from "@/lib/assistant/usage";
@@ -54,6 +57,21 @@ export default async function SettingsPage() {
           </label>
         </ActionForm>
       </Panel>
+
+      <section id="tracking" className="admin-card mt-6 max-w-2xl scroll-mt-28 p-4 md:p-5">
+        <h2 className="text-base">روابط التتبع</h2>
+        <p className="mt-1 text-sm text-warm-600">
+          حط كل رابط فبلاصتو، والطلبات اللي جاو منو كيتحسبو ليه فـ«مصادر المبيعات» فالمالية. فالإعلانات، بدّل <span dir="ltr" className="font-mono">smiyat-l-i3lan</span> بسمية الإعلان.
+        </p>
+        <div className="mt-4 flex flex-col gap-3">
+          {trackingLinks(siteUrl()).map((l) => (
+            <CopyLink key={l.url} label={l.where} url={l.url} />
+          ))}
+        </div>
+        <p className="mt-4 text-xs text-warm-600">
+          إعلانات Google كتتعرف بوحدها. الزوار اللي جاو من البحث فـ Google ولا من رابط بلا هاد الزيادة كيتعرفو من الصفحة اللي جاو منها، ولكن التطبيقات ديال إنستغرام وتيك توك بزاف المرات كيخبيوها، وداكشي علاش هاد الروابط مهمين. كيتحسب آخر مصدر معروف فـ 30 يوم قبل الطلب.
+        </p>
+      </section>
     </>
   );
 }

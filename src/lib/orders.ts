@@ -4,6 +4,7 @@ import { revalidateTag } from "next/cache";
 import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import { db } from "./db";
+import { channelOfManualSource, type Touch } from "./attribution";
 import { TRIGGER_OF_STATUS } from "./automation-rules";
 import { fireOrderEvent } from "./automations";
 import { manualTotals, type ManualOrderInput } from "./manual-order";
@@ -58,7 +59,7 @@ export type PlaceOrderResult =
 
 // ───────────────────────── Place a cash-on-delivery order ─────────────────────────
 
-export async function placeOrder(input: OrderInput, ctx: { ip: string; userAgent: string | null; ordersFromIpLastHour: number }) {
+export async function placeOrder(input: OrderInput, ctx: { ip: string; userAgent: string | null; ordersFromIpLastHour: number; touch?: Touch | null }) {
   const variantIds = input.items.map((i) => i.variantId);
   const [variants, city, settings, coupon, blacklisted, recentSamePhone] = await Promise.all([
     db.variant.findMany({
@@ -146,6 +147,9 @@ export async function placeOrder(input: OrderInput, ctx: { ip: string; userAgent
             couponCode: coupon?.code ?? null,
             riskScore: risk.score,
             riskFlags: risk.flags,
+            // No cookie at all (blocked, or a visit the proxy never saw) is the same as a direct visit.
+            channel: ctx.touch?.channel ?? "DIRECT",
+            channelDetail: ctx.touch?.detail ?? null,
             ip: ctx.ip,
             userAgent: ctx.userAgent?.slice(0, 300) ?? null,
             items: {
@@ -214,6 +218,7 @@ export async function createManualOrder(input: ManualOrderInput, actor: string):
         data: {
           number: newOrderNumber(randomBytes),
           source: input.source,
+          channel: channelOfManualSource(input.source),
           customerName: input.name,
           phone: input.phone,
           cityId: city.id,
