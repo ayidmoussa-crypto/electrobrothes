@@ -4,8 +4,10 @@ import { notFound } from "next/navigation";
 import { setCodReceived } from "@/app/actions/admin-finance";
 import { addShipmentEvent, addToBlacklist, saveShipment } from "@/app/actions/admin-orders";
 import { ActionForm } from "@/components/admin/ActionForm";
+import { PaymentMenu, StatusMenu, WhatsAppConfirm } from "@/components/admin/OrderRowMenus";
+import { confirmationText, whatsappLink } from "@/lib/order-whatsapp";
 import { StatusButtons, type StatusOption } from "@/components/admin/StatusButtons";
-import { inputClass, L, PageHeader, Panel, RISK_LABEL, STATUS_LABEL, StatusBadge } from "@/components/admin/ui";
+import { inputClass, L, PageHeader, Panel, RISK_LABEL, STATUS_LABEL } from "@/components/admin/ui";
 import { Badge } from "@/components/ui/Badge";
 import { requireAdmin } from "@/lib/admin";
 import { CARRIER_NAME, CARRIER_TRACKING_PAGE, carrierHasLogin } from "@/lib/carrier/connection";
@@ -15,7 +17,7 @@ import { expectedFromCarrier } from "@/lib/finance";
 import { channelLabel } from "@/lib/attribution";
 import { SOURCE_LABEL } from "@/lib/manual-order";
 import { formatMAD } from "@/lib/money";
-import { allowedNext, type OrderStatus } from "@/lib/order-rules";
+import { allowedNext, cashToCollect, type OrderStatus } from "@/lib/order-rules";
 import { formatMoroccanPhone } from "@/lib/phone";
 import { reviewLink } from "@/lib/reviews/customer";
 import { reviewWhatsappMessage } from "@/lib/reviews/rules";
@@ -27,6 +29,7 @@ const VARIANT: Record<OrderStatus, StatusOption["variant"]> = {
   CONFIRMED: "primary",
   SHIPPING: "dark",
   DELIVERED: "dark",
+  RETURNING: "outline",
   RETURNED: "outline",
   CANCELLED: "outline",
 };
@@ -45,15 +48,13 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
     db.review.count({ where: { orderItem: { orderId: order.id } } }),
     searchParams,
   ]);
-  const expected = expectedFromCarrier({ ...order, cityFee: order.city.shippingFee });
+  const prepaid = order.prepaidAt !== null;
+  const expected = expectedFromCarrier({ ...order, cityFee: order.city.shippingFee, prepaid });
   // Cost of the goods in this order, when every line's purchase price is known.
   const goodsCost = order.items.every((i) => i.unitCost !== null) ? order.items.reduce((s, i) => s + (i.unitCost ?? 0) * i.quantity, 0) : null;
   const shippable = order.status === "CONFIRMED" || order.status === "SHIPPING" || order.status === "DELIVERED";
 
   const waNumber = order.phone.replace("+", "");
-  const waText = encodeURIComponent(
-    `السلام عليكم ${order.customerName}، معك ElectroBrothers بخصوص طلبك ${order.number} بمبلغ ${order.total} درهم. هل تؤكد الطلب والعنوان: ${order.address}، ${order.cityName}؟`,
-  );
 
   return (
     <>
@@ -64,7 +65,12 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
       <PageHeader
         title={`الطلب ${order.number}`}
         description={`${dateFmt.format(order.createdAt)} · المصدر: ${SOURCE_LABEL[order.source]} · جا من: ${channelLabel(order.channel)}${order.channelDetail ? ` (${order.channelDetail})` : ""}`}
-        actions={<StatusBadge status={order.status} />}
+        actions={
+          <div className="flex flex-wrap items-start gap-2">
+            <PaymentMenu orderId={order.id} number={order.number} status={order.status} prepaid={prepaid} collected={order.codReceivedAt !== null} />
+            <StatusMenu orderId={order.id} number={order.number} status={order.status} waiting={order.confirmSentAt !== null} />
+          </div>
+        }
       />
       {query.unconfirmed ? (
         <p role="alert" className="mb-4 rounded-xl border border-warning bg-warning-soft p-4 font-semibold text-warning-text">
@@ -124,15 +130,7 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
                 <Phone className="size-4" aria-hidden="true" />
                 اتصال
               </a>
-              <a
-                href={`https://wa.me/${waNumber}?text=${waText}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-whatsapp px-4 font-semibold text-ink hover:opacity-90"
-              >
-                <MessageCircle className="size-4" aria-hidden="true" />
-                تأكيد عبر واتساب
-              </a>
+              <WhatsAppConfirm orderId={order.id} status={order.status} href={whatsappLink(order.phone, confirmationText({ ...order, prepaid }))} />
               <Link href={`/admin/inbox?phone=${encodeURIComponent(order.phone)}`} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-warm-200 bg-white px-4 font-semibold text-ink hover:bg-warm-50">
                 <MessagesSquare className="size-4" aria-hidden="true" />
                 المحادثة
@@ -179,9 +177,15 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
                 <dd>{order.shippingFee ? formatMAD(order.shippingFee, "ar") : "مجاني"}</dd>
               </div>
               <div className="flex justify-between text-base">
-                <dt className="font-bold text-ink">المبلغ عند الاستلام</dt>
+                <dt className="font-bold text-ink">{prepaid ? "المجموع (مدفوع مسبقاً)" : "المبلغ عند الاستلام"}</dt>
                 <dd className="font-extrabold text-ink">{formatMAD(order.total, "ar")}</dd>
               </div>
+              {prepaid ? (
+                <div className="flex justify-between rounded-lg bg-success-soft px-2 py-1.5 font-bold text-success">
+                  <dt>شركة التوصيل تجمع</dt>
+                  <dd>{formatMAD(cashToCollect(order.total, prepaid), "ar")}</dd>
+                </div>
+              ) : null}
               <div className="mt-2 flex justify-between border-t border-warm-200 pt-2">
                 <dt className="text-warm-600">تكلفة السلعة (لك فقط)</dt>
                 <dd>{goodsCost === null ? "ثمن الشراء ناقص" : formatMAD(goodsCost, "ar")}</dd>
@@ -259,7 +263,7 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
                 options={allowedNext(order.status).map((to) => ({ to, label: STATUS_LABEL[to], variant: VARIANT[to] }))}
               />
             ) : (
-              <p className="text-sm text-warm-600">هذه حالة نهائية.</p>
+              <p className="text-sm text-warm-600">الطريق العادي سالا هنا. إلا بغيتي تبدلها بيدك، استعمل قائمة الحالة فوق.</p>
             )}
             <p className="mt-3 text-xs text-warm-600">يُخصم المخزون عند التأكيد ويُعاد عند الإلغاء أو الإرجاع.</p>
           </Panel>

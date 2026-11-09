@@ -24,7 +24,7 @@ const TARGET: Record<CarrierStatus, OrderStatus> = {
   IN_TRANSIT: "SHIPPING",
   OUT_FOR_DELIVERY: "SHIPPING",
   DELIVERY_FAILED: "SHIPPING",
-  RETURNING: "SHIPPING",
+  RETURNING: "RETURNING",
   DELIVERED: "DELIVERED",
   RETURNED: "RETURNED",
 };
@@ -37,6 +37,8 @@ const TARGET: Record<CarrierStatus, OrderStatus> = {
 export function carrierTransitions(current: OrderStatus, event: CarrierStatus): OrderStatus[] | null {
   const target = TARGET[event];
   if (current === target) return [];
+  // A parcel on its way back still moves through the carrier's hubs: those steps keep it returning.
+  if (current === "RETURNING" && target === "SHIPPING") return [];
   if (allowedNext(current).includes(target)) return [target];
   if (current === "CONFIRMED" && allowedNext("SHIPPING").includes(target)) return ["SHIPPING", target];
   return null;

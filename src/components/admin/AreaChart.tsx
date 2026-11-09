@@ -10,7 +10,15 @@ type Point = { key: string; label: string; value: number };
 const H = 180;
 const PAD_TOP = 12;
 
-export function AreaChart({ title, data, unit = "طلب" }: { title: string; data: Point[]; unit?: string }) {
+const TEXT = {
+  ar: { total: "المجموع", peak: "الذروة", table: "عرض كجدول" },
+  en: { total: "Total", peak: "Peak", table: "Show as table" },
+};
+
+/** `lang="en"` writes the chart in English and runs time left to right. */
+export function AreaChart({ title, data, unit = "طلب", lang = "ar", className = "" }: { title: string; data: Point[]; unit?: string; lang?: "ar" | "en"; className?: string }) {
+  const t = TEXT[lang];
+  const rtl = lang === "ar";
   const id = useId();
   const box = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState<number | null>(null);
@@ -32,7 +40,7 @@ export function AreaChart({ title, data, unit = "طلب" }: { title: string; dat
   const top = [2, 4, 6, 10].map((m) => m * step).find((v) => v >= max) ?? max;
 
   // x in 0–100 (percent of the width), RTL: index 0 (oldest) at 100.
-  const x = (i: number) => (n === 1 ? 50 : 100 - (i / (n - 1)) * 100);
+  const x = (i: number) => (n === 1 ? 50 : rtl ? 100 - (i / (n - 1)) * 100 : (i / (n - 1)) * 100);
   const y = (v: number) => PAD_TOP + (H - PAD_TOP) * (1 - v / top);
   const line = data.map((d, i) => `${i ? "L" : "M"}${x(i)},${y(d.value)}`).join(" ");
   const area = `${line} L${x(n - 1)},${H} L${x(0)},${H} Z`;
@@ -48,12 +56,13 @@ export function AreaChart({ title, data, unit = "طلب" }: { title: string; dat
 
   const pick = (e: PointerEvent<HTMLDivElement>) => {
     const r = e.currentTarget.getBoundingClientRect();
-    const fromRight = (r.right - e.clientX) / r.width;
-    setActive(Math.min(n - 1, Math.max(0, Math.round(fromRight * (n - 1)))));
+    // Share of the width from the oldest day's edge.
+    const fromStart = rtl ? (r.right - e.clientX) / r.width : (e.clientX - r.left) / r.width;
+    setActive(Math.min(n - 1, Math.max(0, Math.round(fromStart * (n - 1)))));
   };
   const onKey = (e: KeyboardEvent) => {
-    // Arrow keys follow the visual direction: left = newer, right = older.
-    const move = { ArrowLeft: 1, ArrowRight: -1, Home: -n, End: n }[e.key];
+    // Arrow keys follow the visual direction (in Arabic: left = newer, right = older).
+    const move = { ArrowLeft: rtl ? 1 : -1, ArrowRight: rtl ? -1 : 1, Home: -n, End: n }[e.key];
     if (move === undefined) return;
     e.preventDefault();
     setActive((a) => Math.min(n - 1, Math.max(0, (a ?? n - 1) + move)));
@@ -62,11 +71,11 @@ export function AreaChart({ title, data, unit = "طلب" }: { title: string; dat
   const cur = active === null ? null : data[active];
 
   return (
-    <figure className="admin-card p-4 md:p-5">
+    <figure className={`admin-card p-4 md:p-5 ${className}`}>
       <figcaption className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
         <span className="text-sm font-bold text-ink">{title}</span>
         <span className="text-xs text-warm-600">
-          المجموع: <b className="text-ink">{total}</b> {unit}
+          {t.total}: <b className="text-ink">{total}</b> {unit}
         </span>
       </figcaption>
 
@@ -83,7 +92,7 @@ export function AreaChart({ title, data, unit = "طلب" }: { title: string; dat
           ref={box}
           tabIndex={0}
           role="img"
-          aria-label={`${title}: المجموع ${total} ${unit}${peak && peak.value ? `، الذروة ${peak.label} (${peak.value})` : ""}`}
+          aria-label={`${title}: ${t.total} ${total} ${unit}${peak && peak.value ? `، ${t.peak} ${peak.label} (${peak.value})` : ""}`}
           aria-describedby={cur ? `${id}-tip` : undefined}
           onPointerMove={pick}
           onPointerLeave={() => setActive(null)}
@@ -147,11 +156,11 @@ export function AreaChart({ title, data, unit = "طلب" }: { title: string; dat
 
       {peak && peak.value > 0 ? (
         <p className="mt-3 text-xs text-warm-600">
-          الذروة: {peak.label} ({peak.value})
+          {t.peak}: {peak.label} ({peak.value})
         </p>
       ) : null}
       <details className="mt-2 text-sm">
-        <summary className="cursor-pointer text-warm-600">عرض كجدول</summary>
+        <summary className="cursor-pointer text-warm-600">{t.table}</summary>
         <table className="mt-2 w-full text-start">
           <tbody>
             {data.map((d) => (

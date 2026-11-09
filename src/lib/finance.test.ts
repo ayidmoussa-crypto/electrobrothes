@@ -67,6 +67,13 @@ test("the carrier takes the city price: paid by the customer under the threshold
   assert.equal(expectedFromCarrier({ ...free, total: 600 }), 570);
   // A fee typed on the order wins.
   assert.equal(expectedFromCarrier({ ...free, total: 600, carrierFee: 25 }), 575);
+  // Paid before shipping: nothing collected, the carrier still takes its fee.
+  assert.equal(expectedFromCarrier({ ...free, total: 600, prepaid: true }), -30);
+});
+
+test("money paid before shipping is cash in hand", () => {
+  const zero = { injections: 0, withdrawals: 0, openingStockValue: 0, purchases: 0, codReceived: 0, businessExpenses: 0, personalExpenses: 0, inventoryValue: 0, goodsInTransit: 0, owedByCarrier: 0 };
+  assert.equal(computeCapital({ ...zero, prepaidReceived: 900 }).cash, 900);
 });
 
 test("unknown costs are reported, never silently treated as free", () => {
@@ -77,10 +84,10 @@ test("unknown costs are reported, never silently treated as free", () => {
   assert.deepEqual(p.gaps, { unitsWithoutCost: 3, deliveredWithoutFee: 1 });
 });
 
-test("a carrier fee of zero on the order wins over the city price but is flagged as unknown", () => {
+test("a carrier fee of zero on the order (handed over by the owner) wins and is not a gap", () => {
   const p = computeProfit({ ...base, delivered: [{ ...free, total: 100, carrierFee: 0, items: [] }] });
   assert.equal(p.deliveryCost, 0);
-  assert.equal(p.gaps.deliveredWithoutFee, 1);
+  assert.equal(p.gaps.deliveredWithoutFee, 0);
 });
 
 test("chart slots: days, then weeks, then months, oldest first", () => {

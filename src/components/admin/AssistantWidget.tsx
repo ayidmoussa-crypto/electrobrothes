@@ -294,8 +294,14 @@ export function AssistantWidget() {
           <div ref={list} className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3" aria-live="polite">
             {messages.length === 0 ? (
               <div className="rounded-xl bg-white p-3 text-sm text-warm-800">
-                <p className="font-semibold">صور منتج ولا كتب ليا شنو وقع فالستوك:</p>
-                <p className="mt-1 text-warm-600">«جبت منو 20 كحل» · «سالا الأبيض» · «10 Sony noir à 150 dh»</p>
+                <p className="font-semibold">صور منتج ولا كتب ليا شنو بغيتي فالمنتجات:</p>
+                <ul className="mt-1 space-y-0.5 text-warm-600">
+                  <li>المخزون: «جبت منو 20 كحل» · «سالا الأبيض»</li>
+                  <li>الثمن: «QCY T13 دير ليه 230» · «تخفيض من 300 ل 250»</li>
+                  <li>لون جديد: «زيد ليه الأزرق، جاني منو 10»</li>
+                  <li>النصوص: «بدل العنوان ديال Anker Zolo» · «حسّن الوصف»</li>
+                  <li>منتج جديد: صور ليا المنتج</li>
+                </ul>
                 <p className="mt-2 text-xs text-warm-600">ما كنبدل والو حتى تضغط «تأكيد».</p>
               </div>
             ) : null}

@@ -1,7 +1,50 @@
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { test } from "node:test";
-import { assessRisk, newOrderNumber, ORDER_NUMBER, transitionPlan } from "./order-rules";
+import { assessRisk, canSetPrepaid, deliveredByHand, undoesDelivery, cashToCollect, newOrderNumber, ORDER_NUMBER, paymentState, transitionPlan } from "./order-rules";
+
+test("payment follows the status, and a payment before shipping wins", () => {
+  assert.equal(paymentState("NEW", false), "PENDING");
+  assert.equal(paymentState("SHIPPING", false), "PENDING");
+  assert.equal(paymentState("DELIVERED", false), "PAID");
+  assert.equal(paymentState("RETURNED", false), "NONE");
+  assert.equal(paymentState("CANCELLED", false), "NONE");
+  assert.equal(paymentState("CONFIRMED", true), "PREPAID");
+  assert.equal(paymentState("DELIVERED", true), "PREPAID");
+});
+
+test("a refused parcel keeps its stock out until it is back, and can still be delivered", () => {
+  assert.deepEqual(transitionPlan("SHIPPING", "RETURNING", true), { allowed: true, stock: null });
+  assert.deepEqual(transitionPlan("RETURNING", "RETURNED", true), { allowed: true, stock: "give" });
+  assert.deepEqual(transitionPlan("RETURNING", "DELIVERED", true), { allowed: true, stock: null });
+  assert.equal(transitionPlan("RETURNING", "CANCELLED", true).allowed, false);
+  assert.equal(paymentState("RETURNING", false), "NONE");
+});
+
+test("by hand the owner may jump to any status, and stock still follows", () => {
+  assert.equal(transitionPlan("NEW", "DELIVERED", false).allowed, false);
+  assert.deepEqual(transitionPlan("NEW", "DELIVERED", false, true), { allowed: true, stock: "take" });
+  assert.deepEqual(transitionPlan("RETURNED", "DELIVERED", false, true), { allowed: true, stock: "take" });
+  assert.deepEqual(transitionPlan("DELIVERED", "NEW", true, true), { allowed: true, stock: "give" });
+  assert.equal(transitionPlan("NEW", "NEW", false, true).allowed, false);
+  assert.equal(deliveredByHand("CONFIRMED", "DELIVERED"), true);
+  assert.equal(deliveredByHand("SHIPPING", "DELIVERED"), false);
+});
+
+test("taking a delivered order back before delivery undoes the delivery; a return does not", () => {
+  assert.equal(undoesDelivery("DELIVERED", "CONFIRMED"), true);
+  assert.equal(undoesDelivery("DELIVERED", "CANCELLED"), true);
+  assert.equal(undoesDelivery("DELIVERED", "RETURNING"), false);
+  assert.equal(undoesDelivery("SHIPPING", "CONFIRMED"), false);
+});
+
+test("a prepaid parcel collects nothing at the door, and the flag is locked once the parcel is done", () => {
+  assert.equal(cashToCollect(1600, true), 0);
+  assert.equal(cashToCollect(1600, false), 1600);
+  assert.equal(canSetPrepaid("SHIPPING"), true);
+  assert.equal(canSetPrepaid("DELIVERED"), false);
+  assert.equal(canSetPrepaid("CANCELLED"), false);
+});
 
 test("confirming takes stock once, cancelling gives it back once", () => {
   assert.deepEqual(transitionPlan("NEW", "CONFIRMED", false), { allowed: true, stock: "take" });

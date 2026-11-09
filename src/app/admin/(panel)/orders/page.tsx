@@ -1,8 +1,9 @@
 import { Download, Plus, ShieldAlert } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { StatusButtons, type StatusOption } from "@/components/admin/StatusButtons";
-import { PageHeader, StatusBadge, tdClass, thClass } from "@/components/admin/ui";
+import { PaymentMenu, StatusMenu, WhatsAppConfirm } from "@/components/admin/OrderRowMenus";
+import { confirmationText, whatsappLink } from "@/lib/order-whatsapp";
+import { PageHeader, tdClass, thClass } from "@/components/admin/ui";
 import { buttonClass } from "@/components/ui/button";
 import { Badge } from "@/components/ui/Badge";
 import { requireAdmin } from "@/lib/admin";
@@ -10,25 +11,12 @@ import { filterQuery, orderWhere, parseOrderFilters } from "@/lib/admin-orders";
 import { db } from "@/lib/db";
 import { SOURCE_LABEL } from "@/lib/manual-order";
 import { formatMAD } from "@/lib/money";
-import { ORDER_STATUSES, type OrderStatus } from "@/lib/order-rules";
+import { ORDER_STATUSES } from "@/lib/order-rules";
 import { formatMoroccanPhone } from "@/lib/phone";
 import { STATUS_LABEL } from "@/components/admin/ui";
 import { TIME_ZONE } from "@/lib/time";
 
 const PAGE = 30;
-
-// The everyday next step per status; everything else is on the order page.
-const QUICK: Record<OrderStatus, StatusOption[]> = {
-  NEW: [
-    { to: "CONFIRMED", label: "تأكيد", variant: "primary" },
-    { to: "CANCELLED", label: "إلغاء", variant: "outline" },
-  ],
-  CONFIRMED: [{ to: "SHIPPING", label: "شحن", variant: "dark" }],
-  SHIPPING: [{ to: "DELIVERED", label: "تم التسليم", variant: "dark" }],
-  DELIVERED: [],
-  RETURNED: [],
-  CANCELLED: [],
-};
 const dateFmt = new Intl.DateTimeFormat("ar-MA", { dateStyle: "short", timeStyle: "short", timeZone: TIME_ZONE });
 
 export default async function OrdersPage({ searchParams }: PageProps<"/admin/orders">) {
@@ -55,8 +43,18 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
         source: true,
         trackingNumber: true,
         codReceivedAt: true,
+        prepaidAt: true,
+        confirmSentAt: true,
         _count: { select: { items: true } },
-        items: { take: 1, select: { nameAr: true, variant: { select: { product: { select: { images: { orderBy: { sortOrder: "asc" }, take: 1, select: { url: true } } } } } } } },
+        // Every line's colour, so the order can be packed straight from the list.
+        items: {
+          select: {
+            nameAr: true,
+            variantLabel: true,
+            quantity: true,
+            variant: { select: { colorHex: true, product: { select: { images: { orderBy: { sortOrder: "asc" }, take: 1, select: { url: true } } } } } },
+          },
+        },
       },
     }),
     db.order.count({ where }),
@@ -127,10 +125,9 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
               <th className={thClass}>التاريخ</th>
               <th className={thClass}>الزبون</th>
               <th className={thClass}>العنوان</th>
-              <th className={thClass}>التحصيل</th>
-              <th className={thClass}>الحالة</th>
               <th className={thClass}>المبلغ</th>
-              <th className={thClass}>إجراء سريع</th>
+              <th className={thClass}>الدفع</th>
+              <th className={thClass}>الحالة</th>
             </tr>
           </thead>
           <tbody>
@@ -141,8 +138,19 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
               <tr key={o.id} className="border-b border-warm-200/60 last:border-0 transition-colors hover:bg-white/60">
                 <td className={tdClass}>
                   <div className="flex items-center gap-3">
-                    <span className="relative size-12 shrink-0 overflow-hidden rounded-lg bg-white">
-                      {image ? <Image src={image} alt="" fill sizes="48px" unoptimized className="object-contain p-1" /> : null}
+                    <span className="relative size-12 shrink-0">
+                      <span className="absolute inset-0 overflow-hidden rounded-lg bg-white">
+                        {image ? <Image src={image} alt="" fill sizes="48px" unoptimized className="object-contain p-1" /> : null}
+                      </span>
+                      {/* The first item's colour, pinned on its picture. */}
+                      {first?.variant?.colorHex ? (
+                        <span
+                          className="absolute -end-1 -bottom-1 size-5 rounded-full border-2 border-white shadow-sm ring-1 ring-warm-300"
+                          style={{ backgroundColor: first.variant.colorHex }}
+                          title={first.variantLabel ?? undefined}
+                          aria-hidden="true"
+                        />
+                      ) : null}
                     </span>
                     <span className="min-w-0">
                       <span className="flex flex-wrap items-center gap-2">
@@ -151,7 +159,23 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
                         </Link>
                         <span className="text-xs text-warm-600">{o._count.items > 1 ? `${o._count.items} منتجات` : "منتج واحد"}</span>
                       </span>
-                      {first ? <span className="block max-w-56 truncate text-xs text-warm-600">{first.nameAr}</span> : null}
+                      {first ? (
+                        <span className="flex max-w-64 items-center gap-1.5 text-xs text-warm-600">
+                          <span className="truncate">{first.nameAr}</span>
+                          {first.variantLabel ? <b className="shrink-0 font-semibold text-ink">· {first.variantLabel}</b> : null}
+                        </span>
+                      ) : null}
+                      {/* More than one item: each line's colour and quantity, to pack without opening the order. */}
+                      {o.items.length > 1 ? (
+                        <span className="mt-1 flex flex-wrap gap-1.5">
+                          {o.items.map((it, n) => (
+                            <span key={n} className="inline-flex items-center gap-1 rounded-full border border-warm-200 bg-white px-1.5 py-0.5 text-[11px] text-warm-700" title={`${it.nameAr}${it.variantLabel ? ` · ${it.variantLabel}` : ""}`}>
+                              {it.variant?.colorHex ? <span className="size-3 rounded-full border border-warm-300" style={{ backgroundColor: it.variant.colorHex }} aria-hidden="true" /> : null}
+                              <span className="max-w-24 truncate">{it.variantLabel ?? it.nameAr}</span>×{it.quantity}
+                            </span>
+                          ))}
+                        </span>
+                      ) : null}
                       <span className="mt-1 flex flex-wrap gap-1">
                         {o.source !== "WEBSITE" ? <Badge tone="neutral">{SOURCE_LABEL[o.source]}</Badge> : null}
                         {o.riskScore >= 30 ? (
@@ -176,33 +200,32 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
                   </span>
                   <span className="text-xs text-warm-600">{o.cityName}</span>
                 </td>
+                <td className={`${tdClass} font-bold text-ink`}>{formatMAD(o.total, "ar")}</td>
                 <td className={tdClass}>
-                  {o.codReceivedAt ? <Badge tone="success">تحصّل</Badge> : o.status === "DELIVERED" ? <Badge tone="warning">عند شركة التوصيل</Badge> : <span className="text-warm-500">—</span>}
+                  <PaymentMenu orderId={o.id} number={o.number} status={o.status} prepaid={o.prepaidAt !== null} collected={o.codReceivedAt !== null} />
                 </td>
                 <td className={tdClass}>
-                  <StatusBadge status={o.status} />
+                  <div className="flex items-start gap-1.5">
+                    <StatusMenu orderId={o.id} number={o.number} status={o.status} waiting={o.confirmSentAt !== null} />
+                    <WhatsAppConfirm
+                      compact
+                      orderId={o.id}
+                      status={o.status}
+                      href={whatsappLink(o.phone, confirmationText({ ...o, prepaid: o.prepaidAt !== null }))}
+                    />
+                  </div>
                   {o.trackingNumber ? (
                     <span className="mt-1 block text-xs text-warm-600" dir="ltr">
                       {o.trackingNumber}
                     </span>
                   ) : null}
                 </td>
-                <td className={`${tdClass} font-bold text-ink`}>{formatMAD(o.total, "ar")}</td>
-                <td className={tdClass}>
-                  {QUICK[o.status].length ? (
-                    <StatusButtons orderId={o.id} options={QUICK[o.status]} />
-                  ) : (
-                    <Link href={`/admin/orders/${o.id}`} className="text-sm text-warm-600 underline-offset-4 hover:underline">
-                      التفاصيل
-                    </Link>
-                  )}
-                </td>
               </tr>
               );
             })}
             {!orders.length ? (
               <tr>
-                <td colSpan={8} className="px-3 py-10 text-center text-warm-600">
+                <td colSpan={7}className="px-3 py-10 text-center text-warm-600">
                   لا توجد طلبات مطابقة.
                 </td>
               </tr>

@@ -331,6 +331,7 @@
       "CONFIRMED": "Confirmed",
       "SHIPPING": "Shipping",
       "DELIVERED": "Delivered",
+      "RETURNING": "Being returned",
       "RETURNED": "Returned",
       "CANCELLED": "Cancelled"
     }

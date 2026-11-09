@@ -125,7 +125,7 @@ export async function Footer({ locale }: { locale: Locale }) {
               ] as const
             ).map(([href, label]) => (
               <li key={href}>
-                <Link href={href} className="underline decoration-warm-700 underline-offset-4 transition-colors hover:text-white hover:decoration-yellow-500">
+                <Link href={href} className="inline-flex min-h-11 items-center underline decoration-warm-700 underline-offset-4 transition-colors hover:text-white hover:decoration-yellow-500">
                   {label}
                 </Link>
               </li>

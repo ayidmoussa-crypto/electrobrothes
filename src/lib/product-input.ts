@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { nameColors } from "./color-names";
 
 // Admin product editor payload. Shared by the client editor (types) and the server action (validation).
 
@@ -84,13 +85,14 @@ export const productInput = z
     }
     // Several options must be told apart by the customer: each needs a colour (or a capacity), all different.
     if (p.variants.length > 1) {
-      const names = p.variants.map((v) => [v.colorAr, v.storage].filter(Boolean).join("|"));
+      const names = p.variants.map((v) => [v.colorHex?.toLowerCase() ?? v.colorAr, v.storage].filter(Boolean).join("|"));
       if (names.some((n) => !n)) ctx.addIssue({ code: "custom", message: "colorRequired", path: ["variants"] });
       else if (new Set(names).size !== names.length) ctx.addIssue({ code: "custom", message: "duplicateColor", path: ["variants"] });
     }
   })
-  // The storefront picker keys colours on the English name: fall back to the Arabic one.
-  .transform((p) => ({ ...p, variants: p.variants.map((v) => ({ ...v, colorEn: v.colorEn ?? v.colorAr })) }));
+  // The owner only picks a swatch: its name is given here (lib/color-names.ts). The storefront picker keys colours on
+  // the English name, so a colour without a swatch falls back to its Arabic one.
+  .transform((p) => ({ ...p, variants: nameColors(p.variants).map((v) => ({ ...v, colorEn: v.colorEn ?? v.colorAr })) }));
 
 /** What the editor holds: form strings, parsed and normalised by `productInput` on the server. */
 export type ProductInput = {

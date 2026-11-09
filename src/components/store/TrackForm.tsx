@@ -16,6 +16,7 @@ const tone: Record<string, BadgeTone> = {
   CONFIRMED: "success",
   SHIPPING: "ink",
   DELIVERED: "success",
+  RETURNING: "warning",
   RETURNED: "warning",
   CANCELLED: "danger",
 };

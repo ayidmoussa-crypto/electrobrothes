@@ -20,6 +20,14 @@ test("delivered then returned is allowed, and repeats do nothing", () => {
   assert.deepEqual(carrierTransitions("DELIVERED", "DELIVERED"), []);
 });
 
+test("a refused parcel goes to returning, then returned", () => {
+  assert.deepEqual(carrierTransitions("SHIPPING", "RETURNING"), ["RETURNING"]);
+  assert.deepEqual(carrierTransitions("CONFIRMED", "RETURNING"), ["SHIPPING", "RETURNING"]);
+  assert.deepEqual(carrierTransitions("RETURNING", "RETURNED"), ["RETURNED"]);
+  assert.deepEqual(carrierTransitions("RETURNING", "RETURNING"), []);
+  assert.deepEqual(carrierTransitions("RETURNING", "IN_TRANSIT"), []);
+});
+
 test("parcels cannot move orders nobody confirmed or that were cancelled", () => {
   assert.equal(carrierTransitions("NEW", "PICKED_UP"), null);
   assert.equal(carrierTransitions("NEW", "DELIVERED"), null);

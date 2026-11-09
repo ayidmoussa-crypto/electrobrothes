@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { manualOrderInput, manualTotals, suggestedShipping } from "./manual-order";
+import { IN_SHOP_ADDRESS, manualOrderInput, manualTotals, suggestedShipping } from "./manual-order";
 
 const valid = {
   items: JSON.stringify([{ variantId: "v1", qty: 2, unitPrice: 150 }]),
@@ -11,13 +11,13 @@ const valid = {
   source: "WHATSAPP",
   shippingFee: "30",
   discount: "0",
-  confirmNow: "on",
+  startAs: "CONFIRMED",
 };
 
 test("a valid order is normalized", () => {
   const p = manualOrderInput.parse(valid);
   assert.equal(p.phone, "+212612345678");
-  assert.equal(p.confirmNow, true);
+  assert.equal(p.startAs, "CONFIRMED");
   assert.equal(p.items[0].qty, 2);
   assert.equal(p.notes, null);
 });
@@ -35,8 +35,16 @@ test("refuses negative money and fractions", () => {
   assert.equal(manualOrderInput.safeParse({ ...valid, items: JSON.stringify([{ variantId: "v", qty: 1, unitPrice: -1 }]) }).success, false);
 });
 
-test("an unticked confirm box means not confirmed", () => {
-  assert.equal(manualOrderInput.parse({ ...valid, confirmNow: undefined }).confirmNow, false);
+test("an order starts confirmed unless told otherwise", () => {
+  assert.equal(manualOrderInput.parse({ ...valid, startAs: undefined }).startAs, "CONFIRMED");
+  assert.equal(manualOrderInput.parse({ ...valid, startAs: "NEW" }).startAs, "NEW");
+  assert.equal(manualOrderInput.safeParse({ ...valid, startAs: "SHIPPING" }).success, false);
+});
+
+test("a sale at the shop needs no address; a delivery does", () => {
+  assert.equal(manualOrderInput.parse({ ...valid, address: "", startAs: "DELIVERED" }).address, IN_SHOP_ADDRESS);
+  assert.equal(manualOrderInput.parse({ ...valid, startAs: "DELIVERED" }).address, "حي السلام");
+  assert.equal(manualOrderInput.safeParse({ ...valid, address: "" }).success, false);
 });
 
 test("totals with an agreed price, discount and delivery", () => {

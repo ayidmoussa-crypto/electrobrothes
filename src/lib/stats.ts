@@ -12,14 +12,16 @@ export function codRates(c: StatusCounts) {
   const n = (s: OrderStatus) => c[s] ?? 0;
   const total = Object.values(c).reduce((a, b) => a + (b ?? 0), 0);
   const handled = total - n("NEW");
-  const confirmed = n("CONFIRMED") + n("SHIPPING") + n("DELIVERED") + n("RETURNED");
-  const outcome = n("DELIVERED") + n("RETURNED");
+  // A parcel on its way back was already refused: it counts as a return.
+  const refused = n("RETURNING") + n("RETURNED");
+  const confirmed = n("CONFIRMED") + n("SHIPPING") + n("DELIVERED") + refused;
+  const outcome = n("DELIVERED") + refused;
   return {
     total,
     pending: n("NEW"),
     confirmation: pct(confirmed, handled),
     delivery: pct(n("DELIVERED"), outcome),
-    returns: pct(n("RETURNED"), outcome),
+    returns: pct(refused, outcome),
   };
 }
 

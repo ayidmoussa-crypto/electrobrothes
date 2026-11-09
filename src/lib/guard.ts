@@ -20,6 +20,11 @@ export async function hit(key: string, windowSeconds: number) {
       "count"   = CASE WHEN "RateLimit"."resetAt" < now() THEN 1 ELSE "RateLimit"."count" + 1 END,
       "resetAt" = CASE WHEN "RateLimit"."resetAt" < now() THEN now() + make_interval(secs => ${windowSeconds}) ELSE "RateLimit"."resetAt" END
     RETURNING "count"`;
+  // One key per visitor IP and per email: without this the table only grows. About one call in 200
+  // sweeps the rows whose window ended a day ago; a failure there never blocks the caller.
+  if (Math.random() < 0.005) {
+    db.$executeRaw`DELETE FROM "RateLimit" WHERE "resetAt" < now() - interval '1 day'`.catch(() => {});
+  }
   return rows[0].count;
 }
 

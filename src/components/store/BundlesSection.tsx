@@ -4,7 +4,9 @@ import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { getBundles } from "@/lib/bundles-data";
+import { cutoutUrl } from "@/lib/image-cutout";
 import { BundleCard } from "./BundleCard";
+import { NightSky } from "./NightSky";
 import { ProductSlider } from "./ProductSlider";
 
 /**
@@ -23,8 +25,8 @@ export async function BundlesSection({ locale }: { locale: Locale }) {
   return (
     <section aria-labelledby="packs-title" className="mx-auto max-w-7xl px-4 py-12">
       <div className="relative isolate overflow-hidden rounded-[2rem] bg-ink p-4 sm:p-6 lg:grid lg:grid-cols-[17rem_1fr] lg:gap-6 lg:p-8">
-        {/* A warm glow behind the picture keeps the black from feeling flat. */}
-        <div aria-hidden="true" className="pointer-events-none absolute -bottom-24 -start-20 -z-10 size-80 rounded-full bg-yellow-500/25 blur-3xl" />
+        {/* The same starry sky as the hero, so the black blocks of the home page belong together. */}
+        <NightSky />
 
         <div className="flex items-center gap-4 lg:flex-col lg:items-start lg:justify-between">
           <div className="min-w-0 flex-1 lg:flex-none">
@@ -47,19 +49,15 @@ export async function BundlesSection({ locale }: { locale: Locale }) {
 
           <div aria-hidden="true" className="relative size-28 shrink-0 sm:size-36 lg:mt-6 lg:size-60 lg:self-center">
             {cover ? (
-              <div className="absolute inset-0 overflow-hidden rounded-2xl bg-white">
-                <Image src={cover.image!} alt="" fill sizes="240px" unoptimized={cover.image!.endsWith(".svg")} className="object-contain p-3" />
-              </div>
+              <PackPhoto src={cover.image!} className="inset-0" sizes="240px" />
             ) : (
               stack.map((i, n) => (
-                <div
+                <PackPhoto
                   key={i.productId}
-                  className={`absolute size-[62%] overflow-hidden rounded-2xl bg-white shadow-xl shadow-deep/60 ${
-                    ["start-0 top-[6%] -rotate-12", "end-0 top-0 rotate-6", "start-[19%] bottom-0 z-10 -rotate-2"][n]
-                  }`}
-                >
-                  <Image src={i.image!.url} alt="" fill sizes="150px" unoptimized={i.image!.url.endsWith(".svg")} className="object-contain p-2" />
-                </div>
+                  src={i.image!.url}
+                  sizes="150px"
+                  className={`size-[62%] ${["start-0 top-[6%] -rotate-12", "end-0 top-0 rotate-6", "start-[19%] bottom-0 z-10 -rotate-2"][n]}`}
+                />
               ))
             )}
           </div>
@@ -79,5 +77,22 @@ export async function BundlesSection({ locale }: { locale: Locale }) {
         </div>
       </div>
     </section>
+  );
+}
+
+/**
+ * A product floating on the black with its white studio background cut out (lib/image-cutout.ts), lit by a faint
+ * glow so dark products still read. A photo that cannot be cut out keeps its white tile.
+ */
+function PackPhoto({ src, className, sizes }: { src: string; className: string; sizes: string }) {
+  const cutout = cutoutUrl(src);
+  return cutout ? (
+    <div className={`absolute ${className}`}>
+      <Image src={cutout} alt="" fill sizes={sizes} className="object-contain drop-shadow-[0_0_22px_rgb(255_255_255/0.16)]" />
+    </div>
+  ) : (
+    <div className={`absolute overflow-hidden rounded-2xl bg-white shadow-xl shadow-deep/60 ${className}`}>
+      <Image src={src} alt="" fill sizes={sizes} unoptimized={src.endsWith(".svg")} className="object-contain p-2" />
+    </div>
   );
 }

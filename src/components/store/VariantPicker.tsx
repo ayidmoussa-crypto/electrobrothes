@@ -83,26 +83,48 @@ export function VariantPicker({
               const label = (locale === "ar" ? v.colorAr : v.colorEn) ?? c;
               // A sold-out colour stays visible (struck through) but cannot be chosen.
               const soldOut = stockFor("colorEn", c) <= 0;
+              const active = selected.colorEn === c;
+              // With a swatch, the circle alone: its name shows in the legend above (and to screen readers).
+              if (v.colorHex) {
+                return (
+                  <label
+                    key={c}
+                    title={label}
+                    className={`relative grid size-11 cursor-pointer place-items-center rounded-full border-2 transition-colors has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-yellow-300 ${
+                      active ? "border-ink" : "border-transparent hover:border-warm-300"
+                    } ${soldOut ? "cursor-not-allowed" : ""}`}
+                  >
+                    <input
+                      type="radio"
+                      name="color"
+                      value={c}
+                      checked={active}
+                      disabled={soldOut}
+                      aria-label={soldOut ? t("soldOutOption", { label }) : label}
+                      onChange={() => pick("colorEn", c)}
+                      className="sr-only"
+                    />
+                    <span className={`relative size-8 overflow-hidden rounded-full border border-warm-300 ${soldOut ? "opacity-40" : ""}`} style={{ backgroundColor: v.colorHex }} aria-hidden="true">
+                      {soldOut ? <span className="absolute inset-x-[-2px] top-1/2 h-0.5 -translate-y-1/2 -rotate-45 bg-warm-600" /> : null}
+                    </span>
+                  </label>
+                );
+              }
               return (
                 <label
                   key={c}
-                  className={`${optionClass(selected.colorEn === c)} ${soldOut ? "cursor-not-allowed border-dashed bg-warm-50 text-warm-500 hover:border-warm-200" : ""}`}
+                  className={`${optionClass(active)} ${soldOut ? "cursor-not-allowed border-dashed bg-warm-50 text-warm-500 hover:border-warm-200" : ""}`}
                 >
                   <input
                     type="radio"
                     name="color"
                     value={c}
-                    checked={selected.colorEn === c}
+                    checked={active}
                     disabled={soldOut}
                     aria-label={soldOut ? t("soldOutOption", { label }) : label}
                     onChange={() => pick("colorEn", c)}
                     className="sr-only"
                   />
-                  {v.colorHex ? (
-                    <span className={`relative size-5 overflow-hidden rounded-full border border-warm-300 ${soldOut ? "opacity-50" : ""}`} style={{ backgroundColor: v.colorHex }} aria-hidden="true">
-                      {soldOut ? <span className="absolute inset-x-[-2px] top-1/2 h-0.5 -translate-y-1/2 -rotate-45 bg-warm-600" /> : null}
-                    </span>
-                  ) : null}
                   <span className={soldOut ? "line-through decoration-2" : ""} aria-hidden="true">
                     {label}
                   </span>

@@ -3,11 +3,12 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { effectiveCost } from "@/lib/stock";
-import { AssistantActionError, draftProposal, proposeDraft, proposeStockChange, stockProposal } from "./actions";
+import { AssistantActionError, draftProposal, proposeDraft, proposeProductUpdate, proposeStockChange, stockProposal, updateProposal } from "./actions";
 import { fetchStoreImage } from "./client";
 import type { AssistantCard, AssistantChoice } from "./rules";
 
-// The assistant's whole reach: reading through these fixed queries, and proposing. No tool writes to the catalog.
+// The assistant's whole reach: reading through these fixed queries, and proposing (stock, new products, edits to
+// existing ones). No tool writes to the catalog: only the admin's confirm does.
 
 type Tool = Anthropic.Beta.BetaTool;
 type ResultBlock = Anthropic.Beta.BetaToolResultBlockParam["content"];
@@ -53,6 +54,51 @@ const SHARED_TOOLS: Tool[] = [
     }),
   },
   {
+    name: "get_product",
+    description: "Read one product in full before editing it: names, descriptions, purchase price, and each colour with its price, old price and stock.",
+    strict: true,
+    input_schema: obj({ product_id: { type: "string" } }),
+  },
+  {
+    name: "propose_product_update",
+    description:
+      "Propose edits to an existing product in one card: names, descriptions, selling prices, purchase price, and new colours. Every field the admin did not ask to change is null (lists empty). Nothing changes until the admin confirms. Read the product with get_product first. Prices: variant_id null applies to every colour; compare_at_mad is the old price shown struck through, above the new price, or null. new_colors: colours this product does not have yet, with the quantity received (0 if not stated) and a price only if stated (null keeps the main price); color_hex only when the shade is clear, else null. existing_color: only when the product has a single option without colour and a colour is being added; it names the current stock's colour. Texts: only facts that are visible, stated or already in the product; never invent specifications, warranty, delivery or numbers.",
+    // Not strict: the API allows at most 16 nullable fields across all strict tools, and this one alone has 10.
+    // Its input is still checked by the updateProposal schema before any card is made.
+    input_schema: obj({
+      product_id: { type: "string" },
+      name_ar: nullable("string", "New Arabic name, or null"),
+      name_en: nullable("string", "New English name, or null"),
+      description_ar: nullable("string", "New Arabic description (10+ characters), or null"),
+      description_en: nullable("string", "New English description (10+ characters), or null"),
+      unit_cost_mad: nullable("integer", "New purchase price per unit in dirhams, only if stated; applies to new orders only"),
+      prices: {
+        type: "array",
+        description: "Selling price changes, only those the admin stated",
+        items: obj({
+          variant_id: nullable("string", "One colour, or null for every colour"),
+          price_mad: { type: "integer" },
+          compare_at_mad: nullable("integer", "Old price struck through, above price_mad, or null"),
+        }),
+      },
+      new_colors: {
+        type: "array",
+        description: "Colours to add",
+        items: obj({
+          color_ar: { type: "string" },
+          color_en: { type: "string" },
+          color_hex: nullable("string", "#RRGGBB when the shade is clear, else null"),
+          quantity: { type: "integer" },
+          price_mad: nullable("integer", "Only if stated; null uses the product's price"),
+        }),
+      },
+      existing_color: {
+        description: "Colour of the current single colourless option, only when adding colours to such a product; else null",
+        anyOf: [obj({ color_ar: { type: "string" }, color_en: { type: "string" } }), { type: "null" }],
+      },
+    }),
+  },
+  {
     name: "propose_draft_product",
     description:
       "Propose creating a product that is not in the catalog, as a hidden draft; nothing is created until the admin confirms. Only use facts visible in the photo or stated by the admin: never invent specifications or prices. The descriptions must not mention warranty, delivery, returns, replacement, or any number that is not in the product name.",
@@ -79,7 +125,7 @@ const SHARED_TOOLS: Tool[] = [
 
 const REPORT_TOOL: Tool = {
   name: "stock_report",
-  description: "Stock analysis data: low-stock colours, stock value at purchase price, and units sold and stock moved over the last N days. Contains no customer data.",
+  description: "Stock analysis data: low-stock colours, stock value at purchase price, the colours with no purchase price yet, and units sold and stock moved over the last N days. Contains no customer data.",
   strict: true,
   input_schema: obj({ days: { type: "integer", description: "Period in days, 1 to 90" } }),
 };
@@ -147,6 +193,39 @@ async function searchProducts(query: string) {
   };
 }
 
+async function getProduct(id: string) {
+  const p = await db.product.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      nameAr: true,
+      nameEn: true,
+      descriptionAr: true,
+      descriptionEn: true,
+      isActive: true,
+      warrantyMonths: true,
+      costPrice: true,
+      brand: { select: { name: true } },
+      category: { select: { nameEn: true } },
+      variants: { orderBy: { sortOrder: "asc" }, select: { id: true, colorAr: true, colorEn: true, storage: true, price: true, compareAtPrice: true, stock: true } },
+    },
+  });
+  if (!p) return { error: "product not found" };
+  return {
+    id: p.id,
+    name_ar: p.nameAr,
+    name_en: p.nameEn,
+    description_ar: p.descriptionAr,
+    description_en: p.descriptionEn,
+    brand: p.brand.name,
+    category: p.category.nameEn,
+    visible_in_store: p.isActive,
+    warranty_months: p.warrantyMonths,
+    purchase_price_mad: p.costPrice,
+    colors: p.variants.map((v) => ({ variant_id: v.id, color_ar: v.colorAr, color_en: v.colorEn, storage: v.storage, price_mad: v.price, old_price_mad: v.compareAtPrice, stock: v.stock })),
+  };
+}
+
 async function listTaxonomy() {
   const [categories, brands] = await Promise.all([
     db.category.findMany({ orderBy: { sortOrder: "asc" }, select: { id: true, nameAr: true, nameEn: true } }),
@@ -207,7 +286,7 @@ async function stockReport(days: number) {
     }),
     db.orderItem.groupBy({
       by: ["sku", "nameAr", "variantLabel"],
-      where: { order: { createdAt: { gte: since }, status: { notIn: ["CANCELLED", "RETURNED"] } } },
+      where: { order: { createdAt: { gte: since }, status: { notIn: ["CANCELLED", "RETURNING", "RETURNED"] } } },
       _sum: { quantity: true },
       orderBy: { _sum: { quantity: "desc" } },
       take: 30,
@@ -220,6 +299,10 @@ async function stockReport(days: number) {
     total_units_in_stock: variants.reduce((n, v) => n + v.stock, 0),
     stock_value_mad: withCost.reduce((n, v) => n + v.stock * (v.cost ?? 0), 0),
     colors_with_stock_but_no_purchase_price: withCost.filter((v) => v.stock > 0 && v.cost === null).length,
+    without_purchase_price: withCost
+      .filter((v) => v.cost === null)
+      .slice(0, 80)
+      .map((v) => ({ product: v.product.nameAr, color: v.colorAr, stock: v.stock })),
     low_stock: variants
       .filter((v) => v.product.isActive && v.stock <= v.lowStockAt)
       .sort((a, b) => a.stock - b.stock)
@@ -254,6 +337,13 @@ export async function runTool(name: string, input: unknown, ctx: ToolContext): P
         return json(await presentChoices(z.string().max(300).parse(fields.question), idList.parse(fields.product_ids), ctx));
       case "propose_stock_change": {
         const card = await proposeStockChange(stockProposal.parse(input), ctx);
+        ctx.cards.push(card);
+        return json(cardResult(card));
+      }
+      case "get_product":
+        return json(await getProduct(z.string().max(40).parse(fields.product_id)));
+      case "propose_product_update": {
+        const card = await proposeProductUpdate(updateProposal.parse(input), ctx);
         ctx.cards.push(card);
         return json(cardResult(card));
       }

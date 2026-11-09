@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { budgetMonth, comparableImage, costMicros, HAIKU, overBudget, replyScript, sameOperation, scrubInternalIds, SONNET, sniffImage, stockDelta, storeImageUrl } from "./rules";
+import { budgetMonth, comparableImage, costMicros, HAIKU, overBudget, replyScript, sameOperation, scrubInternalIds, SONNET, sniffImage, stockDelta, storeImageUrl, updateSignature } from "./rules";
 
 test("the same product, colour and quantity count as the same operation", () => {
   const add = { kind: "STOCK_CHANGE", variant_id: "v1", mode: "add", quantity: 50 } as const;
@@ -14,6 +14,29 @@ test("a repeated draft is recognised whatever the order of its colours", () => {
   const draft = { kind: "DRAFT_PRODUCT" as const, name_en: "Anker Q99", colors: [{ color_ar: "أسود", quantity: 7 }, { color_ar: "أبيض", quantity: 2 }] };
   assert.equal(sameOperation(draft, { ...draft, name_en: " anker q99 ", colors: [draft.colors[1], draft.colors[0]] }), true);
   assert.equal(sameOperation(draft, { ...draft, colors: [{ color_ar: "أسود", quantity: 8 }] }), false);
+});
+
+test("a repeated product edit is recognised whatever the order of its lists; a different price is not", () => {
+  const base = {
+    name_ar: null,
+    name_en: null,
+    description_ar: null,
+    description_en: null,
+    unit_cost_mad: null,
+    prices: [
+      { variant_id: "v1", price_mad: 250, compare_at_mad: 300 },
+      { variant_id: "v2", price_mad: 250, compare_at_mad: null },
+    ],
+    new_colors: [
+      { color_en: "Blue", quantity: 10 },
+      { color_en: "Red", quantity: 3 },
+    ],
+  };
+  const a = { kind: "PRODUCT_UPDATE" as const, product_id: "p1", signature: updateSignature(base) };
+  const reordered = updateSignature({ ...base, prices: [base.prices[1], base.prices[0]], new_colors: [{ color_en: " blue ", quantity: 10 }, base.new_colors[1]] });
+  assert.equal(sameOperation(a, { ...a, signature: reordered }), true);
+  assert.equal(sameOperation(a, { ...a, product_id: "p2" }), false);
+  assert.equal(sameOperation(a, { ...a, signature: updateSignature({ ...base, prices: [{ variant_id: "v1", price_mad: 240, compare_at_mad: 300 }, base.prices[1]] }) }), false);
 });
 
 test("the reply follows the letters the admin wrote in", () => {

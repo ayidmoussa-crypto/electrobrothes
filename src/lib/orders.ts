@@ -10,7 +10,7 @@ import { fireOrderEvent } from "./automations";
 import { manualTotals, type ManualOrderInput } from "./manual-order";
 import { bundleDiscount } from "./bundles";
 import { bundleRulesFor } from "./bundles-data";
-import { assessRisk, newOrderNumber, transitionPlan, type OrderStatus } from "./order-rules";
+import { assessRisk, cashToCollect, deliveredByHand, newOrderNumber, transitionPlan, undoesDelivery, type OrderStatus } from "./order-rules";
 import { normalizeMoroccanPhone } from "./phone";
 import { computeTotals } from "./pricing";
 import { effectiveCost, InsufficientStockError, moveStock } from "./stock";
@@ -256,12 +256,14 @@ export async function createManualOrder(input: ManualOrderInput, actor: string):
   }
   if (!order) return { ok: false, error: "unavailable" };
 
-  if (!input.confirmNow) {
+  if (input.startAs === "NEW") {
     await fireOrderEvent(order.id, "order_created");
     return { ok: true, orderId: order.id, number: order.number };
   }
   try {
-    await changeOrderStatus(order.id, "CONFIRMED", actor);
+    // Sold at the shop: handed over by the owner, so no carrier fee and the cash is already in hand.
+    if (input.startAs === "DELIVERED") await changeOrderStatus(order.id, "DELIVERED", actor, undefined, { manual: true });
+    else await changeOrderStatus(order.id, "CONFIRMED", actor);
     return { ok: true, orderId: order.id, number: order.number };
   } catch (e) {
     // Someone else took the last piece in between: the order exists, unconfirmed, and the owner is told.
@@ -282,13 +284,15 @@ export class OrderTransitionError extends Error {
  * Moves an order to a new status, takes stock on confirmation and gives it back on
  * cancel / return, and logs who did it. Row-locked so two admins cannot double-apply.
  */
-export async function changeOrderStatus(orderId: string, to: OrderStatus, actor: string, note?: string) {
+export async function changeOrderStatus(orderId: string, to: OrderStatus, actor: string, note?: string, opts: { manual?: boolean } = {}) {
   const stockMoved = await db.$transaction(async (tx) => {
-    const [order] = await tx.$queryRaw<{ status: OrderStatus; stockDeducted: boolean; number: string }[]>`
-      SELECT "status", "stockDeducted", "number" FROM "Order" WHERE "id" = ${orderId} FOR UPDATE`;
+    const [order] = await tx.$queryRaw<{ status: OrderStatus; stockDeducted: boolean; number: string; total: number; prepaidAt: Date | null; carrierFee: number | null }[]>`
+      SELECT "status", "stockDeducted", "number", "total", "prepaidAt", "carrierFee" FROM "Order" WHERE "id" = ${orderId} FOR UPDATE`;
     if (!order) throw new OrderTransitionError("not_found");
 
-    const plan = transitionPlan(order.status, to, order.stockDeducted);
+    const plan = transitionPlan(order.status, to, order.stockDeducted, opts.manual);
+    // Handed over by the owner himself: no carrier fee, and the cash is already in his hands.
+    const byHand = opts.manual && deliveredByHand(order.status, to);
     if (!plan.allowed) throw new OrderTransitionError("not_allowed");
 
     if (plan.stock) {
@@ -318,7 +322,12 @@ export async function changeOrderStatus(orderId: string, to: OrderStatus, actor:
         ...(to === "DELIVERED" ? { deliveredAt: new Date() } : {}),
         ...(to === "RETURNED" ? { returnedAt: new Date() } : {}),
         ...(plan.stock ? { stockDeducted: plan.stock === "take" } : {}),
-        logs: { create: { fromStatus: order.status, toStatus: to, actor, note: note?.slice(0, 500) } },
+        ...(byHand ? { carrierFee: 0, codReceivedAt: new Date(), codReceivedAmount: cashToCollect(order.total, order.prepaidAt !== null) } : {}),
+        // Otherwise the cash of a delivery that did not happen would stay in the capital.
+        ...(undoesDelivery(order.status, to)
+          ? { deliveredAt: null, codReceivedAt: null, codReceivedAmount: null, ...(order.carrierFee === 0 ? { carrierFee: null } : {}) }
+          : {}),
+        logs: { create: { fromStatus: order.status, toStatus: to, actor, note: (byHand ? "سلّمتها بيدك: بلا رسوم توصيل، والفلوس عندك" : note)?.slice(0, 500) } },
       },
     });
     return plan.stock !== null;

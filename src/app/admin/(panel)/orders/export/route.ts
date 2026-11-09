@@ -3,6 +3,7 @@ import { getAdmin } from "@/lib/admin";
 import { orderWhere, parseOrderFilters } from "@/lib/admin-orders";
 import { toCsv } from "@/lib/csv";
 import { db } from "@/lib/db";
+import { cashToCollect } from "@/lib/order-rules";
 import { formatMoroccanPhone } from "@/lib/phone";
 
 // Delivery-company sheet: one row per order with the cash amount to collect.
@@ -28,7 +29,8 @@ export async function GET(request: NextRequest) {
       o.address,
       o.items.map((i) => `${i.nameAr}${i.variantLabel ? ` (${i.variantLabel})` : ""} ×${i.quantity}`).join(" | "),
       o.items.reduce((n, i) => n + i.quantity, 0),
-      o.total,
+      // Paid before shipping: the carrier collects nothing at the door.
+      cashToCollect(o.total, o.prepaidAt !== null),
       o.notes,
       o.status,
     ]),

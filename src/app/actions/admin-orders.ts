@@ -9,7 +9,7 @@ import { runDueAutomations } from "@/lib/automations";
 import { CARRIER_STATUSES } from "@/lib/carrier/status";
 import { db } from "@/lib/db";
 import { MANUAL_ERROR, manualOrderInput } from "@/lib/manual-order";
-import { ORDER_STATUSES } from "@/lib/order-rules";
+import { canSetPrepaid, ORDER_STATUSES } from "@/lib/order-rules";
 import { changeOrderStatus, createManualOrder, OrderTransitionError } from "@/lib/orders";
 import { normalizeMoroccanPhone } from "@/lib/phone";
 import { recordShipmentEvent } from "@/lib/shipments";
@@ -35,7 +35,7 @@ export async function setOrderStatus(_prev: ActionState, formData: FormData): Pr
   const parsed = statusInput.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { ok: false, message: "طلب غير صالح." };
   try {
-    await changeOrderStatus(parsed.data.orderId, parsed.data.to, admin.email, parsed.data.note);
+    await changeOrderStatus(parsed.data.orderId, parsed.data.to, admin.email, parsed.data.note, { manual: true });
   } catch (e) {
     if (e instanceof OrderTransitionError) return { ok: false, message: `${REASONS[e.reason]}${e.sku ? ` (${e.sku})` : ""}` };
     throw e;
@@ -44,6 +44,46 @@ export async function setOrderStatus(_prev: ActionState, formData: FormData): Pr
   revalidatePath("/admin/orders");
   revalidatePath("/admin");
   return { ok: true, message: "تم تحديث حالة الطلب." };
+}
+
+/** Marks an order as paid before shipping (the carrier then collects 0), or back to cash on delivery. */
+export async function setPrepaid(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const admin = await requireAdmin();
+  const parsed = z.object({ orderId: z.string().min(1).max(40), paid: z.enum(["1", "0"]) }).safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { ok: false, message: "طلب غير صالح." };
+  const paid = parsed.data.paid === "1";
+  const order = await db.order.findUnique({ where: { id: parsed.data.orderId }, select: { status: true } });
+  if (!order || !canSetPrepaid(order.status)) return { ok: false, message: "ما يمكنش تبدل الدفع ديال طلب مسلَّم ولا ملغى." };
+  // The status condition is checked again in the write, in case the order moved meanwhile.
+  const updated = await db.order.updateMany({
+    where: { id: parsed.data.orderId, status: { in: ["NEW", "CONFIRMED", "SHIPPING"] } },
+    data: { prepaidAt: paid ? new Date() : null },
+  });
+  if (!updated.count) return { ok: false, message: "ما يمكنش تبدل الدفع ديال طلب مسلَّم ولا ملغى." };
+  // Kept in the order's history, next to the status changes.
+  await db.orderStatusLog.create({
+    data: { orderId: parsed.data.orderId, fromStatus: order.status, toStatus: order.status, actor: admin.email, note: paid ? "تخلّص قبل الإرسال: شركة التوصيل ما تجمع والو" : "رجع للدفع عند الاستلام" },
+  });
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${parsed.data.orderId}`);
+  revalidatePath("/admin/finance");
+  return { ok: true, message: paid ? "تسجل بلي مدفوع مسبقاً." : "رجع للدفع عند الاستلام." };
+}
+
+/**
+ * The owner opened WhatsApp with the confirmation message (sent by hand). A new order now shows
+ * "waiting for the reply" until it is confirmed or cancelled. Only the first send is logged.
+ */
+export async function markConfirmSent(orderId: string): Promise<void> {
+  const admin = await requireAdmin();
+  const id = z.string().min(1).max(40).safeParse(orderId);
+  if (!id.success) return;
+  const updated = await db.order.updateMany({ where: { id: id.data, status: "NEW", confirmSentAt: null }, data: { confirmSentAt: new Date() } });
+  if (updated.count) {
+    await db.orderStatusLog.create({ data: { orderId: id.data, fromStatus: "NEW", toStatus: "NEW", actor: admin.email, note: "تصيفطات رسالة التأكيد فواتساب: فانتظار الرد" } });
+  }
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${id.data}`);
 }
 
 // ───────── An order typed in from WhatsApp, a call or social media ─────────

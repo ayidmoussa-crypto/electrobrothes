@@ -331,6 +331,7 @@
       "CONFIRMED": "مؤكَّد",
       "SHIPPING": "قيد الشحن",
       "DELIVERED": "مُسلَّم",
+      "RETURNING": "في طريق الرجوع",
       "RETURNED": "مُرجَع",
       "CANCELLED": "ملغى"
     }

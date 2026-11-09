@@ -33,6 +33,8 @@ export type FeeOrder = {
   shippingFee: number;
   /** The city's delivery price today. */
   cityFee: number;
+  /** Paid to the shop before shipping: the carrier collected nothing. */
+  prepaid?: boolean;
 };
 
 export type FinanceOrder = FeeOrder & { items: { unitCost: number | null; quantity: number }[] };
@@ -67,7 +69,8 @@ export function computeProfit(i: ProfitInput) {
       else cogs += line.unitCost * line.quantity;
     }
     const fee = deliveryFee(o);
-    if (!fee) deliveredWithoutFee++;
+    // A fee of 0 typed on the order is known (handed over by the owner); only a missing city price is a gap.
+    if (!fee && o.carrierFee === null) deliveredWithoutFee++;
     deliveryCost += fee;
   }
 
@@ -179,6 +182,8 @@ export type CapitalInput = {
   purchases: number;
   /** Cash the carrier really paid. */
   codReceived: number;
+  /** Paid to the shop directly before shipping. */
+  prepaidReceived?: number;
   businessExpenses: number;
   personalExpenses: number;
   /** Stock on the shelf now, at cost. */
@@ -194,12 +199,15 @@ export type CapitalInput = {
  * money owed). The difference is the real result of the whole business since the start, personal spending included.
  */
 export function computeCapital(i: CapitalInput) {
-  const cash = i.injections - i.withdrawals + i.codReceived - i.purchases - i.businessExpenses - i.personalExpenses;
+  const cash = i.injections - i.withdrawals + i.codReceived + (i.prepaidReceived ?? 0) - i.purchases - i.businessExpenses - i.personalExpenses;
   const position = cash + i.inventoryValue + i.goodsInTransit + i.owedByCarrier;
   const invested = i.injections - i.withdrawals + i.openingStockValue;
   const result = position - invested;
   return { cash, position, invested, result, resultPct: invested > 0 ? Math.round((result / invested) * 100) : null };
 }
 
-/** What the carrier should hand over for an order: the cash collected, minus its fee. */
-export const expectedFromCarrier = (o: FeeOrder) => o.total - deliveryFee(o);
+/**
+ * What the carrier should hand over for an order: the cash collected, minus its fee. A prepaid parcel
+ * collects nothing, so its fee comes off the transfer (a negative amount).
+ */
+export const expectedFromCarrier = (o: FeeOrder) => (o.prepaid ? 0 : o.total) - deliveryFee(o);

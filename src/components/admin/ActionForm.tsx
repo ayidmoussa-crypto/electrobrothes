@@ -1,9 +1,10 @@
 "use client";
 
 import { LoaderCircle } from "lucide-react";
-import { useActionState, useEffect, useRef, type ReactNode } from "react";
+import { startTransition, useActionState, useEffect, useRef, type ReactNode } from "react";
 import { buttonClass, type ButtonVariant } from "@/components/ui/button";
 import { submitKeepingValues } from "@/lib/forms";
+import { useConfirm } from "./ConfirmDialog";
 import { FormMessage } from "./ui";
 
 type State = { ok?: boolean; message?: string };
@@ -27,28 +28,38 @@ export function ActionForm({
 }) {
   const [state, formAction, pending] = useActionState(action, {});
   const form = useRef<HTMLFormElement>(null);
+  const [ask, dialog] = useConfirm();
   // A saved form shows the saved values and an "add" form empties; a failed one keeps what was typed.
   useEffect(() => {
     if (state.ok) form.current?.reset();
   }, [state]);
   return (
-    <form
-      ref={form}
-      action={formAction}
-      onSubmit={(e) => {
-        if (confirm && !window.confirm(confirm)) e.preventDefault();
-        else submitKeepingValues(e, formAction);
-      }}
-      className={className}
-    >
-      {children}
-      <div className="flex flex-wrap items-center gap-3">
-        <button type="submit" disabled={pending} className={buttonClass({ variant })}>
-          {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : null}
-          {submitLabel}
-        </button>
-        <FormMessage state={state} />
-      </div>
-    </form>
+    <>
+      <form
+        ref={form}
+        action={formAction}
+        onSubmit={(e) => {
+          if (!confirm) return submitKeepingValues(e, formAction);
+          // Asked in the page first; the form is sent once the owner says yes.
+          e.preventDefault();
+          const data = new FormData(e.currentTarget);
+          ask({ title: confirm, yes: "نعم" }).then((ok) => {
+            if (ok) startTransition(() => formAction(data));
+          });
+        }}
+        className={className}
+      >
+        {children}
+        <div className="flex flex-wrap items-center gap-3">
+          <button type="submit" disabled={pending} className={buttonClass({ variant })}>
+            {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : null}
+            {submitLabel}
+          </button>
+          <FormMessage state={state} />
+        </div>
+      </form>
+      {/* Beside the form, not in it: the dialog carries its own little form. */}
+      {dialog}
+    </>
   );
 }

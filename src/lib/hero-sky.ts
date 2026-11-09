@@ -37,8 +37,20 @@ function dot(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, col
   ctx.fill();
 }
 
-/** Paints the still sky on `ctx` (w x h CSS pixels) and returns the bright stars that twinkle over it. */
-export function paintSky(ctx: CanvasRenderingContext2D, w: number, h: number, rtl: boolean, colors: SkyColors): TwinkleStar[] {
+export type Constellation = "dipper" | "cassiopeia" | "orion";
+
+/**
+ * Paints the still sky on `ctx` (w x h CSS pixels) and returns the bright stars that twinkle over it.
+ * `constellations` picks which hairline figures to draw (all by default), for blocks where some would cross text.
+ */
+export function paintSky(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  rtl: boolean,
+  colors: SkyColors,
+  constellations: Constellation[] = ["dipper", "cassiopeia", "orion"],
+): TwinkleStar[] {
   const random = seeded(20261105);
   const phone = w < 768;
   ctx.clearRect(0, 0, w, h);
@@ -92,10 +104,10 @@ export function paintSky(ctx: CanvasRenderingContext2D, w: number, h: number, rt
   const placements = phone
     ? []
     : [
-        { c: DIPPER, x: 0.46, y: 0.24, s: 1 },
-        { c: CASSIOPEIA, x: 0.72, y: 0.22, s: 0.7 },
-        { c: ORION, x: 0.46, y: 0.72, s: 0.7 },
-      ];
+        { name: "dipper", c: DIPPER, x: 0.46, y: 0.24, s: 1 },
+        { name: "cassiopeia", c: CASSIOPEIA, x: 0.72, y: 0.22, s: 0.7 },
+        { name: "orion", c: ORION, x: 0.46, y: 0.72, s: 0.7 },
+      ].filter((p) => constellations.includes(p.name as Constellation));
   for (const { c, x, y, s } of placements) {
     const bw = w * size * s;
     const bh = bw * 0.62;

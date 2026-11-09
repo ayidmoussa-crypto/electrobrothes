@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { formatMAD } from "@/lib/money";
@@ -6,8 +6,8 @@ import { formatMAD } from "@/lib/money";
 export type TrendPoint = { label: string; revenue: number; net: number; orders: number };
 
 const W = 640;
-const H = 260;
-const PAD = { top: 16, right: 12, bottom: 30, left: 52 };
+const H = 200;
+const PAD = { top: 14, right: 12, bottom: 28, left: 52 };
 const mad = (v: number) => formatMAD(v, "ar");
 
 /** A round step for about four grid lines. */
@@ -30,12 +30,16 @@ function curve(points: [number, number][]) {
     .join(" ");
 }
 
-/** Sales as a yellow area and net profit as a dashed line, one point per slot; hover or tap a slot to read it. */
-export function TrendChart({ data }: { data: TrendPoint[] }) {
+/**
+ * One series over the period: the total on top, then a compact area chart, one point per slot.
+ * Hover or tap a slot to read it; the latest one shows by default.
+ */
+export function TrendChart({ data, metric, label, total }: { data: TrendPoint[]; metric: "revenue" | "net"; label: string; total: number }) {
   const [active, setActive] = useState(data.length - 1);
   const n = data.length;
-  const max = Math.max(0, ...data.map((d) => Math.max(d.revenue, d.net)));
-  const min = Math.min(0, ...data.map((d) => d.net));
+  const values = data.map((d) => d[metric]);
+  const max = Math.max(0, ...values);
+  const min = Math.min(0, ...values);
   const step = niceStep(max - min || 1);
   const top = Math.max(step, Math.ceil(max / step) * step);
   const bottom = Math.floor(min / step) * step;
@@ -47,34 +51,33 @@ export function TrendChart({ data }: { data: TrendPoint[] }) {
   const y = (v: number) => PAD.top + ((top - v) / (top - bottom)) * innerH;
   const zero = y(0);
 
-  const rev = data.map((d, i) => [x(i), y(d.revenue)] as [number, number]);
-  const net = data.map((d, i) => [x(i), y(d.net)] as [number, number]);
-  const line = curve(rev);
+  const pts = values.map((v, i) => [x(i), y(v)] as [number, number]);
+  const line = curve(pts);
   const area = `${line} L${x(n - 1)},${zero} L${x(0)},${zero} Z`;
-  const every = Math.ceil(n / 7);
+  const every = Math.ceil(n / 6);
   const a = data[active] ?? data[n - 1];
+  const gradient = `trend-fill-${metric}`;
 
   return (
     <div>
-      {/* The slot under the pointer (the latest one by default), read above the chart so it never hides the line. */}
-      <div aria-live="polite" className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-2xl bg-ink px-4 py-2.5 text-sm">
-        <span className="rounded-md bg-yellow-500 px-2 py-0.5 font-bold text-ink" dir="ltr">
-          {a.label}
-        </span>
-        <span className="text-warm-300">
-          المبيعات <b className="text-white">{mad(a.revenue)}</b>
-        </span>
-        <span className="text-warm-300">
-          الصافي <b className="text-white">{mad(a.net)}</b>
-        </span>
-        <span className="text-warm-300">
-          <b className="text-white">{a.orders}</b> طلب
-        </span>
+      <div className="mb-3 flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
+        <p>
+          <span className="block text-xs text-warm-600">المجموع فالفترة</span>
+          <span className={`text-2xl font-extrabold ${total < 0 ? "text-danger" : "text-ink"}`}>{mad(total)}</span>
+        </p>
+        {/* The slot under the pointer, read beside the total so it never hides the line. */}
+        <p aria-live="polite" className="flex items-center gap-2 rounded-full border border-warm-200 bg-white px-3 py-1 text-sm">
+          <span className="rounded-md bg-yellow-500 px-1.5 font-bold text-ink" dir="ltr">
+            {a.label}
+          </span>
+          <b className={a[metric] < 0 ? "text-danger" : "text-ink"}>{mad(a[metric])}</b>
+          <span className="text-warm-600">· {a.orders} طلب</span>
+        </p>
       </div>
       <div dir="ltr">
-        <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label="تطور المبيعات وصافي الربح" onPointerLeave={() => setActive(n - 1)}>
+        <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label={label} onPointerLeave={() => setActive(n - 1)}>
           <defs>
-            <linearGradient id="trend-fill" x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id={gradient} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" style={{ stopColor: "var(--color-yellow-500)", stopOpacity: 0.4 }} />
               <stop offset="100%" style={{ stopColor: "var(--color-yellow-500)", stopOpacity: 0 }} />
             </linearGradient>
@@ -82,27 +85,24 @@ export function TrendChart({ data }: { data: TrendPoint[] }) {
 
           {ticks.map((t) => (
             <g key={t}>
-              <line x1={PAD.left} x2={W - PAD.right} y1={y(t)} y2={y(t)} className={t === 0 ? "stroke-warm-600" : "stroke-warm-700/60"} strokeWidth={1} />
-              <text x={PAD.left - 8} y={y(t)} textAnchor="end" dominantBaseline="middle" className="fill-warm-300 text-[11px]">
+              <line x1={PAD.left} x2={W - PAD.right} y1={y(t)} y2={y(t)} className={t === 0 ? "stroke-warm-400" : "stroke-warm-200"} strokeWidth={1} />
+              <text x={PAD.left - 8} y={y(t)} textAnchor="end" dominantBaseline="middle" className="fill-warm-600 text-[12px]">
                 {t.toLocaleString("fr-FR")}
               </text>
             </g>
           ))}
           {data.map((d, i) =>
             i % every === 0 || i === n - 1 ? (
-              <text key={i} x={x(i)} y={H - 8} textAnchor="middle" className="fill-warm-300 text-[11px]">
+              <text key={i} x={x(i)} y={H - 6} textAnchor={i === n - 1 ? "end" : i === 0 ? "start" : "middle"} className="fill-warm-600 text-[12px]">
                 {d.label}
               </text>
             ) : null,
           )}
 
-          <line x1={x(active)} x2={x(active)} y1={PAD.top} y2={zero} className="stroke-warm-600" strokeDasharray="3 4" />
-          <path d={area} fill="url(#trend-fill)" />
-          <path d={curve(net)} fill="none" className="stroke-warm-300" strokeWidth={2} strokeDasharray="6 5" strokeLinecap="round" />
-          <path d={line} fill="none" className="stroke-yellow-500" strokeWidth={3} strokeLinejoin="round" strokeLinecap="round" />
-          {n <= 31 ? rev.map(([px, py], i) => <circle key={i} cx={px} cy={py} r={i === active ? 6 : 3.5} className="fill-yellow-500 stroke-ink" strokeWidth={i === active ? 3 : 0} />) : (
-            <circle cx={rev[active][0]} cy={rev[active][1]} r={6} className="fill-yellow-500 stroke-ink" strokeWidth={3} />
-          )}
+          <line x1={x(active)} x2={x(active)} y1={PAD.top} y2={H - PAD.bottom} className="stroke-warm-400" strokeDasharray="3 4" />
+          <path d={area} fill={`url(#${gradient})`} />
+          <path d={line} fill="none" className="stroke-yellow-700" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
+          <circle cx={pts[active][0]} cy={pts[active][1]} r={5} className="fill-yellow-500 stroke-ink" strokeWidth={2.5} />
 
           {/* One invisible column per slot catches the pointer. */}
           {data.map((_, i) => (
@@ -118,35 +118,21 @@ export function TrendChart({ data }: { data: TrendPoint[] }) {
             />
           ))}
         </svg>
-
-      </div>
-
-      <div className="mt-3 flex flex-wrap gap-4 text-xs text-warm-300">
-        <span className="flex items-center gap-2">
-          <span className="h-1 w-5 rounded-full bg-yellow-500" aria-hidden="true" />
-          المبيعات المسلَّمة
-        </span>
-        <span className="flex items-center gap-2">
-          <span className="w-5 border-t-2 border-dashed border-warm-300" aria-hidden="true" />
-          صافي الربح
-        </span>
       </div>
 
       <table className="sr-only">
-        <caption>المبيعات وصافي الربح</caption>
+        <caption>{label}</caption>
         <thead>
           <tr>
             <th>الفترة</th>
-            <th>المبيعات</th>
-            <th>صافي الربح</th>
+            <th>{label}</th>
           </tr>
         </thead>
         <tbody>
           {data.map((d) => (
             <tr key={d.label}>
               <td>{d.label}</td>
-              <td>{mad(d.revenue)}</td>
-              <td>{mad(d.net)}</td>
+              <td>{mad(d[metric])}</td>
             </tr>
           ))}
         </tbody>

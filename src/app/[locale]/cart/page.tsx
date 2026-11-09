@@ -5,7 +5,10 @@ import { CartView } from "@/components/store/CartView";
 import type { Locale } from "@/i18n/routing";
 import { getCheckoutConfig } from "@/lib/store-config";
 
-export const metadata: Metadata = { robots: { index: false, follow: false } };
+export async function generateMetadata({ params }: PageProps<"/[locale]/cart">): Promise<Metadata> {
+  const t = await getTranslations({ locale: (await params).locale, namespace: "cart" });
+  return { title: t("title"), robots: { index: false, follow: false } };
+}
 
 export default async function CartPage({ params }: PageProps<"/[locale]/cart">) {
   const locale = (await params).locale as Locale;

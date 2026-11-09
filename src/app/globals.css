@@ -92,22 +92,19 @@
   --glass-light-border: rgb(255 255 255 / 0.6);
   --glass-light-shadow: 0 8px 32px rgb(17 17 17 / 0.12);
   /*
-   * Admin: frosted white cards over a warm, softly blurred backdrop. White at 62% over warm-50
-   * stays near-white, so warm-600 / ink text keeps its AA contrast.
+   * Admin: a plain white page; cards are flat warm off-white with a warm hairline (no blur needed).
+   * warm-600 / ink text on warm-50 keeps its AA contrast.
    */
-  --admin-blur: 18px;
-  --admin-card-bg: rgb(255 255 255 / 0.62);
-  --admin-card-border: rgb(255 255 255 / 0.8);
-  --admin-card-shadow: 0 1px 0 rgb(255 255 255 / 0.7) inset, 0 10px 30px -12px rgb(17 17 17 / 0.18);
-  --admin-field-bg: rgb(255 255 255 / 0.7);
+  --admin-card-bg: var(--color-warm-50);
+  --admin-card-border: var(--color-warm-200);
+  --admin-card-shadow: 0 1px 2px rgb(17 17 17 / 0.04);
+  --admin-field-bg: var(--color-white);
 }
 
 /* Phones: lighter blur, cheaper to render while scrolling. */
 @media (max-width: 767px) {
   :root {
     --glass-blur: 10px;
-    --admin-blur: 8px;
-    --admin-card-bg: rgb(255 255 255 / 0.74);
   }
 }
 
@@ -116,8 +113,7 @@
   border: 1px solid var(--admin-card-border);
   border-radius: 1.25rem;
   box-shadow: var(--admin-card-shadow);
-  -webkit-backdrop-filter: blur(var(--admin-blur)) saturate(140%);
-  backdrop-filter: blur(var(--admin-blur)) saturate(140%);
+  /* No backdrop-filter: on white there is nothing to frost, and a filter would trap menus inside the card. */
 }
 /* Rows of a long list (cities): same look as admin-card without a per-row blur, which would make scrolling heavy. */
 @utility admin-row {

@@ -9,6 +9,7 @@ export const TRIGGERS = {
   out_for_delivery: "خارج للتوصيل اليوم",
   delivery_failed: "محاولة توصيل فاشلة",
   order_delivered: "تم التسليم",
+  order_returning: "جاري الإرجاع",
   order_returned: "رجع الطلب",
   order_cancelled: "إلغاء الطلب",
 } as const;
@@ -25,6 +26,7 @@ const STILL_VALID: Record<Trigger, OrderStatus[]> = {
   out_for_delivery: ["SHIPPING"],
   delivery_failed: ["SHIPPING"],
   order_delivered: ["DELIVERED"],
+  order_returning: ["RETURNING"],
   order_returned: ["RETURNED"],
   order_cancelled: ["CANCELLED"],
 };
@@ -35,6 +37,7 @@ export const TRIGGER_OF_STATUS: Partial<Record<OrderStatus, Trigger>> = {
   CONFIRMED: "order_confirmed",
   SHIPPING: "order_shipping",
   DELIVERED: "order_delivered",
+  RETURNING: "order_returning",
   RETURNED: "order_returned",
   CANCELLED: "order_cancelled",
 };

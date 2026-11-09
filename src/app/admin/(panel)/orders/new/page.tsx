@@ -19,7 +19,9 @@ export default async function NewOrderPage({ searchParams }: PageProps<"/admin/o
         price: true,
         stock: true,
         colorAr: true,
+        colorHex: true,
         storage: true,
+        productId: true,
         product: { select: { nameAr: true, images: { orderBy: { sortOrder: "asc" }, take: 1, select: { url: true } } } },
       },
       orderBy: [{ product: { nameAr: "asc" } }, { sortOrder: "asc" }],
@@ -40,7 +42,17 @@ export default async function NewOrderPage({ searchParams }: PageProps<"/admin/o
       </Link>
       <PageHeader title="إضافة طلب" description="طلب جا من واتساب، مكالمة، ولا مواقع التواصل." />
       <ManualOrderForm
-        variants={variants.map((v) => ({ id: v.id, name: v.product.nameAr, label: colorLabel(v), sku: v.sku, price: v.price, stock: v.stock, image: v.product.images[0]?.url ?? null }))}
+        variants={variants.map((v) => ({
+          id: v.id,
+          productId: v.productId,
+          name: v.product.nameAr,
+          label: colorLabel(v),
+          colorHex: v.colorHex,
+          sku: v.sku,
+          price: v.price,
+          stock: v.stock,
+          image: v.product.images[0]?.url ?? null,
+        }))}
         cities={cities.map((c) => ({ id: c.id, name: c.nameAr, fee: c.shippingFee }))}
         freeThreshold={settings?.freeShippingThreshold ?? 1000}
         defaults={{ name, phone: phone ? formatMoroccanPhone(phone) : "" }}

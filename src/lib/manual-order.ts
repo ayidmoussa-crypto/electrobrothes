@@ -21,25 +21,37 @@ const lines = z
   .min(1, "items")
   .max(30, "items");
 
-export const manualOrderInput = z.object({
-  items: z.string().transform((s, ctx) => {
-    try {
-      return lines.parse(JSON.parse(s));
-    } catch {
-      ctx.addIssue({ code: "custom", message: "items" });
-      return z.NEVER;
-    }
-  }),
-  name: z.string().trim().min(2, "name").max(80, "name"),
-  phone: z.string().transform((s, ctx) => normalizeMoroccanPhone(s) ?? (ctx.addIssue({ code: "custom", message: "phone" }), z.NEVER)),
-  cityId: z.string().min(1, "city").max(40, "city"),
-  address: z.string().trim().min(3, "address").max(300, "address"),
-  notes: z.string().trim().max(500, "notes").optional().transform((s) => s || null),
-  source: z.enum(Object.keys(MANUAL_SOURCES) as [keyof typeof MANUAL_SOURCES, ...(keyof typeof MANUAL_SOURCES)[]]),
-  shippingFee: money,
-  discount: money,
-  confirmNow: z.preprocess((v) => v === "on" || v === "true", z.boolean()),
-});
+/** Where a typed-in order starts. DELIVERED: the customer came to the shop and left with it. */
+export const START_AS = { NEW: "جديد", CONFIRMED: "مؤكَّد", DELIVERED: "تسلّم فالمحل" } as const;
+export const IN_SHOP_ADDRESS = "استلم من المحل";
+
+export const manualOrderInput = z
+  .object({
+    items: z.string().transform((s, ctx) => {
+      try {
+        return lines.parse(JSON.parse(s));
+      } catch {
+        ctx.addIssue({ code: "custom", message: "items" });
+        return z.NEVER;
+      }
+    }),
+    name: z.string().trim().min(2, "name").max(80, "name"),
+    phone: z.string().transform((s, ctx) => normalizeMoroccanPhone(s) ?? (ctx.addIssue({ code: "custom", message: "phone" }), z.NEVER)),
+    cityId: z.string().min(1, "city").max(40, "city"),
+    address: z.string().trim().max(300, "address").default(""),
+    notes: z.string().trim().max(500, "notes").optional().transform((s) => s || null),
+    source: z.enum(Object.keys(MANUAL_SOURCES) as [keyof typeof MANUAL_SOURCES, ...(keyof typeof MANUAL_SOURCES)[]]),
+    shippingFee: money,
+    discount: money,
+    startAs: z.enum(["NEW", "CONFIRMED", "DELIVERED"]).default("CONFIRMED"),
+  })
+  // A sale at the shop needs no delivery address.
+  .transform((o, ctx) => {
+    if (o.address.length >= 3) return o;
+    if (o.startAs === "DELIVERED") return { ...o, address: IN_SHOP_ADDRESS };
+    ctx.addIssue({ code: "custom", message: "address", path: ["address"] });
+    return z.NEVER;
+  });
 
 export type ManualOrderInput = z.infer<typeof manualOrderInput>;
 

@@ -5,7 +5,10 @@ import { CheckoutView } from "@/components/store/CheckoutView";
 import type { Locale } from "@/i18n/routing";
 import { getCheckoutConfig } from "@/lib/store-config";
 
-export const metadata: Metadata = { robots: { index: false, follow: false } };
+export async function generateMetadata({ params }: PageProps<"/[locale]/checkout">): Promise<Metadata> {
+  const t = await getTranslations({ locale: (await params).locale, namespace: "checkout" });
+  return { title: t("title"), robots: { index: false, follow: false } };
+}
 
 export default async function CheckoutPage({ params }: PageProps<"/[locale]/checkout">) {
   const locale = (await params).locale as Locale;

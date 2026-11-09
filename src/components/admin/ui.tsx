@@ -5,20 +5,22 @@ import type { OrderStatus } from "@/lib/order-rules";
 
 export const STATUS_LABEL: Record<OrderStatus, string> = {
   NEW: "جديد",
-  CONFIRMED: "مؤكَّد",
-  SHIPPING: "قيد الشحن",
-  DELIVERED: "مُسلَّم",
-  RETURNED: "مُرجَع",
-  CANCELLED: "ملغى",
+  CONFIRMED: "مؤكَّدة",
+  CANCELLED: "ملغاة",
+  SHIPPING: "جاري الشحن",
+  DELIVERED: "مسلَّمة",
+  RETURNING: "جاري الإرجاع",
+  RETURNED: "أُرجعت بنجاح",
 };
 
 const STATUS_TONE: Record<OrderStatus, BadgeTone> = {
   NEW: "accent",
   CONFIRMED: "neutral",
+  CANCELLED: "danger",
   SHIPPING: "ink",
   DELIVERED: "success",
-  RETURNED: "warning",
-  CANCELLED: "danger",
+  RETURNING: "warning",
+  RETURNED: "neutral",
 };
 
 export function StatusBadge({ status }: { status: OrderStatus }) {

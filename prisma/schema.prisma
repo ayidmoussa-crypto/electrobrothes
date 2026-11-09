@@ -350,6 +350,8 @@ enum OrderStatus {
   CONFIRMED
   SHIPPING
   DELIVERED
+  // Refused or sent back: the parcel is on its way back to the shop, the goods are not in stock yet.
+  RETURNING
   RETURNED
   CANCELLED
 }
@@ -383,6 +385,10 @@ model Order {
   carrierFee        Int?
   deliveredAt       DateTime?
   returnedAt        DateTime?
+  // The owner opened WhatsApp with the confirmation message: a NEW order then waits for the reply.
+  confirmSentAt     DateTime?
+  // Paid before shipping (bank transfer...): the carrier collects 0 at the door. Null = cash on delivery.
+  prepaidAt         DateTime?
   // Cash the carrier really handed over for this order. Null = not received yet.
   codReceivedAt     DateTime?
   codReceivedAmount Int?
@@ -641,6 +647,8 @@ model AdminUser {
 enum AssistantActionKind {
   STOCK_CHANGE
   DRAFT_PRODUCT
+  // Names, descriptions, prices, purchase price or new colours of an existing product.
+  PRODUCT_UPDATE
 }
 
 enum AssistantActionStatus {

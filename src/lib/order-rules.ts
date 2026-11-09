@@ -1,14 +1,18 @@
 // Pure order rules shared by checkout, admin and tests. No database access here.
 
-export const ORDER_STATUSES = ["NEW", "CONFIRMED", "SHIPPING", "DELIVERED", "RETURNED", "CANCELLED"] as const;
+// In the order the owner reads them in the status menu.
+export const ORDER_STATUSES = ["NEW", "CONFIRMED", "CANCELLED", "SHIPPING", "DELIVERED", "RETURNING", "RETURNED"] as const;
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
 
-// NEW → CONFIRMED (after the confirmation call) → SHIPPING → DELIVERED / RETURNED; cancel any time before delivery.
+// NEW → CONFIRMED (after the confirmation call) → SHIPPING → DELIVERED, or RETURNING → RETURNED when the
+// parcel is refused; cancel any time before delivery. These are the steps the carrier's tracking moves too.
 const NEXT: Record<OrderStatus, OrderStatus[]> = {
   NEW: ["CONFIRMED", "CANCELLED"],
   CONFIRMED: ["SHIPPING", "CANCELLED", "NEW"],
-  SHIPPING: ["DELIVERED", "RETURNED", "CANCELLED"],
-  DELIVERED: ["RETURNED"],
+  SHIPPING: ["DELIVERED", "RETURNING", "RETURNED", "CANCELLED"],
+  DELIVERED: ["RETURNING", "RETURNED"],
+  // A refused parcel can still be delivered on a second try.
+  RETURNING: ["RETURNED", "DELIVERED"],
   RETURNED: [],
   CANCELLED: ["NEW"],
 };
@@ -16,13 +20,46 @@ const NEXT: Record<OrderStatus, OrderStatus[]> = {
 export const allowedNext = (from: OrderStatus) => NEXT[from];
 
 /**
+ * Payment follows the status: a delivered order is paid (the carrier collected the cash). The only thing
+ * set by hand is a payment made before shipping (bank transfer...), and then the carrier collects nothing.
+ */
+export type PaymentState = "PENDING" | "PREPAID" | "PAID" | "NONE";
+
+export function paymentState(status: OrderStatus, prepaid: boolean): PaymentState {
+  if (prepaid) return "PREPAID";
+  if (status === "DELIVERED") return "PAID";
+  if (status === "RETURNING" || status === "RETURNED" || status === "CANCELLED") return "NONE";
+  return "PENDING";
+}
+
+/** "Paid before shipping" can be set or undone only while the parcel has not reached its end. */
+export const canSetPrepaid = (status: OrderStatus) => status === "NEW" || status === "CONFIRMED" || status === "SHIPPING";
+
+/** Set to delivered by hand before it ever left with the carrier: the owner handed it over himself. */
+export const deliveredByHand = (from: OrderStatus, to: OrderStatus) => to === "DELIVERED" && (from === "NEW" || from === "CONFIRMED");
+
+/**
+ * Taken back from delivered to a step before delivery (a mistake corrected by hand): the delivery and the
+ * cash recorded with it are undone. A return keeps them: the parcel did reach the customer.
+ */
+export const undoesDelivery = (from: OrderStatus, to: OrderStatus) =>
+  from === "DELIVERED" && (to === "NEW" || to === "CONFIRMED" || to === "SHIPPING" || to === "CANCELLED");
+
+/** The order's goods are out of the stock in this status. A parcel on its way back still is: it returns on RETURNED. */
+export const holdsStock = (s: OrderStatus) => s === "CONFIRMED" || s === "SHIPPING" || s === "DELIVERED" || s === "RETURNING";
+
+/** Cash the carrier collects at the door. */
+export const cashToCollect = (total: number, prepaid: boolean) => (prepaid ? 0 : total);
+
+/**
  * What a status change does to inventory. Stock is taken when the order is confirmed
  * and given back when it is cancelled, returned or sent back to NEW.
+ * `manual`: the owner picked it by hand and may jump anywhere (he sometimes delivers an order himself);
+ * the carrier's tracking follows the usual path only.
  */
-export function transitionPlan(from: OrderStatus, to: OrderStatus, stockDeducted: boolean) {
-  if (!NEXT[from].includes(to)) return { allowed: false as const };
-  const holdsStock = to === "CONFIRMED" || to === "SHIPPING" || to === "DELIVERED";
-  const stock = holdsStock && !stockDeducted ? "take" : !holdsStock && stockDeducted ? "give" : null;
+export function transitionPlan(from: OrderStatus, to: OrderStatus, stockDeducted: boolean, manual = false) {
+  if (from === to || (!manual && !NEXT[from].includes(to))) return { allowed: false as const };
+  const stock = holdsStock(to) && !stockDeducted ? "take" : !holdsStock(to) && stockDeducted ? "give" : null;
   return { allowed: true as const, stock };
 }
 

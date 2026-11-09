@@ -4,11 +4,12 @@ import { computeCapital, computeProfit, expectedFromCarrier, profitTrend, trendB
 import { effectiveCost } from "./stock";
 
 /** The order fields lib/finance needs to know the carrier's cut. */
-export const feeFields = { total: true, carrierFee: true, shippingFee: true, city: { select: { shippingFee: true } } } as const;
+export const feeFields = { total: true, carrierFee: true, shippingFee: true, prepaidAt: true, city: { select: { shippingFee: true } } } as const;
 
-export const toFeeOrder = <T extends { carrierFee: number | null; shippingFee: number; total: number; city: { shippingFee: number } }>(o: T) => ({
+export const toFeeOrder = <T extends { carrierFee: number | null; shippingFee: number; total: number; prepaidAt: Date | null; city: { shippingFee: number } }>(o: T) => ({
   ...o,
   cityFee: o.city.shippingFee,
+  prepaid: o.prepaidAt !== null,
 });
 
 const orderFields = { ...feeFields, items: { select: { unitCost: true, quantity: true } } } as const;
@@ -65,7 +66,7 @@ export async function loadPeriod(days: number, now = new Date()) {
 
 /** Where all the money is today, since the very beginning. */
 export async function loadCapital() {
-  const [capital, expenses, movements, cod, variants, inTransit, owed] = await Promise.all([
+  const [capital, expenses, movements, cod, variants, inTransit, owed, prepaid] = await Promise.all([
     db.capitalEntry.groupBy({ by: ["type"], _sum: { amount: true } }),
     db.expense.groupBy({ by: ["scope"], _sum: { amount: true } }),
     // Products hidden from the shop (the old demo catalogue) stay out of the money; a deleted product's moves stay in.
@@ -75,8 +76,10 @@ export async function loadCapital() {
     }),
     db.order.aggregate({ _sum: { codReceivedAmount: true } }),
     db.variant.findMany({ where: { stock: { gt: 0 } }, select: { stock: true, costPrice: true, product: { select: { costPrice: true, isActive: true } } } }),
-    db.orderItem.findMany({ where: { order: { status: { in: ["CONFIRMED", "SHIPPING"] }, stockDeducted: true } }, select: { unitCost: true, quantity: true } }),
+    db.orderItem.findMany({ where: { order: { status: { in: ["CONFIRMED", "SHIPPING", "RETURNING"] }, stockDeducted: true } }, select: { unitCost: true, quantity: true } }),
     db.order.findMany({ where: { status: "DELIVERED", codReceivedAt: null }, select: feeFields }),
+    // A cancelled or refused prepaid order (returning or returned) is taken as refunded.
+    db.order.aggregate({ where: { prepaidAt: { not: null }, status: { in: ["NEW", "CONFIRMED", "SHIPPING", "DELIVERED"] } }, _sum: { total: true } }),
   ]);
 
   const sum = (type: string) => capital.find((c) => c.type === type)?._sum.amount ?? 0;
@@ -111,6 +114,7 @@ export async function loadCapital() {
     openingStockValue,
     purchases,
     codReceived: cod._sum.codReceivedAmount ?? 0,
+    prepaidReceived: prepaid._sum.total ?? 0,
     businessExpenses: spent("BUSINESS"),
     personalExpenses: spent("PERSONAL"),
     inventoryValue,

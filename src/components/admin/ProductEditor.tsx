@@ -5,17 +5,17 @@ import Image from "next/image";
 import { useActionState, useState } from "react";
 import { deleteProduct, saveProduct, type ProductFormState } from "@/app/actions/admin-products";
 import { buttonClass } from "@/components/ui/button";
+import { colorName } from "@/lib/color-names";
 import { submitKeepingValues } from "@/lib/forms";
 import { slugify, type ProductInput } from "@/lib/product-input";
 import { ActionForm } from "./ActionForm";
+import { FILTER_SPECS, KNOWN_SPECS, SpecPicker } from "./SpecPicker";
 import { FormMessage } from "./ui";
 
 type Option = { id: string; label: string };
 type Variant = ProductInput["variants"][number];
 type Spec = ProductInput["specs"][number];
 type Img = ProductInput["images"][number];
-
-const KNOWN_SPECS = ["ram", "storage", "screen", "cpu", "gpu", "camera", "battery", "type", "anc", "connectivity", "power", "port", "capacity", "length", "water"];
 
 const input = "min-h-11 w-full admin-field rounded-lg px-3 text-base text-warm-800";
 const labelCls = "flex flex-col gap-1 text-sm font-semibold text-ink";
@@ -66,6 +66,8 @@ export function ProductEditor({
     setP(initial);
   }
   const [slugTouched, setSlugTouched] = useState(!!initial.id);
+  // Spec rows where "other spec" was picked and the owner types the key.
+  const [customSpecs, setCustomSpecs] = useState<Set<number>>(new Set());
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [state, action, pending] = useActionState<ProductFormState, FormData>(saveProduct, {});
@@ -289,7 +291,7 @@ export function ProductEditor({
                   <div className="mb-3 flex items-center justify-between gap-2">
                     <p className="flex items-center gap-2 text-sm font-bold text-ink">
                       <span className="size-5 rounded-full border border-warm-300" style={{ backgroundColor: v.colorHex || "transparent" }} aria-hidden="true" />
-                      {v.colorAr || (p.variants.length === 1 ? "بدون لون" : `لون ${i + 1}`)}
+                      {v.colorHex ? colorName(v.colorHex).ar : v.colorAr || (p.variants.length === 1 ? "بدون لون" : `لون ${i + 1}`)}
                       {i === 0 ? <span className="text-xs font-normal text-warm-600">(الافتراضي)</span> : null}
                       {low ? <span className="rounded-full bg-warning-soft px-2 py-0.5 text-xs font-semibold text-warning-text">مخزون منخفض</span> : null}
                     </p>
@@ -298,18 +300,37 @@ export function ProductEditor({
                     </button>
                   </div>
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-                    <label className={labelCls}>
-                      اسم اللون
-                      <input className={input} placeholder="أسود" value={v.colorAr ?? ""} onChange={(e) => setVariant(i, { colorAr: e.target.value })} />
-                    </label>
-                    <label className={labelCls}>
-                      Color (EN)
-                      <input className={input} dir="ltr" placeholder="Black" value={v.colorEn ?? ""} onChange={(e) => setVariant(i, { colorEn: e.target.value })} />
-                    </label>
-                    <label className={labelCls}>
-                      دائرة اللون
-                      <input type="color" className="h-11 w-full cursor-pointer rounded-lg border border-warm-200 bg-white" value={v.colorHex || DEFAULT_SWATCH} onChange={(e) => setVariant(i, { colorHex: e.target.value })} />
-                    </label>
+                    {/* Only the swatch: its name (Arabic and English) is given by the server from the colour. */}
+                    <fieldset className="flex flex-col gap-1">
+                      <legend className="mb-1 text-sm font-semibold text-ink">اللون</legend>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <label className="relative size-11 shrink-0 cursor-pointer overflow-hidden rounded-full border border-warm-300 bg-white" title="لون آخر">
+                          <span className="sr-only">اختر اللون</span>
+                          <input
+                            type="color"
+                            className="absolute inset-0 size-full cursor-pointer opacity-0"
+                            value={v.colorHex || DEFAULT_SWATCH}
+                            onChange={(e) => setVariant(i, { colorHex: e.target.value })}
+                          />
+                          <span className="absolute inset-0 rounded-full" style={{ backgroundColor: v.colorHex || "transparent" }} aria-hidden="true" />
+                          {!v.colorHex ? <Plus className="absolute inset-0 m-auto size-4 text-warm-500" aria-hidden="true" /> : null}
+                        </label>
+                      </div>
+                      <span className="flex items-center gap-2 text-xs text-warm-600">
+                        {v.colorHex ? (
+                          <>
+                            كيبان للزبون: <b className="text-ink">{colorName(v.colorHex).ar}</b>
+                            <button type="button" className="cursor-pointer text-warm-600 underline hover:text-ink" onClick={() => setVariant(i, { colorHex: "" })}>
+                              بلا لون
+                            </button>
+                          </>
+                        ) : v.colorAr ? (
+                          `الاسم القديم: ${v.colorAr}. اختر دائرة باش يتبدل.`
+                        ) : (
+                          "بلا لون"
+                        )}
+                      </span>
+                    </fieldset>
                     <label className={labelCls}>
                       الكمية
                       <input className={input} type="number" min={0} inputMode="numeric" value={String(v.stock)} onChange={(e) => setVariant(i, { stock: e.target.value })} />
@@ -357,7 +378,7 @@ export function ProductEditor({
             })}
           </ul>
           <p className="mt-3 text-xs text-warm-600">
-            الكمية الكلية = مجموع كميات الألوان. منتج بدون ألوان: احتفظ بسطر واحد واترك اسم اللون فارغاً. كل تغيير في الكمية يُسجَّل في سجل الحركات. الأسعار بالدرهم.
+            الكمية الكلية = مجموع كميات الألوان. منتج بدون ألوان: احتفظ بسطر واحد بلا لون. كل تغيير في الكمية يُسجَّل في سجل الحركات. الأسعار بالدرهم.
           </p>
         </section>
 
@@ -369,25 +390,79 @@ export function ProductEditor({
               مواصفة جديدة
             </button>
           </div>
-          <datalist id="spec-keys">
-            {KNOWN_SPECS.map((k) => (
-              <option key={k} value={k} />
-            ))}
-          </datalist>
-          <ul className="flex flex-col gap-2">
-            {p.specs.map((s, i) => (
-              <li key={i} className="grid gap-2 sm:grid-cols-[9rem_1fr_1fr_7rem_auto]">
-                <input className={input} dir="ltr" list="spec-keys" placeholder="ram" value={s.key} onChange={(e) => setSpec(i, { key: e.target.value.toLowerCase() })} aria-label="مفتاح المواصفة" />
-                <input className={input} placeholder="8 جيجابايت" value={s.valueAr} onChange={(e) => setSpec(i, { valueAr: e.target.value })} aria-label="القيمة بالعربية" />
-                <input className={input} dir="ltr" placeholder="8 GB" value={s.valueEn} onChange={(e) => setSpec(i, { valueEn: e.target.value })} aria-label="القيمة بالإنجليزية" />
-                <input className={input} type="number" step="any" placeholder="رقم للفلتر" value={String(s.numericValue ?? "")} onChange={(e) => setSpec(i, { numericValue: e.target.value })} aria-label="قيمة رقمية للفلاتر" />
-                <button type="button" className={iconBtn} onClick={() => set("specs", p.specs.filter((_, j) => j !== i))} aria-label="حذف المواصفة">
-                  <Trash2 className="size-4" aria-hidden="true" />
-                </button>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-2 text-xs text-warm-600">المفاتيح ram و storage و screen و cpu تظهر كفلاتر في صفحات الأقسام (أدخل القيمة الرقمية: 8، 256، 6.1…).</p>
+          {p.specs.length ? (
+            <>
+              {/* Column names once, above the rows (wide screens; phones read the placeholders). */}
+              <div aria-hidden="true" className="mb-1.5 hidden gap-2 px-1 text-xs font-semibold text-warm-600 sm:grid sm:grid-cols-[12rem_1fr_1fr_7rem_2.5rem]">
+                <span>المواصفة</span>
+                <span>القيمة بالعربية</span>
+                <span>القيمة بالإنجليزية</span>
+                <span>رقم الفلتر</span>
+              </div>
+              <ul className="flex flex-col gap-2">
+                {p.specs.map((s, i) => {
+                  const custom = customSpecs.has(i) || (s.key !== "" && !KNOWN_SPECS.has(s.key));
+                  const filter = FILTER_SPECS.has(s.key);
+                  return (
+                    <li key={i} className="grid gap-2 rounded-xl border border-warm-200 bg-white p-2 sm:grid-cols-[12rem_1fr_1fr_7rem_2.5rem] sm:items-start sm:border-0 sm:bg-transparent sm:p-0">
+                      <div className="flex flex-col gap-1.5">
+                        <SpecPicker
+                          value={s.key}
+                          custom={custom}
+                          onPick={(key) => {
+                            setCustomSpecs((all) => new Set([...all].filter((j) => j !== i)));
+                            setSpec(i, { key });
+                          }}
+                          onOther={() => {
+                            setCustomSpecs((all) => new Set(all).add(i));
+                            if (KNOWN_SPECS.has(s.key)) setSpec(i, { key: "" });
+                          }}
+                        />
+                        {custom ? (
+                          <input
+                            className={input}
+                            dir="ltr"
+                            autoFocus
+                            placeholder="weight"
+                            value={s.key}
+                            onChange={(e) => setSpec(i, { key: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "") })}
+                            aria-label="اسم المواصفة بالإنجليزية (حروف صغيرة)"
+                          />
+                        ) : null}
+                      </div>
+                      <input className={input} placeholder="8 جيجابايت" value={s.valueAr} onChange={(e) => setSpec(i, { valueAr: e.target.value })} aria-label="القيمة بالعربية" />
+                      <input className={input} dir="ltr" placeholder="8 GB" value={s.valueEn} onChange={(e) => setSpec(i, { valueEn: e.target.value })} aria-label="القيمة بالإنجليزية" />
+                      {/* Only the filter keys use a number; for the rest the field steps back. */}
+                      <input
+                        className={`${input} ${filter ? "" : "opacity-50"}`}
+                        type="number"
+                        step="any"
+                        placeholder={filter ? "8" : "—"}
+                        value={String(s.numericValue ?? "")}
+                        onChange={(e) => setSpec(i, { numericValue: e.target.value })}
+                        aria-label="قيمة رقمية للفلاتر"
+                      />
+                      <button
+                        type="button"
+                        className={iconBtn}
+                        onClick={() => {
+                          set("specs", p.specs.filter((_, j) => j !== i));
+                          // Rows after this one move up by one: so do their "other spec" marks.
+                          setCustomSpecs((all) => new Set([...all].filter((j) => j !== i).map((j) => (j > i ? j - 1 : j))));
+                        }}
+                        aria-label="حذف المواصفة"
+                      >
+                        <Trash2 className="size-4" aria-hidden="true" />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
+          ) : (
+            <p className="rounded-xl border border-dashed border-warm-300 p-4 text-center text-sm text-warm-600">ما كاين حتى مواصفة. زيد وحدة بالزر فوق.</p>
+          )}
+          <p className="mt-2 text-xs text-warm-600">الذاكرة والتخزين والشاشة والمعالج كيبانو كفلاتر فصفحات الأقسام: عمّر ليهم رقم الفلتر (8، 256، 6.1…).</p>
         </section>
 
         <div className="glass-light sticky bottom-24 z-10 flex flex-wrap items-center gap-3 rounded-2xl border p-3 lg:bottom-3">

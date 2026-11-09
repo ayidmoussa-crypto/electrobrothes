@@ -71,10 +71,33 @@ export function storeImageUrl(url: string, origin: string) {
 /** The operation's identity for "you just recorded this": same product, colour and quantity. */
 export type OperationKey =
   | { kind: "STOCK_CHANGE"; variant_id: string; mode: StockMode; quantity: number }
-  | { kind: "DRAFT_PRODUCT"; name_en: string; colors: { color_ar: string | null; quantity: number }[] };
+  | { kind: "DRAFT_PRODUCT"; name_en: string; colors: { color_ar: string | null; quantity: number }[] }
+  | { kind: "PRODUCT_UPDATE"; product_id: string; signature: string };
+
+/** What a product update changes, as one comparable string (order of the lists does not matter). */
+export function updateSignature(u: {
+  name_ar: string | null;
+  name_en: string | null;
+  description_ar: string | null;
+  description_en: string | null;
+  unit_cost_mad: number | null;
+  prices: { variant_id: string | null; price_mad: number; compare_at_mad: number | null }[];
+  new_colors: { color_en: string; quantity: number }[];
+}) {
+  return JSON.stringify([
+    u.name_ar,
+    u.name_en,
+    u.description_ar,
+    u.description_en,
+    u.unit_cost_mad,
+    u.prices.map((p) => `${p.variant_id ?? "*"}:${p.price_mad}:${p.compare_at_mad ?? ""}`).sort(),
+    u.new_colors.map((c) => `${c.color_en.trim().toLowerCase()}:${c.quantity}`).sort(),
+  ]);
+}
 
 export function sameOperation(a: OperationKey, b: OperationKey) {
   if (a.kind === "STOCK_CHANGE" && b.kind === "STOCK_CHANGE") return a.variant_id === b.variant_id && a.mode === b.mode && a.quantity === b.quantity;
+  if (a.kind === "PRODUCT_UPDATE" && b.kind === "PRODUCT_UPDATE") return a.product_id === b.product_id && a.signature === b.signature;
   if (a.kind === "DRAFT_PRODUCT" && b.kind === "DRAFT_PRODUCT") {
     const colors = (k: typeof a) => k.colors.map((c) => `${c.color_ar ?? ""}:${c.quantity}`).sort().join("|");
     return a.name_en.trim().toLowerCase() === b.name_en.trim().toLowerCase() && colors(a) === colors(b);
@@ -99,7 +122,7 @@ export function scrubInternalIds(text: string) {
 
 export type AssistantCard = {
   id: string;
-  kind: "STOCK_CHANGE" | "DRAFT_PRODUCT";
+  kind: "STOCK_CHANGE" | "DRAFT_PRODUCT" | "PRODUCT_UPDATE";
   status: "PENDING" | "APPLIED" | "CANCELLED" | "EXPIRED" | "UNDONE";
   summary: string;
   title: string;
