@@ -38,6 +38,25 @@ export async function toggleRule(fd: FormData) {
   revalidatePath("/admin/automations");
 }
 
+/**
+ * The owner's answer for a job that stopped mid-send, after looking at the conversation:
+ * "resend" (it never arrived), "sent" (it did), or "drop" (leave it).
+ */
+export async function resolveStuckJob(fd: FormData) {
+  await requireAdmin();
+  const input = z.object({ id: z.string().min(1).max(40), decision: z.enum(["resend", "sent", "drop"]) }).safeParse(Object.fromEntries(fd));
+  if (!input.success) return;
+  const { id, decision } = input.data;
+  const data =
+    decision === "resend"
+      ? { status: "PENDING" as const, dueAt: new Date(), claimedAt: null, sendStartedAt: null, error: null }
+      : decision === "sent"
+        ? { status: "SENT" as const, sentAt: new Date(), error: "تأكد باليد" }
+        : { status: "SKIPPED" as const, error: "تلغى باليد" };
+  await db.automationJob.updateMany({ where: { id, status: "NEEDS_REVIEW" }, data });
+  revalidatePath("/admin/automations");
+}
+
 export async function deleteRule(fd: FormData) {
   await requireAdmin();
   const id = z.string().min(1).max(40).safeParse(fd.get("id"));

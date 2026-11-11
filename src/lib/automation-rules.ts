@@ -93,3 +93,32 @@ export function templateValues(keys: string[], values: Record<ParamKey, string |
 
 export const RETRY_LIMIT = 3;
 export const RETRY_MINUTES = 15;
+
+// ── A job left in SENDING (the server stopped mid-send) ──
+// A send takes seconds (Meta answers or times out in 15). After this long, nobody is still working on it.
+export const STUCK_MINUTES = 15;
+
+export type StuckJob = {
+  /** When a run took the job; null on jobs taken before this was recorded. */
+  claimedAt: Date | null;
+  /** Written just before the call to Meta. Null = the call was never made. */
+  sendStartedAt: Date | null;
+  dueAt: Date;
+  attempts: number;
+};
+
+/**
+ * What to do with a job stuck in SENDING:
+ * - "wait": not stuck long enough; a run may still be on it.
+ * - "sent": the outgoing message is in the inbox, so Meta took it.
+ * - "retry": certain it never reached WhatsApp (claimed, but the call to Meta never started).
+ * - "review": it may have gone out. The customer must never get the message twice, so a person decides.
+ */
+export function stuckJobOutcome(job: StuckJob, now: Date, messageRecorded: boolean): "wait" | "sent" | "retry" | "review" {
+  const since = job.claimedAt ?? job.sendStartedAt ?? job.dueAt;
+  if (now.getTime() - since.getTime() < STUCK_MINUTES * 60_000) return "wait";
+  if (messageRecorded) return "sent";
+  // Jobs from before claimedAt existed carry no proof either way.
+  if (job.claimedAt && !job.sendStartedAt && job.attempts < RETRY_LIMIT) return "retry";
+  return "review";
+}

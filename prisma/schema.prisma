@@ -791,19 +791,25 @@ enum AutomationJobStatus {
   SENT
   SKIPPED
   FAILED
+  // Stuck in SENDING and it can't be proven the message didn't go out: the owner decides.
+  NEEDS_REVIEW
 }
 
 model AutomationJob {
-  id        String              @id @default(cuid())
-  ruleId    String
-  rule      AutomationRule      @relation(fields: [ruleId], references: [id], onDelete: Cascade)
-  orderId   String
-  status    AutomationJobStatus @default(PENDING)
-  dueAt     DateTime
-  attempts  Int                 @default(0)
-  error     String?
-  sentAt    DateTime?
-  createdAt DateTime            @default(now())
+  id            String              @id @default(cuid())
+  ruleId        String
+  rule          AutomationRule      @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  orderId       String
+  status        AutomationJobStatus @default(PENDING)
+  dueAt         DateTime
+  attempts      Int                 @default(0)
+  // When a run took it (SENDING), and when the call to Meta began: tells a crash before the call
+  // (safe to send again) from one during or after it (lib/automation-rules.ts stuckJobOutcome).
+  claimedAt     DateTime?
+  sendStartedAt DateTime?
+  error         String?
+  sentAt        DateTime?
+  createdAt     DateTime            @default(now())
 
   // One message per rule per order, even if the order goes back and forth between statuses.
   @@unique([ruleId, orderId])

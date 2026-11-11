@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "./db";
-import { RETRY_LIMIT, RETRY_MINUTES, templateValues, triggerStillValid, type ParamKey, type Trigger } from "./automation-rules";
+import { RETRY_LIMIT, RETRY_MINUTES, STUCK_MINUTES, stuckJobOutcome, templateValues, triggerStillValid, type ParamKey, type Trigger } from "./automation-rules";
 import type { OrderStatus } from "./order-rules";
 import { reviewLink } from "./reviews/customer";
 import { sendWaTemplate, waConfig, WaSendError } from "./whatsapp/client";
@@ -20,10 +20,53 @@ export async function fireOrderEvent(orderId: string, trigger: Trigger) {
   }
 }
 
+/**
+ * Jobs left in SENDING by a server that stopped mid-send. Sent again only when it is certain the call to
+ * Meta never started; otherwise marked SENT (the message is in the inbox) or NEEDS_REVIEW for the owner.
+ */
+export async function recoverStuckJobs() {
+  const now = new Date();
+  const stuck = await db.automationJob.findMany({
+    where: { status: "SENDING", OR: [{ claimedAt: { lt: new Date(now.getTime() - STUCK_MINUTES * 60_000) } }, { claimedAt: null }] },
+    include: { rule: { select: { templateName: true } } },
+    take: 50,
+  });
+  const out = { retried: 0, sent: 0, review: 0 };
+  for (const job of stuck) {
+    const since = job.sendStartedAt ?? job.claimedAt;
+    const order = await db.order.findUnique({ where: { id: job.orderId }, select: { phone: true } });
+    const recorded =
+      !!order &&
+      !!since &&
+      (await db.waMessage.count({
+        where: { direction: "OUT", actor: "automation", templateName: job.rule.templateName, conversation: { phone: order.phone }, createdAt: { gte: since } },
+      })) > 0;
+    const outcome = stuckJobOutcome(job, now, recorded);
+    if (outcome === "wait") continue;
+    // Only from SENDING: a run that finished it in the meantime wins.
+    const where = { id: job.id, status: "SENDING" as const };
+    if (outcome === "retry") {
+      const r = await db.automationJob.updateMany({ where, data: { status: "PENDING", claimedAt: null, dueAt: now, error: "توقف قبل الإرسال، تعاود" } });
+      out.retried += r.count;
+    } else if (outcome === "sent") {
+      const r = await db.automationJob.updateMany({ where, data: { status: "SENT", sentAt: since, error: null } });
+      out.sent += r.count;
+    } else {
+      const r = await db.automationJob.updateMany({ where, data: { status: "NEEDS_REVIEW", error: "توقف أثناء الإرسال: تأكد فالمحادثة واش وصلات" } });
+      out.review += r.count;
+    }
+  }
+  if (out.retried || out.sent || out.review) console.warn("[automations] recovered stuck jobs", out);
+  return out;
+}
+
 /** Sends what is due. Each job is claimed first, so two runs at once can never message a customer twice. */
 export async function runDueAutomations(limit = 25) {
   const result = { sent: 0, skipped: 0, failed: 0, waiting: 0 };
   if (!waConfig()) return result; // Stays queued until WhatsApp is connected.
+
+  // A crash must never hide a job forever; and a failure here never stops the due ones going out.
+  await recoverStuckJobs().catch((e) => console.error("[automations] could not check stuck jobs", e));
 
   const due = await db.automationJob.findMany({
     where: { status: "PENDING", dueAt: { lte: new Date() } },
@@ -33,7 +76,10 @@ export async function runDueAutomations(limit = 25) {
   });
 
   for (const job of due) {
-    const claimed = await db.automationJob.updateMany({ where: { id: job.id, status: "PENDING" }, data: { status: "SENDING", attempts: { increment: 1 } } });
+    const claimed = await db.automationJob.updateMany({
+      where: { id: job.id, status: "PENDING" },
+      data: { status: "SENDING", attempts: { increment: 1 }, claimedAt: new Date(), sendStartedAt: null },
+    });
     if (!claimed.count) continue;
 
     const finish = (status: "SENT" | "SKIPPED" | "FAILED", error?: string) =>
@@ -80,6 +126,8 @@ export async function runDueAutomations(limit = 25) {
     }
 
     try {
+      // Saved before the call: from here on a crash can't prove the message didn't go out.
+      await db.automationJob.update({ where: { id: job.id }, data: { sendStartedAt: new Date() } });
       await sendWaTemplate(order.phone, { name: job.rule.templateName, language: job.rule.languageCode, params }, "automation", order.customerName);
       await finish("SENT");
       result.sent++;

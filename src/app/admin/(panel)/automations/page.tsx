@@ -1,5 +1,6 @@
-import { Power, Trash2 } from "lucide-react";
-import { addRule, deleteRule, toggleRule } from "@/app/actions/admin-automations";
+import { Power, Trash2, TriangleAlert } from "lucide-react";
+import Link from "next/link";
+import { addRule, deleteRule, resolveStuckJob, toggleRule } from "@/app/actions/admin-automations";
 import { ActionForm } from "@/components/admin/ActionForm";
 import { inputClass, L, PageHeader, Panel, tdClass, thClass } from "@/components/admin/ui";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
@@ -17,6 +18,7 @@ const JOB: Record<string, { label: [ar: string, en: string]; tone: BadgeTone }> 
   SENT: { label: ["تصيفط", "Sent"], tone: "success" },
   SKIPPED: { label: ["تلغى", "Skipped"], tone: "warning" },
   FAILED: { label: ["فشل", "Failed"], tone: "danger" },
+  NEEDS_REVIEW: { label: ["خاص المراجعة", "Needs review"], tone: "warning" },
 };
 
 function delayText(minutes: number, tr: Tr) {
@@ -31,17 +33,67 @@ export default async function AutomationsPage() {
   const dateFmt = new Intl.DateTimeFormat(adminLocale(lang), { dateStyle: "short", timeStyle: "short", timeZone: TIME_ZONE });
   const triggers: Record<string, string> = lang === "en" ? TRIGGERS_EN : TRIGGERS;
   const params: Record<string, string> = lang === "en" ? PARAMS_EN : PARAMS;
-  const [rules, jobs] = await Promise.all([
+  const [rules, jobs, review] = await Promise.all([
     db.automationRule.findMany({ orderBy: { createdAt: "asc" }, include: { _count: { select: { jobs: true } } } }),
     db.automationJob.findMany({ orderBy: { createdAt: "desc" }, take: 30, include: { rule: { select: { name: true } } } }),
+    db.automationJob.findMany({ where: { status: "NEEDS_REVIEW" }, orderBy: { dueAt: "asc" }, take: 50, include: { rule: { select: { name: true, templateName: true } } } }),
   ]);
-  const orderNumbers = new Map((await db.order.findMany({ where: { id: { in: jobs.map((j) => j.orderId) } }, select: { id: true, number: true } })).map((o) => [o.id, o.number]));
+  const orders = await db.order.findMany({ where: { id: { in: [...jobs, ...review].map((j) => j.orderId) } }, select: { id: true, number: true, phone: true } });
+  const orderNumbers = new Map(orders.map((o) => [o.id, o.number]));
+  const orderPhones = new Map(orders.map((o) => [o.id, o.phone]));
 
   return (
     <>
       <PageHeader title={tr("الأتمتة", "Automations")} description={tr("رسائل واتساب كتمشي بوحدها ملي كتبدل حالة الطلب.", "WhatsApp messages that go out on their own when an order's status changes.")} />
 
       {/* "WhatsApp not connected" is in the notifications (the bell). */}
+
+      {review.length ? (
+        <Panel title={tr("رسائل خاصها مراجعة", "Messages to check")} className="mb-6">
+          <p className="mb-3 flex items-start gap-2 text-sm text-warning-text">
+            <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+            {tr(
+              "السيرفر توقف وهو كيصيفط هاد الرسائل، فما نعرفوش واش وصلات. ما كتعاودش بوحدها باش الزبون ما يوصلوش نفس الميساج جوج مرات. حل المحادثة، ومن بعد اختار.",
+              "The server stopped while sending these, so we can't tell whether they arrived. They are not sent again on their own, so no customer gets the same message twice. Open the conversation, then choose.",
+            )}
+          </p>
+          <ul className="flex flex-col divide-y divide-warm-200/60">
+            {review.map((j) => (
+              <li key={j.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                <div className="min-w-0 text-sm">
+                  <p className="font-semibold text-ink">
+                    {j.rule.name} · <span className="font-mono" dir="ltr">{orderNumbers.get(j.orderId) ?? "—"}</span>
+                  </p>
+                  <p className="text-warm-600">
+                    {tr("القالب", "Template")} <span dir="ltr">{j.rule.templateName}</span> · {dateFmt.format(j.sendStartedAt ?? j.claimedAt ?? j.dueAt)}
+                    {orderPhones.get(j.orderId) ? (
+                      <>
+                        {" · "}
+                        <Link href={`/admin/inbox?phone=${encodeURIComponent(orderPhones.get(j.orderId)!)}`} className="font-semibold text-ink underline underline-offset-4">
+                          {tr("المحادثة", "Conversation")}
+                        </Link>
+                      </>
+                    ) : null}
+                  </p>
+                </div>
+                <form action={resolveStuckJob} className="flex flex-wrap gap-1">
+                  <input type="hidden" name="id" value={j.id} />
+                  <button type="submit" name="decision" value="resend" className={buttonClass({ className: "min-h-10 px-3 text-sm" })}>
+                    {tr("ما وصلاتش: عاود", "Didn't arrive: resend")}
+                  </button>
+                  <button type="submit" name="decision" value="sent" className={buttonClass({ variant: "outline", className: "min-h-10 px-3 text-sm" })}>
+                    {tr("وصلات", "It arrived")}
+                  </button>
+                  <button type="submit" name="decision" value="drop" className={buttonClass({ variant: "ghost", className: "min-h-10 px-3 text-sm" })}>
+                    {tr("خليها", "Drop")}
+                  </button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      ) : null}
+
       <Panel title={tr("القواعد", "Rules")}>
         {rules.length ? (
           <ul className="flex flex-col divide-y divide-warm-200/60">
