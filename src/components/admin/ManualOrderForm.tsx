@@ -27,11 +27,14 @@ export function ManualOrderForm({
   cities,
   freeThreshold,
   defaults,
+  agent = false,
 }: {
   variants: PickVariant[];
   cities: PickCity[];
   freeThreshold: number;
   defaults: { name: string; phone: string };
+  /** A confirmation agent: no "sold at the shop", which puts cash in the owner's hands. */
+  agent?: boolean;
 }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(createOrderByHand, {});
   const { tr, lang } = useAdminTr();
@@ -275,8 +278,8 @@ export function ManualOrderForm({
         {totals.total === null ? <p className="mt-2 text-sm font-medium text-danger">{tr("الخصم أكبر من ثمن المنتجات.", "The discount is larger than the products' price.")}</p> : null}
         <fieldset className="mt-4">
           <legend className="text-sm font-semibold text-ink">{tr("حالة الطلب", "Order status")}</legend>
-          <div className="mt-2 grid grid-cols-3 gap-1 rounded-xl bg-warm-100 p-1">
-            {(Object.entries(lang === "en" ? START_AS_EN : START_AS) as [StartAs, string][]).map(([value, label]) => (
+          <div className={`mt-2 grid gap-1 rounded-xl bg-warm-100 p-1 ${agent ? "grid-cols-2" : "grid-cols-3"}`}>
+            {(Object.entries(lang === "en" ? START_AS_EN : START_AS) as [StartAs, string][]).filter(([value]) => !agent || value !== "DELIVERED").map(([value, label]) => (
               <label
                 key={value}
                 className="flex min-h-10 cursor-pointer items-center justify-center rounded-lg px-2 text-center text-sm font-semibold text-warm-600 transition-colors has-checked:bg-white has-checked:text-ink has-checked:shadow-sm has-focus-visible:ring-3 has-focus-visible:ring-yellow-300"

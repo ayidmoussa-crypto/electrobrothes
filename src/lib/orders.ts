@@ -190,7 +190,8 @@ export type ManualOrderResult =
   | { ok: false; error: "blocked" | "unavailable" | "out_of_stock" | "discount"; skus?: string[] };
 
 /** From a WhatsApp, phone or social conversation. No captcha or rate limit; the blacklist and the stock still apply. */
-export async function createManualOrder(input: ManualOrderInput, actor: string): Promise<ManualOrderResult> {
+/** `staffId`: the staff member typing it in, credited when it goes in confirmed (lib/staff-rules.ts). */
+export async function createManualOrder(input: ManualOrderInput, actor: string, staffId?: string): Promise<ManualOrderResult> {
   const quantities = new Map<string, number>();
   for (const l of input.items) quantities.set(l.variantId, (quantities.get(l.variantId) ?? 0) + l.qty);
   const ids = [...quantities.keys()];
@@ -264,7 +265,7 @@ export async function createManualOrder(input: ManualOrderInput, actor: string):
   try {
     // Sold at the shop: handed over by the owner, so no carrier fee and the cash is already in hand.
     if (input.startAs === "DELIVERED") await changeOrderStatus(order.id, "DELIVERED", actor, undefined, { manual: true });
-    else await changeOrderStatus(order.id, "CONFIRMED", actor);
+    else await changeOrderStatus(order.id, "CONFIRMED", actor, undefined, { byId: staffId });
     return { ok: true, orderId: order.id, number: order.number };
   } catch (e) {
     // Someone else took the last piece in between: the order exists, unconfirmed, and the owner is told.

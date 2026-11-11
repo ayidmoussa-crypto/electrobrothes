@@ -79,15 +79,15 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
         title={tr("الطلبات", "Orders")}
         description={tr(`${total} طلب`, `${total} orders`)}
         actions={
-          agent ? undefined : <>
+          <>
             <Link href="/admin/orders/new" className={buttonClass()}>
               <Plus className="size-4" aria-hidden="true" />
               {tr("إضافة طلب", "New order")}
             </Link>
-            <a href={`/admin/orders/export${filterQuery({ ...f, page: 1 })}`} className={buttonClass({ variant: "dark" })}>
+            {agent ? null : <a href={`/admin/orders/export${filterQuery({ ...f, page: 1 })}`} className={buttonClass({ variant: "dark" })}>
               <Download className="size-4" aria-hidden="true" />
               {tr("تصدير CSV لشركة التوصيل", "Export CSV for the carrier")}
-            </a>
+            </a>}
           </>
         }
       />

@@ -105,7 +105,15 @@ const items: Item[] = [
 // A confirmation agent's whole panel: their figures, the orders to call, and the WhatsApp messages.
 const agentItems: Item[] = [
   { href: "/admin/me", label: ["إحصائياتي", "My figures"], icon: Wallet },
-  { href: "/admin/orders", label: ["الطلبات", "Orders"], icon: ShoppingCart },
+  {
+    href: "/admin/orders",
+    label: ["الطلبات", "Orders"],
+    icon: ShoppingCart,
+    children: [
+      { href: "/admin/orders", label: ["كل الطلبات", "All orders"], icon: ShoppingCart },
+      { href: "/admin/orders/new", label: ["إضافة طلب", "New order"], icon: Plus },
+    ],
+  },
   { href: "/admin/inbox", label: ["الرسائل", "Messages"], icon: MessagesSquare },
 ];
 const itemsFor = (role: Role) => (role === "AGENT" ? agentItems : items);

@@ -2,14 +2,15 @@ import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { ManualOrderForm } from "@/components/admin/ManualOrderForm";
 import { PageHeader } from "@/components/admin/ui";
-import { requireAdmin } from "@/lib/admin";
+import { requireStaff } from "@/lib/admin";
 import { adminTr } from "@/lib/admin-lang";
 import { db } from "@/lib/db";
 import { formatMoroccanPhone, normalizeMoroccanPhone } from "@/lib/phone";
 import { colorLabel } from "@/lib/stock";
 
 export default async function NewOrderPage({ searchParams }: PageProps<"/admin/orders/new">) {
-  const [, { tr, ar }] = await Promise.all([requireAdmin(), adminTr()]);
+  // Agents type in orders that come by WhatsApp or phone too; the ones they confirm count for them.
+  const [user, { tr, ar }] = await Promise.all([requireStaff(), adminTr()]);
   const q = await searchParams;
   const [variants, cities, settings] = await Promise.all([
     db.variant.findMany({
@@ -57,6 +58,7 @@ export default async function NewOrderPage({ searchParams }: PageProps<"/admin/o
         cities={cities.map((c) => ({ id: c.id, name: ar ? c.nameAr : c.nameEn, fee: c.shippingFee }))}
         freeThreshold={settings?.freeShippingThreshold ?? 1000}
         defaults={{ name, phone: phone ? formatMoroccanPhone(phone) : "" }}
+        agent={user.role === "AGENT"}
       />
     </>
   );

@@ -128,12 +128,14 @@ export async function markConfirmSent(orderId: string): Promise<void> {
 // ───────── An order typed in from WhatsApp, a call or social media ─────────
 
 export async function createOrderByHand(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const admin = await requireAdmin();
+  const user = await requireStaff();
   const { tr, lang } = await adminTr();
   const parsed = manualOrderInput.safeParse(Object.fromEntries([...formData].filter(([, v]) => typeof v === "string")));
   if (!parsed.success) return { ok: false, message: manualError(parsed.error.issues[0]?.message, lang) ?? tr("تحقق من الحقول.", "Check the fields.") };
+  // A sale at the shop puts the cash in the owner's hands: only he records it.
+  if (user.role === "AGENT" && parsed.data.startAs === "DELIVERED") return { ok: false, message: tr("البيع فالمحل كيسجلو غير المسؤول.", "Only the owner records a sale at the shop.") };
 
-  const result = await createManualOrder(parsed.data, admin.email);
+  const result = await createManualOrder(parsed.data, user.email, user.id);
   if (!result.ok) {
     const message = {
       blocked: tr("هذا الرقم في القائمة السوداء.", "This number is on the blacklist."),
