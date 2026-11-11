@@ -7,6 +7,7 @@ import { CategoryIcon } from "@/components/store/CategoryIcon";
 import { CategoryTabs } from "@/components/store/CategoryTabs";
 import { HeroParticles } from "@/components/store/HeroParticles";
 import { EmailBox } from "@/components/store/EmailBox";
+import { GiveawaySection } from "@/components/store/GiveawayCard";
 import { Countdown } from "@/components/store/Countdown";
 import { ProductCard } from "@/components/store/ProductCard";
 import { ProductGrid, SectionHeader } from "@/components/store/ProductGrid";
@@ -255,6 +256,10 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
       <PromoBand locale={locale} />
       <ShopByCategory locale={locale} />
       <Testimonials locale={locale} />
+      {/* Only while a giveaway runs or was drawn this week; the entry count and countdown are request-time. */}
+      <Suspense fallback={null}>
+        <GiveawaySection locale={locale} />
+      </Suspense>
       <EmailBox />
     </>
   );

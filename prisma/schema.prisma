@@ -73,6 +73,7 @@ model Product {
   specs             Spec[]
   reviews           Review[]
   stockMovements    StockMovement[]
+  giveaways         Giveaway[]
   faqs              ProductFaq[]
   seoSuggestions    SeoSuggestion[]
   slugRedirects     SlugRedirect[]
@@ -520,6 +521,59 @@ model EmailSubscriber {
   createdAt DateTime @default(now())
 
   @@index([createdAt])
+}
+
+// ───────────────────────── Giveaways ─────────────────────────
+
+// A prize drawn live (Instagram / TikTok): people enter on the shop, entries close at drawAt, the owner
+// draws from the dashboard in front of the live audience.
+model Giveaway {
+  id            String          @id @default(cuid())
+  slug          String          @unique
+  titleAr       String
+  titleEn       String
+  prizeAr       String
+  prizeEn       String
+  // Short rules or story; the shop adds the standard rules under it.
+  detailsAr     String?
+  detailsEn     String?
+  // The prize's own photo; the linked product's first photo when empty.
+  image         String?
+  productId     String?
+  product       Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
+  // Prize value in MAD, shown as "worth".
+  prizeValue    Int?
+  drawAt        DateTime
+  // Where the live is watched (Instagram / TikTok profile or live link).
+  liveUrl       String?
+  isPublished   Boolean         @default(false)
+  // Set by the first draw: entries close for good.
+  drawnAt       DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  entries       GiveawayEntry[]
+
+  @@index([isPublished, drawAt])
+}
+
+model GiveawayEntry {
+  id          String   @id @default(cuid())
+  giveawayId  String
+  giveaway    Giveaway @relation(fields: [giveawayId], references: [id], onDelete: Cascade)
+  firstName   String
+  lastName    String
+  // E.164, one entry per number and giveaway.
+  phone       String
+  // Agreed to hear about offers on WhatsApp (optional box).
+  marketing   Boolean  @default(false)
+  ip          String?
+  // 1 = winner, 2+ = backups drawn after; null = not drawn.
+  winnerRank  Int?
+  drawnAt     DateTime?
+  createdAt   DateTime @default(now())
+
+  @@unique([giveawayId, phone])
+  @@index([giveawayId, winnerRank])
 }
 
 // ───────────────────────── Finance ─────────────────────────

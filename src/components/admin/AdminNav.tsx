@@ -22,6 +22,7 @@ import {
   Star,
   Tags,
   TicketPercent,
+  Trophy,
   Truck,
   Users,
   X,
@@ -63,6 +64,7 @@ const items: Item[] = [
     children: [
       { href: "/admin/customers", label: ["كل الزبناء", "All customers"], icon: Users },
       { href: "/admin/reviews", label: ["التقييمات", "Reviews"], icon: Star },
+      { href: "/admin/giveaways", label: ["السحوبات", "Giveaways"], icon: Trophy },
       { href: "/admin/blacklist", label: ["القائمة السوداء", "Blacklist"], icon: Ban },
     ],
   },

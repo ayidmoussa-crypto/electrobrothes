@@ -477,6 +477,54 @@ dialog.drawer:not([open])::backdrop {
   }
 }
 
+/* ───────── Giveaway: the prize turns slowly inside yellow rays and floats ───────── */
+.gw-rays {
+  position: absolute;
+  inset: -20%;
+  background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--color-yellow-500) 22%, transparent) 0deg 9deg, transparent 9deg 30deg);
+  mask-image: radial-gradient(circle, black 18%, transparent 62%);
+  animation: gw-spin 40s linear infinite;
+}
+.gw-float {
+  animation: gw-float 5s ease-in-out infinite;
+  filter: drop-shadow(0 24px 22px color-mix(in srgb, var(--color-deep) 70%, transparent));
+}
+.gw-pulse {
+  animation: gw-pulse 1.6s ease-out infinite;
+}
+@keyframes gw-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+@keyframes gw-float {
+  50% {
+    transform: translateY(-10px) rotate(-1.5deg);
+  }
+}
+@keyframes gw-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-yellow-500) 70%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 10px transparent;
+  }
+}
+
+/* Live draw stage: the name window keeps a yellow frame and fades the names in and out at its edges. */
+.gw-window {
+  mask-image: linear-gradient(to bottom, transparent, black 30%, black 70%, transparent);
+}
+.gw-win-in {
+  animation: gw-win-in 700ms cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+@keyframes gw-win-in {
+  from {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+}
+
 /* Title: each word rises out of its own mask, one after the other. */
 .promo-word {
   display: inline-block;

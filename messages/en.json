@@ -159,7 +159,13 @@
     "thanks": "Thank you! Your review will appear once it has been checked.",
     "done": "You already reviewed {name}. Thank you!",
     "closed": "This link is not valid, or the order has not been delivered yet.",
-    "error": { "invalid": "Choose a star rating and write a short comment.", "closed": "This link is not valid, or the order has not been delivered yet.", "tooMany": "Too many attempts. Try again later.", "already": "You already reviewed this product.", "photo": "This photo could not be used. Try a JPG." }
+    "error": {
+      "invalid": "Choose a star rating and write a short comment.",
+      "closed": "This link is not valid, or the order has not been delivered yet.",
+      "tooMany": "Too many attempts. Try again later.",
+      "already": "You already reviewed this product.",
+      "photo": "This photo could not be used. Try a JPG."
+    }
   },
   "pdp": {
     "home": "Home",
@@ -403,5 +409,64 @@
     "followUs": "Follow us",
     "compare": "Compare products",
     "helpShort": "Help"
+  },
+  "giveaway": {
+    "eyebrow": "Free giveaway",
+    "eyebrowLive": "Live draw",
+    "soonTitle": "Next giveaway coming soon",
+    "soonText": "We pick a product from the store and give it away for free in a live draw. Enter with your name and phone number, no purchase needed.",
+    "soonFollow": "Follow us to know when the next draw starts",
+    "step1": "Enter here for free",
+    "step2": "Watch the live draw",
+    "step3": "Win the product",
+    "prize": "The prize",
+    "worth": "Worth {value}",
+    "drawOn": "Live draw on {date}",
+    "drawIn": "Draw in",
+    "entries": "{count, plural, =0 {Be the first to enter} one {# entry so far} other {# entries so far}}",
+    "formTitle": "Enter for free",
+    "formSubtitle": "Sign up in under a minute, no purchase needed.",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "phone": "Phone number",
+    "phoneHint": "A Moroccan number: we reach the winner on WhatsApp.",
+    "rulesAccept": "I have read and accept the <link>giveaway rules</link>",
+    "marketing": "Send me new offers on WhatsApp (optional)",
+    "cta": "Enter the giveaway",
+    "done": "You're in! Watch the live draw on {date}.",
+    "watchLive": "Watch the live",
+    "seePrize": "See the product",
+    "details": "Rules and details",
+    "errors": {
+      "short": "At least 2 letters.",
+      "long": "40 letters at most.",
+      "letters": "Letters only, no digits or symbols.",
+      "phone": "Not a valid Moroccan phone number.",
+      "rules": "Please accept the giveaway rules.",
+      "closed": "Entries for this giveaway are closed.",
+      "busy": "Too many attempts. Try again in a moment.",
+      "captcha": "Verification failed. Try again."
+    },
+    "closedTitle": "Entries closed",
+    "closedText": "The live draw is coming soon. Follow us to see who wins.",
+    "winnerTitle": "Congratulations to the winner",
+    "winner": "Winner",
+    "backup": "Backup {n}",
+    "winnersText": "We will reach the winner on WhatsApp. With no answer within 48 hours, the prize goes to the backup.",
+    "rulesTitle": "Giveaway rules",
+    "rules": {
+      "free": "Entry is free and needs no purchase.",
+      "who": "Open to people living in Morocco, with a Moroccan phone number.",
+      "once": "One entry per phone number. Entering again does not add chances.",
+      "when": "Entries close on {date}, and the winner is drawn live in front of everyone.",
+      "fair": "The winner is picked at random among all entries; only their first name and last initial are shown.",
+      "contact": "We contact the winner on WhatsApp from our official number. We will never ask you to pay anything or share a code.",
+      "backup": "If the winner does not answer within 48 hours, the prize goes to the next backup.",
+      "delivery": "The prize is delivered free to any city in Morocco.",
+      "platforms": "This giveaway is run by ElectroBrothers alone and is not associated with Instagram or TikTok.",
+      "data": "Your details are used for this giveaway only, and for offers if you agreed. You can ask us to delete them at any time."
+    },
+    "privacyLink": "Privacy policy",
+    "pageTitle": "Giveaway: {prize}"
   }
 }
