@@ -8,6 +8,7 @@ import {
   ChevronDown,
   ExternalLink,
   Gift,
+  Headset,
   LayoutDashboard,
   Landmark,
   LayoutGrid,
@@ -25,6 +26,7 @@ import {
   Trophy,
   Truck,
   Users,
+  Wallet,
   X,
   Zap,
   type LucideIcon,
@@ -36,6 +38,7 @@ import { logout } from "@/app/actions/admin-auth";
 import { useAdminTr } from "./AdminLang";
 
 type Item = { href: string; label: [ar: string, en: string]; icon: LucideIcon; children?: Item[] };
+type Role = "OWNER" | "AGENT";
 
 const items: Item[] = [
   { href: "/admin", label: ["الإحصائيات", "Overview"], icon: LayoutDashboard },
@@ -46,6 +49,7 @@ const items: Item[] = [
     children: [
       { href: "/admin/orders", label: ["كل الطلبات", "All orders"], icon: ShoppingCart },
       { href: "/admin/orders/new", label: ["إضافة طلب", "New order"], icon: Plus },
+      { href: "/admin/staff", label: ["فريق التأكيد", "Confirmation team"], icon: Headset },
     ],
   },
   {
@@ -98,8 +102,16 @@ const items: Item[] = [
   },
 ];
 
+// A confirmation agent's whole panel: their figures, the orders to call, and the WhatsApp messages.
+const agentItems: Item[] = [
+  { href: "/admin/me", label: ["إحصائياتي", "My figures"], icon: Wallet },
+  { href: "/admin/orders", label: ["الطلبات", "Orders"], icon: ShoppingCart },
+  { href: "/admin/inbox", label: ["الرسائل", "Messages"], icon: MessagesSquare },
+];
+const itemsFor = (role: Role) => (role === "AGENT" ? agentItems : items);
+
 // Phones: the four daily sections sit in the bottom bar; the rest open from "المزيد".
-const PRIMARY = ["/admin", "/admin/orders", "/admin/inbox", "/admin/products"];
+const PRIMARY = ["/admin", "/admin/orders", "/admin/inbox", "/admin/products", "/admin/me"];
 
 const activeChild = (pathname: string, children: Item[]) => children.filter((c) => pathname.startsWith(c.href)).at(-1);
 const isActive = (pathname: string, { href, children }: Item) =>
@@ -191,14 +203,14 @@ function NavGroup({ item, children, pathname }: { item: Item; children: Item[]; 
 }
 
 /** Desktop: the sections under the header; a yellow pill glides to the current one. Wraps rather than scrolls, which would clip the sub-page panel. */
-export function AdminTopNav() {
+export function AdminTopNav({ role }: { role: Role }) {
   const pathname = usePathname();
   const { tr } = useAdminTr();
   return (
     <MotionConfig reducedMotion="user">
       <LayoutGroup id="admin-top">
         <ul className="flex flex-wrap items-center gap-1">
-          {items.map((item) => {
+          {itemsFor(role).map((item) => {
             const { href, label, icon: Icon, children } = item;
             if (children) return <NavGroup key={href} item={item} pathname={pathname}>{children}</NavGroup>;
             const active = isActive(pathname, item);
@@ -230,17 +242,18 @@ export function AdminTopNav() {
  * Phones and tablets: a floating dark-glass bar at the bottom (thumb reach) with the four daily
  * sections and "المزيد", which slides up a sheet with the other sections, the shop link and logout.
  */
-export function AdminBottomNav({ email }: { email: string }) {
+export function AdminBottomNav({ email, role }: { email: string; role: Role }) {
   const pathname = usePathname();
   const { tr } = useAdminTr();
   // Remembers the page the sheet was opened on, so following a link closes it.
   const [openOn, setOpenOn] = useState<string | null>(null);
   const open = openOn === pathname;
   const close = () => setOpenOn(null);
-  const primary = items.filter((i) => PRIMARY.includes(i.href));
-  const more = items.filter((i) => !PRIMARY.includes(i.href));
+  const all = itemsFor(role);
+  const primary = all.filter((i) => PRIMARY.includes(i.href));
+  const more = all.filter((i) => !PRIMARY.includes(i.href));
   const moreActive = more.some((i) => isActive(pathname, i));
-  const groups = items.filter((i) => i.children);
+  const groups = all.filter((i) => i.children);
   const sheetGrid = (list: Item[]) => (
     <ul className="grid grid-cols-3 gap-2">
       {list.map((item) => {
@@ -320,8 +333,12 @@ export function AdminBottomNav({ email }: { email: string }) {
                   </div>
                 ) : null;
               })}
-              <p className="mb-2 px-2 text-xs font-bold text-warm-300">{tr("باقي الأقسام", "Other sections")}</p>
-              {sheetGrid(more.filter((i) => !i.children))}
+              {more.some((i) => !i.children) ? (
+                <>
+                  <p className="mb-2 px-2 text-xs font-bold text-warm-300">{tr("باقي الأقسام", "Other sections")}</p>
+                  {sheetGrid(more.filter((i) => !i.children))}
+                </>
+              ) : null}
               <div className="mt-3 grid grid-cols-2 gap-2 border-t border-white/10 pt-3 text-sm">
                 <Link href="/" target="_blank" className="flex min-h-11 items-center justify-center gap-2 rounded-xl text-warm-300 hover:bg-white/10 hover:text-white">
                   <ExternalLink className="size-4.5" aria-hidden="true" />

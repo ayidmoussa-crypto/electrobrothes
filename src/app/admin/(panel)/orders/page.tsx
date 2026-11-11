@@ -8,7 +8,7 @@ import { confirmationText, whatsappLink } from "@/lib/order-whatsapp";
 import { PageHeader, tdClass, thClass } from "@/components/admin/ui";
 import { buttonClass } from "@/components/ui/button";
 import { Badge } from "@/components/ui/Badge";
-import { requireAdmin } from "@/lib/admin";
+import { requireStaff } from "@/lib/admin";
 import { filterQuery, orderWhere, parseOrderFilters } from "@/lib/admin-orders";
 import { db } from "@/lib/db";
 import { sourceLabel } from "@/lib/manual-order";
@@ -23,7 +23,9 @@ import { TIME_ZONE } from "@/lib/time";
 const PAGE = 30;
 
 export default async function OrdersPage({ searchParams }: PageProps<"/admin/orders">) {
-  const [, { tr, lang }] = await Promise.all([requireAdmin(), adminTr()]);
+  const [user, { tr, lang }] = await Promise.all([requireStaff(), adminTr()]);
+  // Agents call customers: no export, no new orders, no payments or bulk hand-off to a carrier.
+  const agent = user.role === "AGENT";
   const dateFmt = new Intl.DateTimeFormat(adminLocale(lang), { dateStyle: "short", timeStyle: "short", timeZone: TIME_ZONE });
   const f = parseOrderFilters(await searchParams);
   const where = orderWhere(f);
@@ -77,7 +79,7 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
         title={tr("الطلبات", "Orders")}
         description={tr(`${total} طلب`, `${total} orders`)}
         actions={
-          <>
+          agent ? undefined : <>
             <Link href="/admin/orders/new" className={buttonClass()}>
               <Plus className="size-4" aria-hidden="true" />
               {tr("إضافة طلب", "New order")}
@@ -131,15 +133,17 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
         <table className="w-full min-w-[72rem]">
           <thead className="border-b border-white/70 bg-white/45">
             <tr>
-              <th className={`${thClass} w-10`}>
-                <AllCheck />
-              </th>
+              {agent ? null : (
+                <th className={`${thClass} w-10`}>
+                  <AllCheck />
+                </th>
+              )}
               <th className={thClass}>{tr("الطلب", "Order")}</th>
               <th className={thClass}>{tr("التاريخ", "Date")}</th>
               <th className={thClass}>{tr("الزبون", "Customer")}</th>
               <th className={thClass}>{tr("العنوان", "Address")}</th>
               <th className={thClass}>{tr("المبلغ", "Amount")}</th>
-              <th className={thClass}>{tr("الدفع", "Payment")}</th>
+              {agent ? null : <th className={thClass}>{tr("الدفع", "Payment")}</th>}
               <th className={thClass}>{tr("الحالة", "Status")}</th>
             </tr>
           </thead>
@@ -149,9 +153,11 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
               const image = first?.variant?.product.images[0]?.url;
               return (
               <tr key={o.id} className="border-b border-warm-200/60 last:border-0 transition-colors hover:bg-white/60">
-                <td className={tdClass}>
-                  <RowCheck id={o.id} number={o.number} />
-                </td>
+                {agent ? null : (
+                  <td className={tdClass}>
+                    <RowCheck id={o.id} number={o.number} />
+                  </td>
+                )}
                 <td className={tdClass}>
                   <div className="flex items-center gap-3">
                     <span className="relative size-12 shrink-0">
@@ -217,12 +223,14 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
                   <span className="text-xs text-warm-600">{o.cityName}</span>
                 </td>
                 <td className={`${tdClass} font-bold text-ink`}>{formatMAD(o.total, lang)}</td>
-                <td className={tdClass}>
-                  <PaymentMenu orderId={o.id} number={o.number} status={o.status} prepaid={o.prepaidAt !== null} collected={o.codReceivedAt !== null} />
-                </td>
+                {agent ? null : (
+                  <td className={tdClass}>
+                    <PaymentMenu orderId={o.id} number={o.number} status={o.status} prepaid={o.prepaidAt !== null} collected={o.codReceivedAt !== null} />
+                  </td>
+                )}
                 <td className={tdClass}>
                   <div className="flex items-start gap-1.5">
-                    <StatusMenu orderId={o.id} number={o.number} status={o.status} waiting={o.confirmSentAt !== null} />
+                    <StatusMenu orderId={o.id} number={o.number} status={o.status} waiting={o.confirmSentAt !== null} agent={agent} />
                     <WhatsAppConfirm
                       compact
                       orderId={o.id}
@@ -257,7 +265,7 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
             })}
             {!orders.length ? (
               <tr>
-                <td colSpan={8} className="px-3 py-10 text-center text-warm-600">
+                <td colSpan={agent ? 6 : 8} className="px-3 py-10 text-center text-warm-600">
                   {tr("لا توجد طلبات مطابقة.", "No matching orders.")}
                 </td>
               </tr>
@@ -265,10 +273,12 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
           </tbody>
         </table>
       </div>
-      <SelectionBar
-        orders={orders.map((o) => ({ id: o.id, number: o.number, customerName: o.customerName, cityName: o.cityName, status: o.status, trackingNumber: o.trackingNumber }))}
-        carriers={carriers.filter((c) => c.isActive).map(({ id, name, logoUrl, isDefault }) => ({ id, name, logoUrl, isDefault }))}
-      />
+      {agent ? null : (
+        <SelectionBar
+          orders={orders.map((o) => ({ id: o.id, number: o.number, customerName: o.customerName, cityName: o.cityName, status: o.status, trackingNumber: o.trackingNumber }))}
+          carriers={carriers.filter((c) => c.isActive).map(({ id, name, logoUrl, isDefault }) => ({ id, name, logoUrl, isDefault }))}
+        />
+      )}
       </OrderSelectionProvider>
 
       {pages > 1 ? (

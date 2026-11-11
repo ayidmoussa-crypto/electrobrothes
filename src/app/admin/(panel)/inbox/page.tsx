@@ -5,7 +5,7 @@ import { ActionForm } from "@/components/admin/ActionForm";
 import { AutoRefresh } from "@/components/admin/AutoRefresh";
 import { inputClass, L, PageHeader, Panel, StatusBadge } from "@/components/admin/ui";
 import { buttonClass } from "@/components/ui/button";
-import { requireAdmin } from "@/lib/admin";
+import { requireStaff } from "@/lib/admin";
 import { adminTr, type Tr } from "@/lib/admin-lang";
 import { adminLocale } from "@/lib/admin-tr";
 import { db } from "@/lib/db";
@@ -26,7 +26,8 @@ function Ticks({ status, tr }: { status: string | null; tr: Tr }) {
 }
 
 export default async function InboxPage({ searchParams }: PageProps<"/admin/inbox">) {
-  const [, { tr, lang }] = await Promise.all([requireAdmin(), adminTr()]);
+  const [user, { tr, lang }] = await Promise.all([requireStaff(), adminTr()]);
+  const agent = user.role === "AGENT";
   const timeFmt = new Intl.DateTimeFormat(adminLocale(lang), { dateStyle: "short", timeStyle: "short", timeZone: TIME_ZONE });
   const q = await searchParams;
   const selectedId = typeof q.c === "string" ? q.c : null;
@@ -116,7 +117,8 @@ export default async function InboxPage({ searchParams }: PageProps<"/admin/inbo
                       </p>
                     </div>
                   </div>
-                  {moroccan ? (
+                  {/* Typing in a new order is the owner's (agents answer the ones that come in). */}
+                  {moroccan && !agent ? (
                     <Link href={`/admin/orders/new?phone=${encodeURIComponent(moroccan)}&name=${encodeURIComponent(current?.name ?? "")}`} className={buttonClass({ className: "min-h-10 px-3 text-sm" })}>
                       <Plus className="size-4" aria-hidden="true" />
                       {tr("سجّل طلب", "Record order")}

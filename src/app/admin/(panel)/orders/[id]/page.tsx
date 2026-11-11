@@ -11,7 +11,8 @@ import { inputClass, L, PageHeader, Panel, riskLabel, statusLabel } from "@/comp
 import { adminTr } from "@/lib/admin-lang";
 import { adminLocale } from "@/lib/admin-tr";
 import { Badge } from "@/components/ui/Badge";
-import { requireAdmin } from "@/lib/admin";
+import { requireStaff } from "@/lib/admin";
+import { agentMayMove } from "@/lib/staff-rules";
 import { trackingLink } from "@/lib/carrier/webhook";
 import { CARRIER_LABEL, CARRIER_STATUSES, isCarrierStatus } from "@/lib/carrier/status";
 import { db } from "@/lib/db";
@@ -36,7 +37,9 @@ const VARIANT: Record<OrderStatus, StatusOption["variant"]> = {
 };
 
 export default async function OrderDetail({ params, searchParams }: PageProps<"/admin/orders/[id]">) {
-  const [, { tr, lang }] = await Promise.all([requireAdmin(), adminTr()]);
+  const [user, { tr, lang }] = await Promise.all([requireStaff(), adminTr()]);
+  // An agent calls the customer and answers the order; money, stock cost and shipping stay with the owner.
+  const agent = user.role === "AGENT";
   const dateFmt = new Intl.DateTimeFormat(adminLocale(lang), { dateStyle: "medium", timeStyle: "short", timeZone: TIME_ZONE });
   const mad = (v: number) => formatMAD(v, lang);
   const { id } = await params;
@@ -60,6 +63,7 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
   // Cost of the goods in this order, when every line's purchase price is known.
   const goodsCost = order.items.every((i) => i.unitCost !== null) ? order.items.reduce((s, i) => s + (i.unitCost ?? 0) * i.quantity, 0) : null;
   const shippable = order.status === "CONFIRMED" || order.status === "SHIPPING" || order.status === "DELIVERED";
+  const nextSteps = allowedNext(order.status).filter((to) => !agent || agentMayMove(order.status, to));
 
   const waNumber = order.phone.replace("+", "");
 
@@ -74,8 +78,8 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
         description={`${dateFmt.format(order.createdAt)} · ${tr("المصدر", "Source")}: ${sourceLabel(order.source, lang)} · ${tr("جا من", "Came from")}: ${channelLabel(order.channel, lang)}${order.channelDetail ? ` (${order.channelDetail})` : ""}`}
         actions={
           <div className="flex flex-wrap items-start gap-2">
-            <PaymentMenu orderId={order.id} number={order.number} status={order.status} prepaid={prepaid} collected={order.codReceivedAt !== null} />
-            <StatusMenu orderId={order.id} number={order.number} status={order.status} waiting={order.confirmSentAt !== null} />
+            {agent ? null : <PaymentMenu orderId={order.id} number={order.number} status={order.status} prepaid={prepaid} collected={order.codReceivedAt !== null} />}
+            <StatusMenu orderId={order.id} number={order.number} status={order.status} waiting={order.confirmSentAt !== null} agent={agent} />
           </div>
         }
       />
@@ -193,13 +197,16 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
                   <dd>{mad(cashToCollect(order.total, prepaid))}</dd>
                 </div>
               ) : null}
-              <div className="mt-2 flex justify-between border-t border-warm-200 pt-2">
-                <dt className="text-warm-600">{tr("تكلفة السلعة (لك فقط)", "Cost of goods (only you see this)")}</dt>
-                <dd>{goodsCost === null ? tr("ثمن الشراء ناقص", "Purchase price missing") : mad(goodsCost)}</dd>
-              </div>
+              {agent ? null : (
+                <div className="mt-2 flex justify-between border-t border-warm-200 pt-2">
+                  <dt className="text-warm-600">{tr("تكلفة السلعة (لك فقط)", "Cost of goods (only you see this)")}</dt>
+                  <dd>{goodsCost === null ? tr("ثمن الشراء ناقص", "Purchase price missing") : mad(goodsCost)}</dd>
+                </div>
+              )}
             </dl>
           </Panel>
 
+          {agent ? null : (
           <Panel title={tr("الشحنة والتتبع", "Shipment & tracking")}>
             {shippable ? (
               <>
@@ -281,15 +288,18 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
               </span>
             </p>
           </Panel>
+          )}
         </div>
 
         <div className="flex flex-col gap-6">
           <Panel title={tr("تغيير الحالة", "Change status")}>
-            {allowedNext(order.status).length ? (
+            {agent && !nextSteps.length ? (
+              <p className="text-sm text-warm-600">{tr("هاد الطلب تجاوب عليه. الخطوات الجاية (الشحن والتوصيل) عند المسؤول.", "This order has been answered. The next steps (shipping, delivery) are the owner's.")}</p>
+            ) : nextSteps.length ? (
               <StatusButtons
                 withNote
                 orderId={order.id}
-                options={allowedNext(order.status).map((to) => ({ to, label: statusLabel(to, lang), variant: VARIANT[to] }))}
+                options={nextSteps.map((to) => ({ to, label: statusLabel(to, lang), variant: VARIANT[to] }))}
               />
             ) : (
               <p className="text-sm text-warm-600">{tr("الطريق العادي سالا هنا. إلا بغيتي تبدلها بيدك، استعمل قائمة الحالة فوق.", "The usual path ends here. To change it by hand, use the status menu above.")}</p>
@@ -297,7 +307,7 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
             <p className="mt-3 text-xs text-warm-600">{tr("يُخصم المخزون عند التأكيد ويُعاد عند الإلغاء أو الإرجاع.", "Stock is taken on confirmation and given back on cancellation or return.")}</p>
           </Panel>
 
-          {order.status === "DELIVERED" ? (
+          {order.status === "DELIVERED" && !agent ? (
             <Panel title={tr("التحصيل من شركة التوصيل", "Collection from the carrier")}>
               <p className="mb-2 text-sm text-warm-600">{order.codReceivedAt
                   ? tr(`توصلتي بيه ${dateFmt.format(order.codReceivedAt)}.`, `Received ${dateFmt.format(order.codReceivedAt)}.`)
@@ -311,7 +321,7 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
             </Panel>
           ) : null}
 
-          {order.status === "DELIVERED" ? (
+          {order.status === "DELIVERED" && !agent ? (
             <Panel title={tr("طلب التقييم", "Review request")}>
               <p className="text-sm text-warm-600">{tr(`${reviewed} من ${order.items.length} منتجات تقيّمات.`, `${reviewed} of ${order.items.length} products reviewed.`)}</p>
               <a href={`https://wa.me/${waNumber}?text=${encodeURIComponent(reviewWhatsappMessage(order.customerName, order.number, reviewLink(order.id)))}`} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-lg bg-whatsapp px-4 font-semibold text-ink hover:opacity-90">
@@ -338,6 +348,7 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
             </ol>
           </Panel>
 
+          {agent ? null : (
           <Panel title={tr("القائمة السوداء", "Blacklist")}>
             {blacklisted ? (
               <p className="text-sm font-semibold text-danger">{tr("هذا الرقم في القائمة السوداء. لن يتمكن من الطلب.", "This number is on the blacklist. It cannot order.")}</p>
@@ -351,6 +362,7 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
               </ActionForm>
             )}
           </Panel>
+          )}
         </div>
       </div>
     </>

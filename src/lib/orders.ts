@@ -13,6 +13,7 @@ import { bundleRulesFor } from "./bundles-data";
 import { assessRisk, cashToCollect, deliveredByHand, newOrderNumber, transitionPlan, undoesDelivery, type OrderStatus } from "./order-rules";
 import { normalizeMoroccanPhone } from "./phone";
 import { computeTotals } from "./pricing";
+import { agentMayMove, handledUpdate } from "./staff-rules";
 import { effectiveCost, InsufficientStockError, moveStock } from "./stock";
 
 /** httpOnly cookie holding the id of the order this browser just placed (confirmation page). */
@@ -284,12 +285,14 @@ export class OrderTransitionError extends Error {
  * Moves an order to a new status, takes stock on confirmation and gives it back on
  * cancel / return, and logs who did it. Row-locked so two admins cannot double-apply.
  */
-export async function changeOrderStatus(orderId: string, to: OrderStatus, actor: string, note?: string, opts: { manual?: boolean } = {}) {
+export async function changeOrderStatus(orderId: string, to: OrderStatus, actor: string, note?: string, opts: { manual?: boolean; byId?: string; agent?: boolean } = {}) {
   const stockMoved = await db.$transaction(async (tx) => {
     const [order] = await tx.$queryRaw<{ status: OrderStatus; stockDeducted: boolean; number: string; total: number; prepaidAt: Date | null; carrierFee: number | null }[]>`
       SELECT "status", "stockDeducted", "number", "total", "prepaidAt", "carrierFee" FROM "Order" WHERE "id" = ${orderId} FOR UPDATE`;
     if (!order) throw new OrderTransitionError("not_found");
 
+    // Checked here, on the locked row, so an order another person just moved cannot be moved again.
+    if (opts.agent && !agentMayMove(order.status, to)) throw new OrderTransitionError("not_allowed");
     const plan = transitionPlan(order.status, to, order.stockDeducted, opts.manual);
     // Handed over by the owner himself: no carrier fee, and the cash is already in his hands.
     const byHand = opts.manual && deliveredByHand(order.status, to);
@@ -322,6 +325,7 @@ export async function changeOrderStatus(orderId: string, to: OrderStatus, actor:
         ...(to === "DELIVERED" ? { deliveredAt: new Date() } : {}),
         ...(to === "RETURNED" ? { returnedAt: new Date() } : {}),
         ...(plan.stock ? { stockDeducted: plan.stock === "take" } : {}),
+        ...handledUpdate(order.status, to, opts.byId),
         ...(byHand ? { carrierFee: 0, codReceivedAt: new Date(), codReceivedAmount: cashToCollect(order.total, order.prepaidAt !== null) } : {}),
         // Otherwise the cash of a delivery that did not happen would stay in the capital.
         ...(undoesDelivery(order.status, to)

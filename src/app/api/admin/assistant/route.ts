@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { NextRequest } from "next/server";
 import { z } from "zod";
-import { getAdmin } from "@/lib/admin";
+import { getOwner } from "@/lib/admin";
 import { REPLY, runAssistant, type IncomingMessage } from "@/lib/assistant/run";
 import { sniffImage } from "@/lib/assistant/rules";
 import { usageSummary } from "@/lib/assistant/usage";
@@ -31,12 +31,12 @@ const body = z.object({
 const noStore = { "Cache-Control": "no-store" };
 
 export async function GET() {
-  if (!(await getAdmin())) return Response.json({ error: "unauthorized" }, { status: 401 });
+  if (!(await getOwner())) return Response.json({ error: "unauthorized" }, { status: 401 });
   return Response.json(await usageSummary(), { headers: noStore });
 }
 
 export async function POST(request: NextRequest) {
-  const admin = await getAdmin();
+  const admin = await getOwner();
   if (!admin) return Response.json({ error: "unauthorized" }, { status: 401 });
 
   // Route handlers do not get the origin check Server Actions have.

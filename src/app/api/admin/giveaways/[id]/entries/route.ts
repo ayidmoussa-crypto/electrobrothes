@@ -1,12 +1,12 @@
 import type { NextRequest } from "next/server";
-import { getAdmin } from "@/lib/admin";
+import { getOwner } from "@/lib/admin";
 import { toCsv } from "@/lib/csv";
 import { db } from "@/lib/db";
 import { formatMoroccanPhone } from "@/lib/phone";
 
 /** Every entry of one giveaway as a CSV for Excel (admin only). */
 export async function GET(_request: NextRequest, { params }: RouteContext<"/api/admin/giveaways/[id]/entries">) {
-  if (!(await getAdmin())) return new Response("unauthorized", { status: 401 });
+  if (!(await getOwner())) return new Response("unauthorized", { status: 401 });
   const { id } = await params;
   const g = await db.giveaway.findUnique({
     where: { id },

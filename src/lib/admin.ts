@@ -11,12 +11,33 @@ export async function getAdmin() {
   await connection();
   const userId = readSessionToken(token);
   if (!userId) return null;
-  return db.adminUser.findUnique({ where: { id: userId }, select: { id: true, email: true, name: true } });
+  const user = await db.adminUser.findUnique({
+    where: { id: userId },
+    select: { id: true, email: true, name: true, role: true, isActive: true, payPerConfirmed: true, payPerDelivered: true },
+  });
+  // A switched-off account is out at once, even with a session still running.
+  return user?.isActive ? user : null;
 }
 
-/** Every admin page AND every admin server action calls this: actions are public endpoints otherwise. */
+/** The owner's account, or null: for route handlers, which answer 401 instead of redirecting. */
+export async function getOwner() {
+  const user = await getAdmin();
+  return user?.role === "OWNER" ? user : null;
+}
+
+/** Anyone signed in: the owner or a confirmation agent. Only for the pages and actions agents may use. */
+export async function requireStaff() {
+  const user = await getAdmin();
+  if (!user) redirect("/admin/login");
+  return user;
+}
+
+/**
+ * The owner only. Every other admin page AND server action calls this: actions are public endpoints
+ * otherwise. An agent who lands on an owner page goes to their own figures.
+ */
 export async function requireAdmin() {
-  const admin = await getAdmin();
-  if (!admin) redirect("/admin/login");
-  return admin;
+  const user = await requireStaff();
+  if (user.role !== "OWNER") redirect("/admin/me");
+  return user;
 }

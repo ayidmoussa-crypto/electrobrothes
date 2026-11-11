@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { z } from "zod";
-import { requireAdmin } from "@/lib/admin";
+import { requireAdmin, requireStaff } from "@/lib/admin";
 import { adminTr, type Tr } from "@/lib/admin-lang";
 import { runDueAutomations } from "@/lib/automations";
 import { CARRIER_STATUSES } from "@/lib/carrier/status";
@@ -32,14 +32,19 @@ const reasons = (tr: Tr): Record<OrderTransitionError["reason"], string> => ({
 });
 
 export async function setOrderStatus(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const admin = await requireAdmin();
+  const user = await requireStaff();
   const { tr } = await adminTr();
   const parsed = statusInput.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { ok: false, message: tr("طلب غير صالح.", "Invalid request.") };
+  const agent = user.role === "AGENT";
   try {
-    await changeOrderStatus(parsed.data.orderId, parsed.data.to, admin.email, parsed.data.note, { manual: true });
+    // An agent stays on the usual path (manual: false) and only answers new orders.
+    await changeOrderStatus(parsed.data.orderId, parsed.data.to, user.email, parsed.data.note, { manual: !agent, agent, byId: user.id });
   } catch (e) {
-    if (e instanceof OrderTransitionError) return { ok: false, message: `${reasons(tr)[e.reason]}${e.sku ? ` (${e.sku})` : ""}` };
+    if (e instanceof OrderTransitionError) {
+      if (agent && e.reason === "not_allowed") return { ok: false, message: tr("غير الطلبات الجديدة كتأكَّد ولا كتلغى من هنا. هاد الطلب تجاوب عليه من قبل.", "Only new orders can be confirmed or cancelled here. This order was already answered.") };
+      return { ok: false, message: `${reasons(tr)[e.reason]}${e.sku ? ` (${e.sku})` : ""}` };
+    }
     throw e;
   }
   sendDueMessages();
@@ -109,7 +114,7 @@ export async function setPrepaid(_prev: ActionState, formData: FormData): Promis
  * "waiting for the reply" until it is confirmed or cancelled. Only the first send is logged.
  */
 export async function markConfirmSent(orderId: string): Promise<void> {
-  const admin = await requireAdmin();
+  const admin = await requireStaff();
   const id = z.string().min(1).max(40).safeParse(orderId);
   if (!id.success) return;
   const updated = await db.order.updateMany({ where: { id: id.data, status: "NEW", confirmSentAt: null }, data: { confirmSentAt: new Date() } });

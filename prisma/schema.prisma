@@ -388,6 +388,11 @@ model Order {
   returnedAt        DateTime?
   // The owner opened WhatsApp with the confirmation message: a NEW order then waits for the reply.
   confirmSentAt     DateTime?
+  // Who took the order out of NEW (confirmed or cancelled it), when, and to what: an agent's figures.
+  handledById       String?
+  handledBy         AdminUser?       @relation(fields: [handledById], references: [id], onDelete: SetNull)
+  handledAt         DateTime?
+  handledAs         OrderStatus?
   // Paid before shipping (bank transfer...): the carrier collects 0 at the door. Null = cash on delivery.
   prepaidAt         DateTime?
   // Cash the carrier really handed over for this order. Null = not received yet.
@@ -427,6 +432,7 @@ model Order {
   @@index([trackingNumber])
   @@index([status, deliveredAt])
   @@index([status, returnedAt])
+  @@index([handledById, handledAt])
 }
 
 // A delivery company the shop works with (Settings → Delivery companies). It pushes parcel updates to its own
@@ -717,13 +723,27 @@ model RateLimit {
 
 // ───────────────────────── Admin ─────────────────────────
 
+enum AdminRole {
+  // The owner: the whole panel.
+  OWNER
+  // Confirmation staff: orders and messages only, plus their own figures (/admin/me).
+  AGENT
+}
+
 model AdminUser {
-  id           String    @id @default(cuid())
-  email        String    @unique
-  name         String
-  passwordHash String
-  lastLoginAt  DateTime?
-  createdAt    DateTime  @default(now())
+  id              String    @id @default(cuid())
+  email           String    @unique
+  name            String
+  passwordHash    String
+  role            AdminRole @default(OWNER)
+  // Off: the account can no longer sign in, but its history and figures stay.
+  isActive        Boolean   @default(true)
+  // What an agent earns, MAD: per order they confirmed, and per one of those that was delivered.
+  payPerConfirmed Int       @default(0)
+  payPerDelivered Int       @default(0)
+  lastLoginAt     DateTime?
+  handledOrders   Order[]
+  createdAt       DateTime  @default(now())
 }
 
 // ───────────────────────── Admin assistant ─────────────────────────

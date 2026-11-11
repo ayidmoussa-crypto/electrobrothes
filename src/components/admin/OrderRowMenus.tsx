@@ -9,6 +9,7 @@ import { PillMenu, type PillOption } from "./PillMenu";
 import { statusLabel } from "./ui";
 import { useAdminTr } from "./AdminLang";
 import type { Tr } from "@/lib/admin-tr";
+import { agentMayMove } from "@/lib/staff-rules";
 
 // Same soft background + strong text pairs as the badges (all ≥4.5:1); the dot repeats it in the menu.
 const STATUS_STYLE: Record<OrderStatus, { tone: string; dot: string }> = {
@@ -51,15 +52,24 @@ function Message({ state }: { state: ActionState }) {
 }
 
 /** Change the status right from the list; cancelling or a return asks first. */
-export function StatusMenu({ orderId, status, number, waiting = false }: { orderId: string; status: OrderStatus; number: string; waiting?: boolean }) {
+export function StatusMenu({ orderId, status, number, waiting = false, agent = false }: { orderId: string; status: OrderStatus; number: string; waiting?: boolean; agent?: boolean }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(setOrderStatus, {});
   const [, start] = useTransition();
   const [confirm, dialog] = useConfirm();
   const { tr, lang } = useAdminTr();
   const label = waiting && status === "NEW" ? { ...WAITING, label: tr(...WAITING.label) } : { label: statusLabel(status, lang), ...STATUS_STYLE[status] };
+  // An agent answers new orders only; past that the status is just shown.
+  if (agent && status !== "NEW") {
+    return (
+      <span className={`inline-flex min-h-8 w-28 items-center gap-1.5 rounded-full px-2.5 text-xs font-bold ${label.tone}`}>
+        <span className={`size-2 shrink-0 rounded-full ${label.dot}`} aria-hidden="true" />
+        {label.label}
+      </span>
+    );
+  }
   // Every status in its usual order, all open: by hand the owner may jump anywhere (he sometimes
-  // delivers an order himself). Stock follows on its own.
-  const options: PillOption[] = ORDER_STATUSES.map((s) => ({
+  // delivers an order himself). Stock follows on its own. An agent gets confirm or cancel.
+  const options: PillOption[] = ORDER_STATUSES.filter((s) => !agent || s === status || agentMayMove(status, s)).map((s) => ({
     value: s,
     label: s === status ? label.label : statusLabel(s, lang),
     dot: STATUS_STYLE[s].dot,

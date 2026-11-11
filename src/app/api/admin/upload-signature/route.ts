@@ -1,10 +1,10 @@
 import { createHash } from "node:crypto";
-import { getAdmin } from "@/lib/admin";
+import { getOwner } from "@/lib/admin";
 
 // Signed direct upload to Cloudinary: the browser sends the file straight to Cloudinary,
 // the API secret never leaves the server. Admin only.
 export async function POST() {
-  if (!(await getAdmin())) return Response.json({ error: "unauthorized" }, { status: 401 });
+  if (!(await getOwner())) return Response.json({ error: "unauthorized" }, { status: 401 });
 
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
   const apiKey = process.env.CLOUDINARY_API_KEY;

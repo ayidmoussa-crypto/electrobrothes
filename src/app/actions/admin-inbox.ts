@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireAdmin } from "@/lib/admin";
+import { requireStaff } from "@/lib/admin";
 import { adminTr } from "@/lib/admin-lang";
 import { db } from "@/lib/db";
 import { sendWaTemplate, sendWaText, WaSendError } from "@/lib/whatsapp/client";
@@ -15,7 +15,7 @@ const phone = z.string().regex(/^\+\d{8,15}$/);
 const textInput = z.object({ phone, text: z.string().trim().min(1).max(4096) });
 
 export async function sendReply(_: State, fd: FormData): Promise<State> {
-  const admin = await requireAdmin();
+  const admin = await requireStaff();
   const parsed = textInput.safeParse(Object.fromEntries(fd));
   if (!parsed.success) return { ok: false, message: (await adminTr()).tr("اكتب الرسالة.", "Type the message.") };
   const conversation = await db.waConversation.findUnique({ where: { phone: parsed.data.phone }, select: { lastInboundAt: true } });
@@ -39,7 +39,7 @@ const templateInput = z.object({
 });
 
 export async function sendTemplate(_: State, fd: FormData): Promise<State> {
-  const admin = await requireAdmin();
+  const admin = await requireStaff();
   const parsed = templateInput.safeParse(Object.fromEntries(fd));
   if (!parsed.success) return { ok: false, message: (await adminTr()).tr("اسم القالب: حروف لاتينية صغيرة وأرقام و_ فقط، كما هو في Meta.", "Template name: lower-case Latin letters, digits and _ only, as in Meta.") };
   const params = (parsed.data.params ?? "").split("\n").map((p) => p.trim()).filter(Boolean);

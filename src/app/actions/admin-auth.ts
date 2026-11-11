@@ -22,7 +22,8 @@ export async function login(_prev: LoginState, formData: FormData): Promise<Logi
 
   const user = email ? await db.adminUser.findUnique({ where: { email } }) : null;
   const ok = await verifyPassword(password, user?.passwordHash ?? DUMMY_HASH);
-  if (!user || !ok) return { error: "invalid", email };
+  // A switched-off account answers like a wrong password: nothing tells it apart.
+  if (!user || !ok || !user.isActive) return { error: "invalid", email };
 
   await db.adminUser.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
   (await cookies()).set(SESSION_COOKIE, createSessionToken(user.id), {
@@ -32,7 +33,8 @@ export async function login(_prev: LoginState, formData: FormData): Promise<Logi
     maxAge: SESSION_TTL_SECONDS,
     path: "/",
   });
-  redirect("/admin");
+  // An agent starts on their own figures.
+  redirect(user.role === "AGENT" ? "/admin/me" : "/admin");
 }
 
 export async function logout() {

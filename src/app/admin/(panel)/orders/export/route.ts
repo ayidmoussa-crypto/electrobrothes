@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { getAdmin } from "@/lib/admin";
+import { getOwner } from "@/lib/admin";
 import { orderWhere, parseOrderFilters } from "@/lib/admin-orders";
 import { toCsv } from "@/lib/csv";
 import { db } from "@/lib/db";
@@ -8,7 +8,7 @@ import { formatMoroccanPhone } from "@/lib/phone";
 
 // Delivery-company sheet: one row per order with the cash amount to collect.
 export async function GET(request: NextRequest) {
-  if (!(await getAdmin())) return new Response("Unauthorized", { status: 401 });
+  if (!(await getOwner())) return new Response("Unauthorized", { status: 401 });
 
   const f = parseOrderFilters(Object.fromEntries(request.nextUrl.searchParams));
   // Orders ticked in the list: exactly those, whatever the filters.
