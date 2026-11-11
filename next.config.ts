@@ -1,12 +1,17 @@
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
+import { contentSecurityPolicy, sentryCspReportUri } from "./src/lib/csp";
 
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 // Baseline security headers for every response.
-// shortcut: no Content-Security-Policy yet; the marketing pixels inject inline scripts, so a CSP
-// needs nonces. Add one before adding any third-party widget beyond the three pixels.
+// The CSP is in report-only mode: the browser reports what it would block (console, and Sentry when
+// SENTRY_DSN is set) but blocks nothing. Switching it on = renaming the header to
+// "Content-Security-Policy" once a week of reports shows nothing legitimate is caught (README.md).
+// A new third-party widget needs its domain in src/lib/csp.ts first.
+const csp = contentSecurityPolicy({ dev: process.env.NODE_ENV !== "production", reportUri: sentryCspReportUri(process.env.SENTRY_DSN) });
 const securityHeaders = [
+  { key: "Content-Security-Policy-Report-Only", value: csp },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "DENY" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
