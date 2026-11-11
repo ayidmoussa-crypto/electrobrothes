@@ -22,6 +22,7 @@ import {
   Star,
   Tags,
   TicketPercent,
+  Truck,
   Users,
   X,
   Zap,
@@ -88,6 +89,7 @@ const items: Item[] = [
     children: [
       { href: "/admin/settings", label: ["إعدادات المتجر", "Shop settings"], icon: Settings },
       { href: "/admin/cities", label: ["المدن والتوصيل", "Cities & delivery"], icon: MapPin },
+      { href: "/admin/carriers", label: ["شركات التوصيل", "Delivery companies"], icon: Truck },
       // The assistant itself is the floating button; this is only its history.
       { href: "/admin/assistant", label: ["سجل المساعد", "Assistant log"], icon: Bot },
     ],

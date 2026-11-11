@@ -12,7 +12,7 @@ import { adminTr } from "@/lib/admin-lang";
 import { adminLocale } from "@/lib/admin-tr";
 import { Badge } from "@/components/ui/Badge";
 import { requireAdmin } from "@/lib/admin";
-import { CARRIER_NAME, CARRIER_TRACKING_PAGE, carrierHasLogin } from "@/lib/carrier/connection";
+import { trackingLink } from "@/lib/carrier/webhook";
 import { CARRIER_LABEL, CARRIER_STATUSES, isCarrierStatus } from "@/lib/carrier/status";
 import { db } from "@/lib/db";
 import { expectedFromCarrier } from "@/lib/finance";
@@ -45,12 +45,16 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
     include: { items: true, logs: { orderBy: { createdAt: "asc" } }, events: { orderBy: { occurredAt: "desc" } }, city: { select: { shippingFee: true } } },
   });
   if (!order) notFound();
-  const [blacklisted, otherOrders, reviewed, query] = await Promise.all([
+  const [blacklisted, otherOrders, reviewed, query, carriers] = await Promise.all([
     db.blacklist.findUnique({ where: { phone: order.phone } }),
     db.order.count({ where: { phone: order.phone, id: { not: order.id } } }),
     db.review.count({ where: { orderItem: { orderId: order.id } } }),
     searchParams,
+    db.carrier.findMany({ where: { isActive: true }, orderBy: [{ isDefault: "desc" }, { name: "asc" }], select: { id: true, name: true, trackingUrl: true, lastEventAt: true, isDefault: true } }),
   ]);
+  // The order's company, else the default one for a parcel not sent yet.
+  const carrier = carriers.find((c) => c.id === order.carrier) ?? (order.trackingNumber ? null : carriers[0]) ?? null;
+  const trackUrl = trackingLink(carrier?.trackingUrl, order.trackingNumber);
   const prepaid = order.prepaidAt !== null;
   const expected = expectedFromCarrier({ ...order, cityFee: order.city.shippingFee, prepaid });
   // Cost of the goods in this order, when every line's purchase price is known.
@@ -201,7 +205,17 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
               <>
                 <ActionForm action={saveShipment} submitLabel={tr("حفظ الشحنة", "Save shipment")} variant="dark" className="grid gap-3 sm:grid-cols-2">
                   <input type="hidden" name="orderId" value={order.id} />
-                  <L label={tr(`رقم التتبع (${CARRIER_NAME})`, `Tracking number (${CARRIER_NAME})`)}>
+                  <L label={tr("شركة التوصيل", "Delivery company")}>
+                    <select name="carrierId" defaultValue={carrier?.id ?? ""} className={inputClass}>
+                      <option value="">{tr("— بلا شركة —", "— No company —")}</option>
+                      {carriers.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </L>
+                  <L label={tr("رقم التتبع", "Tracking number")}>
                     <input name="trackingNumber" dir="ltr" maxLength={60} defaultValue={order.trackingNumber ?? ""} className={`${inputClass} text-start`} />
                   </L>
                   <L label={tr("الرسوم الحقيقية ديال هاد الطرد (درهم)", "Real fee for this parcel (MAD)")}>
@@ -248,13 +262,22 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
             <p className="mt-4 flex items-start gap-2 rounded-lg bg-warm-100 p-3 text-xs text-warm-600">
               <Truck className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
               <span>
-                {carrierHasLogin()
-                  ? tr("بيانات الدخول كاينين، والربط المباشر كيتسنى وثائق API من الشركة.", "The login is set; the direct link waits for the carrier's API documents.")
-                  : tr("الربط المباشر مع Express Relais كيتسنى بيانات الدخول ووثائق API من الشركة.", "The direct link with Express Relais waits for the login and API documents from the carrier.")}{" "}
-                {tr("دابا التتبع كيتسجل بيدك.", "For now tracking is recorded by hand.")}{" "}
-                <a href={CARRIER_TRACKING_PAGE} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
-                  {tr("صفحة التتبع ديال الشركة", "Carrier tracking page")}
-                </a>
+                {!carriers.length
+                  ? tr("مازال ما زدتي حتى شركة توصيل: التتبع كيتسجل بيدك.", "No delivery company added yet: tracking is recorded by hand.")
+                  : carrier?.lastEventAt
+                    ? tr(`${carrier.name} مربوطة: الخطوات كتسجل بوحدها.`, `${carrier.name} is linked: steps are recorded on their own.`)
+                    : tr("الخطوات كتسجل بوحدها ملي الشركة تبدا تصيفط لرابط الاستقبال ديالها.", "Steps are recorded on their own once the company starts calling its receiving link.")}{" "}
+                <Link href="/admin/carriers" className="underline underline-offset-2">
+                  {tr("شركات التوصيل", "Delivery companies")}
+                </Link>
+                {trackUrl ? (
+                  <>
+                    {" · "}
+                    <a href={trackUrl} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
+                      {tr("تتبع الطرد عندهم", "Track the parcel on their site")}
+                    </a>
+                  </>
+                ) : null}
               </span>
             </p>
           </Panel>

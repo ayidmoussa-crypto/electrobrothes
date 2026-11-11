@@ -428,6 +428,34 @@ model Order {
   @@index([status, returnedAt])
 }
 
+// A delivery company the shop works with (Settings → Delivery companies). It pushes parcel updates to its own
+// webhook address (/api/webhooks/carrier/<webhookToken>); its own status names are mapped onto lib/carrier/status.ts.
+model Carrier {
+  id            String    @id @default(cuid())
+  name          String
+  // The carrier's public tracking page; "{tracking}" is replaced by the parcel number.
+  trackingUrl   String?
+  apiBaseUrl    String?
+  // API key, login and password, encrypted (lib/carrier/secrets.ts). Never sent back to the browser.
+  credentials   String?
+  webhookToken  String    @unique
+  // Where the tracking number, status and note sit in the carrier's JSON ("data.status").
+  trackingField String    @default("tracking")
+  statusField   String    @default("status")
+  noteField     String?
+  // The carrier's status text (lower case) → a CarrierStatus key.
+  statusMap     Json      @default("{}")
+  isActive      Boolean   @default(true)
+  // Picked first on a new shipment.
+  isDefault     Boolean   @default(false)
+  lastEventAt   DateTime?
+  // Status texts received that are not mapped yet, newest first, so the owner can map them.
+  unknownStatuses String[]
+  lastError     String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
 // One step of a parcel's journey, newest shown first.
 model ShipmentEvent {
   id         String   @id @default(cuid())

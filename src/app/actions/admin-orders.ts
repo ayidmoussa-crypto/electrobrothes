@@ -119,6 +119,7 @@ export async function createOrderByHand(_prev: ActionState, formData: FormData):
 const shipmentInput = z.object({
   orderId: z.string().min(1).max(40),
   trackingNumber: z.string().trim().max(60).optional().transform((v) => v || null),
+  carrierId: z.string().max(40).optional().transform((v) => v || null),
   carrierFee: z.preprocess((v) => (v === "" || v === undefined ? null : v), z.coerce.number().int().min(0).max(100_000).nullable()),
 });
 
@@ -127,8 +128,10 @@ export async function saveShipment(_prev: ActionState, formData: FormData): Prom
   const { tr } = await adminTr();
   const parsed = shipmentInput.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { ok: false, message: tr("تحقق من رقم التتبع والرسوم.", "Check the tracking number and fee.") };
-  const { orderId, trackingNumber, carrierFee } = parsed.data;
-  const updated = await db.order.updateMany({ where: { id: orderId }, data: { trackingNumber, carrierFee, carrier: trackingNumber ? "express_relais" : null } });
+  const { orderId, trackingNumber, carrierFee, carrierId } = parsed.data;
+  // The company's id ties the parcel to the updates that company sends (app/api/webhooks/carrier).
+  const carrier = carrierId ? await db.carrier.findUnique({ where: { id: carrierId }, select: { id: true } }) : null;
+  const updated = await db.order.updateMany({ where: { id: orderId }, data: { trackingNumber, carrierFee, carrier: carrier?.id ?? null } });
   if (!updated.count) return { ok: false, message: tr("الطلب غير موجود.", "Order not found.") };
   revalidatePath(`/admin/orders/${orderId}`);
   revalidatePath("/admin/orders");
