@@ -11,8 +11,10 @@ export async function GET(request: NextRequest) {
   if (!(await getAdmin())) return new Response("Unauthorized", { status: 401 });
 
   const f = parseOrderFilters(Object.fromEntries(request.nextUrl.searchParams));
+  // Orders ticked in the list: exactly those, whatever the filters.
+  const ids = (request.nextUrl.searchParams.get("ids") ?? "").split(",").filter((id) => /^[a-z0-9]{1,40}$/.test(id)).slice(0, 500);
   const orders = await db.order.findMany({
-    where: orderWhere(f),
+    where: ids.length ? { id: { in: ids } } : orderWhere(f),
     orderBy: { createdAt: "asc" },
     take: 5000,
     include: { items: { select: { nameAr: true, variantLabel: true, quantity: true } } },

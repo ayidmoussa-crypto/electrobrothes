@@ -52,6 +52,16 @@ export const holdsStock = (s: OrderStatus) => s === "CONFIRMED" || s === "SHIPPI
 export const cashToCollect = (total: number, prepaid: boolean) => (prepaid ? 0 : total);
 
 /**
+ * Why an order cannot be handed to a delivery company, or null when it can: only a confirmed order goes out,
+ * and one that already has a parcel number has gone out already.
+ */
+export function shipBlock(status: OrderStatus, trackingNumber: string | null): "not_confirmed" | "has_tracking" | null {
+  if (status !== "CONFIRMED") return "not_confirmed";
+  if (trackingNumber) return "has_tracking";
+  return null;
+}
+
+/**
  * What a status change does to inventory. Stock is taken when the order is confirmed
  * and given back when it is cancelled, returned or sent back to NEW.
  * `manual`: the owner picked it by hand and may jump anywhere (he sometimes delivers an order himself);

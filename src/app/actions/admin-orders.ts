@@ -10,7 +10,7 @@ import { runDueAutomations } from "@/lib/automations";
 import { CARRIER_STATUSES } from "@/lib/carrier/status";
 import { db } from "@/lib/db";
 import { manualError, manualOrderInput } from "@/lib/manual-order";
-import { canSetPrepaid, ORDER_STATUSES } from "@/lib/order-rules";
+import { canSetPrepaid, ORDER_STATUSES, shipBlock } from "@/lib/order-rules";
 import { changeOrderStatus, createManualOrder, OrderTransitionError } from "@/lib/orders";
 import { normalizeMoroccanPhone } from "@/lib/phone";
 import { recordShipmentEvent } from "@/lib/shipments";
@@ -46,6 +46,36 @@ export async function setOrderStatus(_prev: ActionState, formData: FormData): Pr
   revalidatePath("/admin/orders");
   revalidatePath("/admin");
   return { ok: true, message: tr("تم تحديث حالة الطلب.", "Order status updated.") };
+}
+
+export type CarrierAssignResult = { ok: boolean; message?: string; results: { id: string; ok: boolean; reason?: string }[] };
+
+/**
+ * Hands the selected orders to one delivery company: each confirmed order without a parcel number gets the
+ * company (its logo then shows in the list). The others are skipped and say why. No parcel is created at the
+ * company: that needs its API (lib/carrier), and nothing here pretends otherwise.
+ */
+export async function assignCarrier(input: { orderIds: string[]; carrierId: string }): Promise<CarrierAssignResult> {
+  await requireAdmin();
+  const { tr } = await adminTr();
+  const parsed = z.object({ orderIds: z.array(z.string().min(1).max(40)).min(1).max(200), carrierId: z.string().min(1).max(40) }).safeParse(input);
+  if (!parsed.success) return { ok: false, message: tr("طلب غير صالح.", "Invalid request."), results: [] };
+  const carrier = await db.carrier.findFirst({ where: { id: parsed.data.carrierId, isActive: true }, select: { id: true } });
+  if (!carrier) return { ok: false, message: tr("هاد الشركة ما بقاتش ولا متوقفة.", "This company no longer exists or is off."), results: [] };
+
+  const orders = await db.order.findMany({ where: { id: { in: parsed.data.orderIds } }, select: { id: true, status: true, trackingNumber: true } });
+  const why = { not_confirmed: tr("ماشي مؤكَّد", "Not confirmed"), has_tracking: tr("خرج من قبل", "Already sent") };
+  const results = parsed.data.orderIds.map((id) => {
+    const o = orders.find((x) => x.id === id);
+    if (!o) return { id, ok: false, reason: tr("ما بقاش", "Not found") };
+    const block = shipBlock(o.status, o.trackingNumber);
+    return block ? { id, ok: false, reason: why[block] } : { id, ok: true };
+  });
+  const ready = results.filter((r) => r.ok).map((r) => r.id);
+  // The status and the parcel number are checked again in the write, in case one changed meanwhile.
+  if (ready.length) await db.order.updateMany({ where: { id: { in: ready }, status: "CONFIRMED", trackingNumber: null }, data: { carrier: carrier.id } });
+  revalidatePath("/admin/orders");
+  return { ok: true, results };
 }
 
 /** Marks an order as paid before shipping (the carrier then collects 0), or back to cash on delivery. */

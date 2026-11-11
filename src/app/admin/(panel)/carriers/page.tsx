@@ -1,7 +1,10 @@
 import { CircleAlert, Plus, Truck } from "lucide-react";
 import { deleteCarrier, renewWebhook, saveCarrier } from "@/app/actions/admin-carriers";
 import { ActionForm } from "@/components/admin/ActionForm";
+import { CarrierLogo } from "@/components/admin/CarrierLogo";
 import { CopyLink } from "@/components/admin/CopyLink";
+import { LogoField } from "@/components/admin/LogoField";
+import { cloudinaryConfigured } from "@/lib/cloudinary";
 import { inputClass, L, PageHeader, Panel } from "@/components/admin/ui";
 import { Badge } from "@/components/ui/Badge";
 import { requireAdmin } from "@/lib/admin";
@@ -16,7 +19,7 @@ import { TIME_ZONE } from "@/lib/time";
 type CarrierRow = Awaited<ReturnType<typeof db.carrier.findMany>>[number];
 
 /** The add / edit form. Saved secrets are never sent back: the page only says which ones are saved. */
-function CarrierForm({ c, tr, lang }: { c?: CarrierRow; tr: Tr; lang: AdminLang }) {
+function CarrierForm({ c, tr, lang, uploads }: { c?: CarrierRow; tr: Tr; lang: AdminLang; uploads: boolean }) {
   const saved = savedFields(decryptCredentials(c?.credentials));
   const keep = tr("محفوظ · خليه خاوي باش يبقى", "Saved · leave empty to keep");
   const map = Object.entries((c?.statusMap ?? {}) as Record<string, string>);
@@ -32,6 +35,9 @@ function CarrierForm({ c, tr, lang }: { c?: CarrierRow; tr: Tr; lang: AdminLang 
         </L>
         <L label={tr("صفحة التتبع ديالهم ({tracking} = رقم الطرد)", "Their tracking page ({tracking} = parcel number)")}>
           <input name="trackingUrl" type="url" dir="ltr" defaultValue={c?.trackingUrl ?? ""} placeholder="https://…/suivi?code={tracking}" className={`${inputClass} text-start`} />
+        </L>
+        <L label={tr("اللوغو (كيبان حدا الطلبات اللي خرجو معاها)", "Logo (shown next to the orders it carries)")} className="sm:col-span-2">
+          <LogoField name={c?.name ?? ""} initial={c?.logoUrl ?? null} uploadsEnabled={uploads} />
         </L>
       </div>
 
@@ -113,6 +119,7 @@ export default async function CarriersPage() {
   const carriers = await db.carrier.findMany({ orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }] });
   const when = new Intl.DateTimeFormat(adminLocale(lang), { dateStyle: "medium", timeStyle: "short", timeZone: TIME_ZONE });
   const hook = (token: string) => `${siteUrl()}/api/webhooks/carrier/${token}`;
+  const uploads = cloudinaryConfigured();
 
   return (
     <>
@@ -139,6 +146,7 @@ export default async function CarriersPage() {
         {carriers.map((c) => (
           <Panel key={c.id}>
             <div className="mb-3 flex flex-wrap items-center gap-2">
+              <CarrierLogo name={c.name} logoUrl={c.logoUrl} className="size-10" />
               <h2 className="text-lg">{c.name}</h2>
               {c.isDefault ? <Badge tone="accent">{tr("الافتراضية", "Default")}</Badge> : null}
               <Badge tone={c.isActive ? "success" : "neutral"}>{c.isActive ? tr("خدامة", "Active") : tr("متوقفة", "Off")}</Badge>
@@ -176,7 +184,7 @@ export default async function CarriersPage() {
             <details className="mt-4 rounded-xl border border-warm-200 bg-white/50 p-3" open={!c.lastEventAt && !c.credentials}>
               <summary className="cursor-pointer text-sm font-bold text-ink">{tr("تعديل الإعدادات", "Edit settings")}</summary>
               <div className="mt-3">
-                <CarrierForm c={c} tr={tr} lang={lang} />
+                <CarrierForm c={c} tr={tr} lang={lang} uploads={uploads} />
               </div>
             </details>
 
@@ -196,7 +204,7 @@ export default async function CarriersPage() {
             <Plus className="size-5" aria-hidden="true" />
             {tr("زيد شركة توصيل", "Add a delivery company")}
           </h2>
-          <CarrierForm tr={tr} lang={lang} />
+          <CarrierForm tr={tr} lang={lang} uploads={uploads} />
         </Panel>
       </div>
     </>

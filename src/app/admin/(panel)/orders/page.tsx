@@ -1,7 +1,9 @@
 import { Download, Plus, ShieldAlert } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { CarrierLogo } from "@/components/admin/CarrierLogo";
 import { PaymentMenu, StatusMenu, WhatsAppConfirm } from "@/components/admin/OrderRowMenus";
+import { AllCheck, OrderSelectionProvider, RowCheck, SelectionBar } from "@/components/admin/OrderSelection";
 import { confirmationText, whatsappLink } from "@/lib/order-whatsapp";
 import { PageHeader, tdClass, thClass } from "@/components/admin/ui";
 import { buttonClass } from "@/components/ui/button";
@@ -25,7 +27,7 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
   const dateFmt = new Intl.DateTimeFormat(adminLocale(lang), { dateStyle: "short", timeStyle: "short", timeZone: TIME_ZONE });
   const f = parseOrderFilters(await searchParams);
   const where = orderWhere(f);
-  const [orders, total] = await Promise.all([
+  const [orders, total, carriers] = await Promise.all([
     db.order.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -44,6 +46,7 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
         riskScore: true,
         source: true,
         trackingNumber: true,
+        carrier: true,
         codReceivedAt: true,
         prepaidAt: true,
         confirmSentAt: true,
@@ -60,7 +63,11 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
       },
     }),
     db.order.count({ where }),
+    // All of them, to show the logo of a company even after it was switched off.
+    db.carrier.findMany({ orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }], select: { id: true, name: true, logoUrl: true, isDefault: true, isActive: true, trackingUrl: true } }),
   ]);
+  const carrierById = new Map(carriers.map((c) => [c.id, c]));
+  const trackingLink = (url: string | null, tracking: string | null) => (url && tracking ? url.replace("{tracking}", encodeURIComponent(tracking)) : null);
   const pages = Math.max(1, Math.ceil(total / PAGE));
   const input = "min-h-11 admin-field rounded-lg px-3 text-sm text-warm-800";
 
@@ -119,10 +126,14 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
         </Link>
       </form>
 
+      <OrderSelectionProvider ids={orders.map((o) => o.id)}>
       <div className="overflow-x-auto admin-card">
         <table className="w-full min-w-[72rem]">
           <thead className="border-b border-white/70 bg-white/45">
             <tr>
+              <th className={`${thClass} w-10`}>
+                <AllCheck />
+              </th>
               <th className={thClass}>{tr("الطلب", "Order")}</th>
               <th className={thClass}>{tr("التاريخ", "Date")}</th>
               <th className={thClass}>{tr("الزبون", "Customer")}</th>
@@ -138,6 +149,9 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
               const image = first?.variant?.product.images[0]?.url;
               return (
               <tr key={o.id} className="border-b border-warm-200/60 last:border-0 transition-colors hover:bg-white/60">
+                <td className={tdClass}>
+                  <RowCheck id={o.id} number={o.number} />
+                </td>
                 <td className={tdClass}>
                   <div className="flex items-center gap-3">
                     <span className="relative size-12 shrink-0">
@@ -215,6 +229,22 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
                       status={o.status}
                       href={whatsappLink(o.phone, confirmationText({ ...o, prepaid: o.prepaidAt !== null }))}
                     />
+                    {/* The delivery company holding this order; an empty ring until one is picked. */}
+                    {(() => {
+                      const c = o.carrier ? carrierById.get(o.carrier) : undefined;
+                      if (!c) return <span className="size-8 shrink-0 rounded-full border-2 border-dashed border-warm-300" title={tr("مازال ما عندها شركة توصيل", "No delivery company yet")} aria-hidden="true" />;
+                      const label = `${c.name}${o.trackingNumber ? ` · ${o.trackingNumber}` : ""}`;
+                      const link = trackingLink(c.trackingUrl, o.trackingNumber);
+                      return link ? (
+                        <a href={link} target="_blank" rel="noopener noreferrer" title={label} aria-label={label} className="rounded-full focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-yellow-300">
+                          <CarrierLogo name={c.name} logoUrl={c.logoUrl} />
+                        </a>
+                      ) : (
+                        <span title={label} aria-label={label} role="img">
+                          <CarrierLogo name={c.name} logoUrl={c.logoUrl} />
+                        </span>
+                      );
+                    })()}
                   </div>
                   {o.trackingNumber ? (
                     <span className="mt-1 block text-xs text-warm-600" dir="ltr">
@@ -227,7 +257,7 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
             })}
             {!orders.length ? (
               <tr>
-                <td colSpan={7}className="px-3 py-10 text-center text-warm-600">
+                <td colSpan={8} className="px-3 py-10 text-center text-warm-600">
                   {tr("لا توجد طلبات مطابقة.", "No matching orders.")}
                 </td>
               </tr>
@@ -235,6 +265,11 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
           </tbody>
         </table>
       </div>
+      <SelectionBar
+        orders={orders.map((o) => ({ id: o.id, number: o.number, customerName: o.customerName, cityName: o.cityName, status: o.status, trackingNumber: o.trackingNumber }))}
+        carriers={carriers.filter((c) => c.isActive).map(({ id, name, logoUrl, isDefault }) => ({ id, name, logoUrl, isDefault }))}
+      />
+      </OrderSelectionProvider>
 
       {pages > 1 ? (
         <nav aria-label={tr("الصفحات", "Pages")} className="mt-4 flex flex-wrap gap-1">

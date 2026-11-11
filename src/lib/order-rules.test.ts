@@ -1,7 +1,15 @@
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { test } from "node:test";
-import { assessRisk, canSetPrepaid, deliveredByHand, undoesDelivery, cashToCollect, newOrderNumber, ORDER_NUMBER, paymentState, transitionPlan } from "./order-rules";
+import { assessRisk, canSetPrepaid, deliveredByHand, undoesDelivery, cashToCollect, newOrderNumber, ORDER_NUMBER, paymentState, shipBlock, transitionPlan } from "./order-rules";
+
+test("only a confirmed order without a parcel number can go to the delivery company", () => {
+  assert.equal(shipBlock("CONFIRMED", null), null);
+  assert.equal(shipBlock("CONFIRMED", "EGW1058"), "has_tracking");
+  assert.equal(shipBlock("NEW", null), "not_confirmed");
+  assert.equal(shipBlock("SHIPPING", "8202"), "not_confirmed");
+  assert.equal(shipBlock("CANCELLED", null), "not_confirmed");
+});
 
 test("payment follows the status, and a payment before shipping wins", () => {
   assert.equal(paymentState("NEW", false), "PENDING");

@@ -434,6 +434,8 @@ model Order {
 model Carrier {
   id            String    @id @default(cuid())
   name          String
+  // Shown next to each order sent with this company (orders list). Null: its initials show instead.
+  logoUrl       String?
   // The carrier's public tracking page; "{tracking}" is replaced by the parcel number.
   trackingUrl   String?
   apiBaseUrl    String?

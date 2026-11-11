@@ -22,6 +22,7 @@ const field = z.string().trim().max(80).regex(/^[A-Za-z0-9_.]*$/, "field");
 const carrierInput = z.object({
   id: z.string().max(40).optional().transform((v) => v || undefined),
   name: z.string().trim().min(2).max(60),
+  logoUrl: optionalUrl,
   trackingUrl: optionalUrl,
   apiBaseUrl: optionalUrl,
   apiKey: z.string().max(500).optional(),
