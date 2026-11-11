@@ -60,9 +60,21 @@ async function Shell({ children }: { children: ReactNode }) {
                   </button>
                 ))}
               </form>
-              <p className="me-2 hidden max-w-56 truncate text-sm text-warm-600 lg:block" dir="ltr" title={admin.email}>
-                {admin.email}
-              </p>
+              {agent ? (
+                <p className="me-2 hidden max-w-56 truncate text-sm text-warm-600 lg:block" dir="ltr" title={admin.email}>
+                  {admin.email}
+                </p>
+              ) : (
+                // The owner's account page (two-step login).
+                <Link
+                  href="/admin/account"
+                  className="me-2 hidden max-w-56 truncate rounded-md text-sm text-warm-600 underline-offset-4 hover:text-ink hover:underline lg:block"
+                  dir="ltr"
+                  title={tr("الحساب ديالي", "My account")}
+                >
+                  {admin.email}
+                </Link>
+              )}
               {/* Phones: the bell and the assistant live here; the shop link and logout are in "المزيد". */}
               <div className="flex items-center gap-1.5 lg:hidden">
                 <NotificationsButton groups={alerts} placement="bar" />

@@ -327,9 +327,15 @@ export function AdminBottomNav({ email, role }: { email: string; role: Role }) {
               className="glass-frost fixed inset-x-3 bottom-3 z-50 max-h-[calc(100dvh-1.5rem)] overflow-y-auto rounded-3xl border p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] text-ink shadow-xl shadow-ink/20 lg:hidden"
             >
               <div className="mb-2 flex items-center justify-between gap-3 px-2">
-                <p className="truncate text-sm text-warm-600" dir="ltr" title={email}>
-                  {email}
-                </p>
+                {role === "OWNER" ? (
+                  <Link href="/admin/account" className="truncate rounded-md text-sm text-warm-600 underline underline-offset-4 hover:text-ink" dir="ltr" title={tr("الحساب ديالي", "My account")}>
+                    {email}
+                  </Link>
+                ) : (
+                  <p className="truncate text-sm text-warm-600" dir="ltr" title={email}>
+                    {email}
+                  </p>
+                )}
                 <button type="button" onClick={close} aria-label={tr("إغلاق", "Close")} className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-full hover:bg-ink/5">
                   <X className="size-5" aria-hidden="true" />
                 </button>

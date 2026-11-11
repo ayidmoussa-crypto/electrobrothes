@@ -839,6 +839,14 @@ model AdminUser {
   payPerConfirmed Int       @default(0)
   payPerDelivered Int       @default(0)
   lastLoginAt     DateTime?
+  // Two-step login (owner, optional). The authenticator key, AES-GCM sealed (lib/totp.ts), never plain.
+  // Set with no totpEnabledAt = a setup started but not confirmed with a correct code yet.
+  totpSecret      String?
+  totpEnabledAt   DateTime?
+  // Time step of the last code accepted: a code works once.
+  totpLastStep    Int?
+  // scrypt hashes of the unused backup codes; a used one is removed.
+  totpBackupCodes String[]  @default([])
   handledOrders   Order[]
   createdAt       DateTime  @default(now())
 }
