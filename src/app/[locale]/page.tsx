@@ -31,7 +31,7 @@ async function Hero({ locale }: { locale: Locale }) {
   return (
     // Slides 1.5rem up under the header so its rounded bottom corners sit on the dark hero, not on white.
     // Runs up behind the floating header (its margin plus its height), so the bar sits on the photo.
-    <section className="relative isolate -mt-20 overflow-hidden bg-linear-to-b from-deep to-ink pt-20 md:-mt-[141px] md:pt-[141px]">
+    <section className="relative isolate -mt-20 overflow-hidden bg-linear-to-b from-deep to-ink pt-20 md:-mt-[141px] md:pt-[141px] xl:-mt-20 xl:pt-20">
       {/* Night sky with glowing dots gathering into products: above the text on phones, opposite it from md. */}
       <HeroParticles />
 

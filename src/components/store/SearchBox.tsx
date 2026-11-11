@@ -142,7 +142,8 @@ export function SearchBox({ action }: { action: string }) {
       {/* Phones search from the keyboard's own key: the narrow field needs this button's width. */}
       <button type="submit" className={buttonClass({ className: "rounded-s-none max-md:hidden" })}>
         <Search className="size-5" aria-hidden="true" />
-        <span className="sr-only md:not-sr-only">{t("searchButton")}</span>
+        {/* Icon only from xl, where the box shares its row with the categories and needs the width. */}
+        <span className="sr-only md:not-sr-only xl:sr-only">{t("searchButton")}</span>
       </button>
 
       <div

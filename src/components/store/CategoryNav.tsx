@@ -37,17 +37,22 @@ export function CategoryNav({ items, label }: { items: Item[]; label: string }) 
 
   return (
     // Transparent: takes the header's surface (solid ink, or glass once scrolled).
-    <nav aria-label={label} className="border-t border-white/10 max-md:hidden">
+    // From xl it sits in the bar's one row between the logo and the search; below that it wraps onto a full-width
+    // second row under a hairline (the negative margins reach the bar's edges through its padding).
+    <nav
+      aria-label={label}
+      className="max-md:hidden max-xl:order-last max-xl:-mx-4 max-xl:mt-3 max-xl:-mb-3 max-xl:basis-[calc(100%+2rem)] max-xl:border-t max-xl:border-white/10"
+    >
       <ul
         onMouseLeave={rest}
         onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && rest()}
-        className="relative isolate mx-auto flex max-w-7xl items-center gap-1 px-6 py-2"
+        className="relative isolate flex items-center gap-1 max-xl:mx-auto max-xl:max-w-7xl max-xl:px-6 max-xl:py-2"
       >
         <li
           aria-hidden="true"
           style={{ transform: `translateX(${pos.x}px)`, width: pos.w }}
           // Physical left-0: offsetLeft is measured from the left in both directions.
-          className={`pointer-events-none absolute inset-y-2 left-0 -z-10 rounded-full border border-(color:--glass-tab-border) bg-(color:--glass-tab-bg) shadow-[inset_0_1px_0] shadow-white/10 backdrop-blur-md backdrop-saturate-150 ${
+          className={`pointer-events-none absolute inset-y-2 left-0 xl:inset-y-0 -z-10 rounded-full border border-(color:--glass-tab-border) bg-(color:--glass-tab-bg) shadow-[inset_0_1px_0] shadow-white/10 backdrop-blur-md backdrop-saturate-150 ${
             pos.animate ? "transition-[transform,width,opacity] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]" : "transition-opacity duration-200"
           } ${pos.visible ? "opacity-100" : "opacity-0"}`}
         />
@@ -64,7 +69,7 @@ export function CategoryNav({ items, label }: { items: Item[]; label: string }) 
                 aria-current={active ? "page" : undefined}
                 onMouseEnter={() => moveTo(item.href)}
                 onFocus={() => moveTo(item.href)}
-                className={`relative inline-flex min-h-11 items-center justify-center rounded-full px-6 text-sm font-semibold transition-colors duration-300 hover:text-white focus-visible:text-white ${
+                className={`relative inline-flex min-h-11 items-center justify-center rounded-full px-6 text-sm xl:px-4 font-semibold transition-colors duration-300 hover:text-white focus-visible:text-white ${
                   active ? "text-white" : "text-warm-300"
                 }`}
               >

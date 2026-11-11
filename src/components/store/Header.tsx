@@ -15,7 +15,8 @@ export async function Header() {
 
   return (
     <HeaderShell>
-      <div className="mx-auto flex max-w-7xl items-center gap-x-2 px-3 py-3 md:gap-x-4 md:px-4">
+      {/* One row from xl (logo, categories, search, language, cart); between md and xl the categories wrap onto a second row. */}
+      <div className="mx-auto flex max-w-7xl items-center gap-x-2 px-3 py-3 md:flex-wrap md:gap-x-4 md:px-4 xl:flex-nowrap">
         {/* Phones: the menu button leads the bar (its drawer slides out from this same edge); the logo closes it. */}
         <MobileMenu items={navItems} />
 
@@ -24,6 +25,8 @@ export async function Header() {
           {/* Logo only: the link's aria-label carries the brand name for screen readers. */}
           <Logo className="h-10 w-auto text-white" />
         </Link>
+
+        <CategoryNav items={navItems} label={t("categoriesNav")} />
 
         {/* GET form to /search (works without JS and for shopping agents) + instant suggestions. */}
         <SearchBox action={getPathname({ href: "/search", locale })} />
@@ -41,7 +44,6 @@ export async function Header() {
           <CartButton />
         </nav>
       </div>
-      <CategoryNav items={navItems} label={t("categoriesNav")} />
     </HeaderShell>
   );
 }
