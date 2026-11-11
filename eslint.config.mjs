@@ -22,6 +22,12 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  {
+    // Product swatch colours under test (data a customer picks, not interface colours): the brand rule
+    // is about the UI, so it doesn't apply to this file.
+    files: ["src/lib/color-names.test.ts"],
+    rules: { "no-restricted-syntax": "off" },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

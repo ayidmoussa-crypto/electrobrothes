@@ -1,0 +1,37 @@
+# Lint, typecheck and tests on every push and pull request.
+#
+# `next build` is left out on purpose: it prerenders the catalogue pages from the database, so it needs
+# DATABASE_URL and SESSION_SECRET, and GitHub would then hold a key to the store's customer data. Vercel
+# already builds every push (with its own secrets) and refuses to deploy a broken build.
+name: check
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # prisma.config.ts reads this when generating the client. A placeholder: nothing connects to it.
+      DATABASE_URL_UNPOOLED: postgresql://ci:ci@localhost:5432/ci
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      # Also runs `prisma generate` (postinstall).
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
