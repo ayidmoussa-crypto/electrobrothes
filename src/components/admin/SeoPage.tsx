@@ -8,7 +8,9 @@ import type { SeoDetail } from "@/lib/seo-content/service";
 import { TIME_ZONE } from "@/lib/time";
 import { adminTr } from "@/lib/admin-lang";
 import { adminLocale } from "@/lib/admin-tr";
+import { Suspense } from "react";
 import { ActionForm } from "./ActionForm";
+import { GoogleSearchCard, GoogleSearchCardSkeleton } from "./GoogleSearchCard";
 import { AreaChart } from "./AreaChart";
 import { CheckRows, ScoreRing, SeoGrid, SiteCheckRows } from "./SeoDashboard";
 import { inputClass, PageHeader } from "./ui";
@@ -146,18 +148,10 @@ export async function SeoPage({ query, openId, initialDetail, initialSiteChecks 
             </p>
           </div>
         )}
-        <div className="admin-card p-3">
-          <h2 className="mb-2 text-sm font-extrabold text-ink">{tr("بيانات Google", "Google data")}</h2>
-          <dl className="grid grid-cols-3 gap-2 text-center">
-            {[tr("الظهور", "Impressions"), tr("النقرات", "Clicks"), tr("الترتيب", "Position")].map((label) => (
-              <div key={label} className="rounded-lg bg-white/50 p-2">
-                <dt className="text-xs text-warm-600">{label}</dt>
-                <dd className="mt-0.5 text-xl font-extrabold text-warm-500">—</dd>
-              </div>
-            ))}
-          </dl>
-          <p className="mt-2 text-xs text-warm-600">{tr("كتتربط ملي يطلع السيت للأنترنت.", "Connects once the site is live.")}</p>
-        </div>
+        {/* Search Console answers in its own time: the rest of the page never waits for it. */}
+        <Suspense fallback={<GoogleSearchCardSkeleton />}>
+          <GoogleSearchCard />
+        </Suspense>
       </section>
 
       <section aria-label={tr("المنتجات", "Products")}>
