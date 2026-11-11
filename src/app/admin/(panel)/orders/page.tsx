@@ -9,18 +9,20 @@ import { Badge } from "@/components/ui/Badge";
 import { requireAdmin } from "@/lib/admin";
 import { filterQuery, orderWhere, parseOrderFilters } from "@/lib/admin-orders";
 import { db } from "@/lib/db";
-import { SOURCE_LABEL } from "@/lib/manual-order";
+import { sourceLabel } from "@/lib/manual-order";
+import { adminTr } from "@/lib/admin-lang";
+import { adminLocale } from "@/lib/admin-tr";
 import { formatMAD } from "@/lib/money";
 import { ORDER_STATUSES } from "@/lib/order-rules";
 import { formatMoroccanPhone } from "@/lib/phone";
-import { STATUS_LABEL } from "@/components/admin/ui";
+import { statusLabel } from "@/components/admin/ui";
 import { TIME_ZONE } from "@/lib/time";
 
 const PAGE = 30;
-const dateFmt = new Intl.DateTimeFormat("ar-MA", { dateStyle: "short", timeStyle: "short", timeZone: TIME_ZONE });
 
 export default async function OrdersPage({ searchParams }: PageProps<"/admin/orders">) {
-  await requireAdmin();
+  const [, { tr, lang }] = await Promise.all([requireAdmin(), adminTr()]);
+  const dateFmt = new Intl.DateTimeFormat(adminLocale(lang), { dateStyle: "short", timeStyle: "short", timeZone: TIME_ZONE });
   const f = parseOrderFilters(await searchParams);
   const where = orderWhere(f);
   const [orders, total] = await Promise.all([
@@ -65,17 +67,17 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
   return (
     <>
       <PageHeader
-        title="الطلبات"
-        description={`${total} طلب`}
+        title={tr("الطلبات", "Orders")}
+        description={tr(`${total} طلب`, `${total} orders`)}
         actions={
           <>
             <Link href="/admin/orders/new" className={buttonClass()}>
               <Plus className="size-4" aria-hidden="true" />
-              إضافة طلب
+              {tr("إضافة طلب", "New order")}
             </Link>
             <a href={`/admin/orders/export${filterQuery({ ...f, page: 1 })}`} className={buttonClass({ variant: "dark" })}>
               <Download className="size-4" aria-hidden="true" />
-              تصدير CSV لشركة التوصيل
+              {tr("تصدير CSV لشركة التوصيل", "Export CSV for the carrier")}
             </a>
           </>
         }
@@ -83,37 +85,37 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
 
       <form method="get" className="mb-4 flex flex-wrap items-end gap-2 admin-card p-3">
         <label className="flex flex-col gap-1 text-xs text-warm-600">
-          بحث
-          <input name="q" defaultValue={f.q} placeholder="رقم الطلب، التتبع، الاسم أو الهاتف" className={`${input} w-56`} />
+          {tr("بحث", "Search")}
+          <input name="q" defaultValue={f.q} placeholder={tr("رقم الطلب، التتبع، الاسم أو الهاتف", "Order number, tracking, name or phone")} className={`${input} w-56`} />
         </label>
         <label className="flex flex-col gap-1 text-xs text-warm-600">
-          الحالة
+          {tr("الحالة", "Status")}
           <select name="status" defaultValue={f.status ?? ""} className={input}>
-            <option value="">الكل</option>
+            <option value="">{tr("الكل", "All")}</option>
             {ORDER_STATUSES.map((s) => (
               <option key={s} value={s}>
-                {STATUS_LABEL[s]}
+                {statusLabel(s, lang)}
               </option>
             ))}
           </select>
         </label>
         <label className="flex flex-col gap-1 text-xs text-warm-600">
-          من
+          {tr("من", "From")}
           <input type="date" name="from" defaultValue={f.from} className={input} />
         </label>
         <label className="flex flex-col gap-1 text-xs text-warm-600">
-          إلى
+          {tr("إلى", "To")}
           <input type="date" name="to" defaultValue={f.to} className={input} />
         </label>
         <label className="flex min-h-11 items-center gap-2 text-sm text-warm-800">
           <input type="checkbox" name="risky" value="1" defaultChecked={f.risky} className="size-5 accent-ink" />
-          المشبوهة فقط
+          {tr("المشبوهة فقط", "Suspicious only")}
         </label>
         <button type="submit" className={buttonClass()}>
-          تصفية
+          {tr("تصفية", "Filter")}
         </button>
         <Link href="/admin/orders" className={buttonClass({ variant: "ghost" })}>
-          مسح
+          {tr("مسح", "Clear")}
         </Link>
       </form>
 
@@ -121,13 +123,13 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
         <table className="w-full min-w-[72rem]">
           <thead className="border-b border-white/70 bg-white/45">
             <tr>
-              <th className={thClass}>الطلب</th>
-              <th className={thClass}>التاريخ</th>
-              <th className={thClass}>الزبون</th>
-              <th className={thClass}>العنوان</th>
-              <th className={thClass}>المبلغ</th>
-              <th className={thClass}>الدفع</th>
-              <th className={thClass}>الحالة</th>
+              <th className={thClass}>{tr("الطلب", "Order")}</th>
+              <th className={thClass}>{tr("التاريخ", "Date")}</th>
+              <th className={thClass}>{tr("الزبون", "Customer")}</th>
+              <th className={thClass}>{tr("العنوان", "Address")}</th>
+              <th className={thClass}>{tr("المبلغ", "Amount")}</th>
+              <th className={thClass}>{tr("الدفع", "Payment")}</th>
+              <th className={thClass}>{tr("الحالة", "Status")}</th>
             </tr>
           </thead>
           <tbody>
@@ -157,7 +159,7 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
                         <Link href={`/admin/orders/${o.id}`} className="font-mono font-bold text-ink underline-offset-4 hover:underline" dir="ltr">
                           {o.number}
                         </Link>
-                        <span className="text-xs text-warm-600">{o._count.items > 1 ? `${o._count.items} منتجات` : "منتج واحد"}</span>
+                        <span className="text-xs text-warm-600">{o._count.items > 1 ? tr(`${o._count.items} منتجات`, `${o._count.items} items`) : tr("منتج واحد", "1 item")}</span>
                       </span>
                       {first ? (
                         <span className="flex max-w-64 items-center gap-1.5 text-xs text-warm-600">
@@ -177,10 +179,10 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
                         </span>
                       ) : null}
                       <span className="mt-1 flex flex-wrap gap-1">
-                        {o.source !== "WEBSITE" ? <Badge tone="neutral">{SOURCE_LABEL[o.source]}</Badge> : null}
+                        {o.source !== "WEBSITE" ? <Badge tone="neutral">{sourceLabel(o.source, lang)}</Badge> : null}
                         {o.riskScore >= 30 ? (
                           <Badge tone="warning" icon={<ShieldAlert className="size-3.5" aria-hidden="true" />}>
-                            مشبوه {o.riskScore}
+                            {tr("مشبوه", "Risk")} {o.riskScore}
                           </Badge>
                         ) : null}
                       </span>
@@ -200,7 +202,7 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
                   </span>
                   <span className="text-xs text-warm-600">{o.cityName}</span>
                 </td>
-                <td className={`${tdClass} font-bold text-ink`}>{formatMAD(o.total, "ar")}</td>
+                <td className={`${tdClass} font-bold text-ink`}>{formatMAD(o.total, lang)}</td>
                 <td className={tdClass}>
                   <PaymentMenu orderId={o.id} number={o.number} status={o.status} prepaid={o.prepaidAt !== null} collected={o.codReceivedAt !== null} />
                 </td>
@@ -226,7 +228,7 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
             {!orders.length ? (
               <tr>
                 <td colSpan={7}className="px-3 py-10 text-center text-warm-600">
-                  لا توجد طلبات مطابقة.
+                  {tr("لا توجد طلبات مطابقة.", "No matching orders.")}
                 </td>
               </tr>
             ) : null}
@@ -235,7 +237,7 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
       </div>
 
       {pages > 1 ? (
-        <nav aria-label="الصفحات" className="mt-4 flex flex-wrap gap-1">
+        <nav aria-label={tr("الصفحات", "Pages")} className="mt-4 flex flex-wrap gap-1">
           {Array.from({ length: pages }, (_, i) => i + 1).map((n) => (
             <Link
               key={n}

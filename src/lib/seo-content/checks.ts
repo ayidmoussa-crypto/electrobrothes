@@ -55,8 +55,10 @@ export function containsKeyword(text: string | null | undefined, keyword: string
   return words.every((w) => hay.includes(w));
 }
 
-export function seoChecks(p: ScoreInput, lang: SeoLang): SeoCheck[] {
+export function seoChecks(p: ScoreInput, lang: SeoLang, ui: "ar" | "en" = "ar"): SeoCheck[] {
   const ar = lang === "ar";
+  // `lang` is the content checked; `ui` is the language the owner reads the checks in.
+  const t = (arText: string, enText: string) => (ui === "en" ? enText : arText);
   const title = (ar ? p.metaTitleAr : p.metaTitleEn)?.trim() ?? "";
   const meta = (ar ? p.metaDescriptionAr : p.metaDescriptionEn)?.trim() ?? "";
   const description = (ar ? p.descriptionAr : p.descriptionEn).trim();
@@ -64,53 +66,65 @@ export function seoChecks(p: ScoreInput, lang: SeoLang): SeoCheck[] {
   const alts = p.images.map((i) => (ar ? i.altAr : i.altEn).trim());
   const missingAlts = alts.filter((a) => !a).length;
   const duplicate = ar ? p.duplicateTitleAr : p.duplicateTitleEn;
-  const needKeyword = "حدد الكلمة المفتاحية الفوق.";
+  const needKeyword = t("حدد الكلمة المفتاحية الفوق.", "Set the focus keyword above.");
 
   const check = (id: string, label: string, weight: number, status: CheckStatus, hint: string): SeoCheck => ({ id, label, weight, status, hint });
   const keywordCheck = (id: string, label: string, weight: number, found: boolean, hint: string) =>
-    !keyword ? check(id, label, weight, "bad", needKeyword) : found ? check(id, label, weight, "good", "الكلمة المفتاحية كاينة.") : check(id, label, weight, "bad", hint);
+    !keyword ? check(id, label, weight, "bad", needKeyword) : found ? check(id, label, weight, "good", t("الكلمة المفتاحية كاينة.", "The keyword is there.")) : check(id, label, weight, "bad", hint);
+  const titleLabel = t("طول العنوان", "Title length");
+  const metaLabel = t("طول meta", "Meta length");
+  const descLabel = t("طول الوصف", "Description length");
+  const altLabel = t("صور بلا alt", "Images without alt");
+  const faqLabel = t("الأسئلة الشائعة", "FAQs");
+  const uniqueLabel = t("عنوان ما مكررش", "Unique title");
+  const chars = (n: number) => t(`${n} حرف`, `${n} characters`);
 
   const list: SeoCheck[] = [
     !title
-      ? check("titleLength", "طول العنوان", 15, "bad", "زيد عنوان SEO.")
+      ? check("titleLength", titleLabel, 15, "bad", t("زيد عنوان SEO.", "Add an SEO title."))
       : title.length > MAX_TITLE
-        ? check("titleLength", "طول العنوان", 15, "bad", `${title.length} حرف: Google غادي يقطعو. نقصو لـ ${MAX_TITLE} حرف.`)
+        ? check("titleLength", titleLabel, 15, "bad", `${chars(title.length)}: ${t(`Google غادي يقطعو. نقصو لـ ${MAX_TITLE} حرف.`, `Google will cut it. Bring it down to ${MAX_TITLE}.`)}`)
         : title.length < MIN_TITLE
-          ? check("titleLength", "طول العنوان", 15, "warn", `${title.length} حرف: قصير. زيد نوع المنتج ولا المغرب.`)
-          : check("titleLength", "طول العنوان", 15, "good", `${title.length} حرف: مزيان.`),
+          ? check("titleLength", titleLabel, 15, "warn", `${chars(title.length)}: ${t("قصير. زيد نوع المنتج ولا المغرب.", "short. Add the product type or Morocco.")}`)
+          : check("titleLength", titleLabel, 15, "good", `${chars(title.length)}: ${t("مزيان.", "good.")}`),
     !meta
-      ? check("metaLength", "طول meta", 15, "bad", "زيد meta description.")
+      ? check("metaLength", metaLabel, 15, "bad", t("زيد meta description.", "Add a meta description."))
       : meta.length > MAX_META
-        ? check("metaLength", "طول meta", 15, "bad", `${meta.length} حرف: غادي يتقطع. نقصو لـ ${MAX_META} حرف.`)
+        ? check("metaLength", metaLabel, 15, "bad", `${chars(meta.length)}: ${t(`غادي يتقطع. نقصو لـ ${MAX_META} حرف.`, `it will be cut. Bring it down to ${MAX_META}.`)}`)
         : meta.length < MIN_META
-          ? check("metaLength", "طول meta", 15, "warn", `${meta.length} حرف: قصير. الأحسن من ${MIN_META} لـ ${MAX_META}.`)
-          : check("metaLength", "طول meta", 15, "good", `${meta.length} حرف: مزيان.`),
-    keywordCheck("keywordTitle", "الكلمة المفتاحية فالعنوان", 10, containsKeyword(title, keyword), "زيدها فعنوان SEO، الأحسن فالبداية."),
-    keywordCheck("keywordMeta", "الكلمة المفتاحية فالوصف (meta)", 10, containsKeyword(meta, keyword), "زيدها فـ meta description."),
+          ? check("metaLength", metaLabel, 15, "warn", `${chars(meta.length)}: ${t(`قصير. الأحسن من ${MIN_META} لـ ${MAX_META}.`, `short. Best between ${MIN_META} and ${MAX_META}.`)}`)
+          : check("metaLength", metaLabel, 15, "good", `${chars(meta.length)}: ${t("مزيان.", "good.")}`),
+    keywordCheck("keywordTitle", t("الكلمة المفتاحية فالعنوان", "Keyword in the title"), 10, containsKeyword(title, keyword), t("زيدها فعنوان SEO، الأحسن فالبداية.", "Add it to the SEO title, best at the start.")),
+    keywordCheck("keywordMeta", t("الكلمة المفتاحية فالوصف (meta)", "Keyword in the meta description"), 10, containsKeyword(meta, keyword), t("زيدها فـ meta description.", "Add it to the meta description.")),
     // The address is Latin letters, so it can only carry the English keyword.
-    ...(ar ? [] : [keywordCheck("keywordSlug", "الكلمة المفتاحية فالرابط", 5, slugify(keyword).split("-").every((w) => w && p.slug.includes(w)), "الرابط ما فيهش الكلمة المفتاحية.")]),
-    keywordCheck("keywordAlt", "الكلمة المفتاحية فـ alt", 5, alts.some((a) => containsKeyword(a, keyword)), "زيدها فنص alt ديال صورة وحدة على الأقل."),
+    ...(ar
+      ? []
+      : [keywordCheck("keywordSlug", t("الكلمة المفتاحية فالرابط", "Keyword in the link"), 5, slugify(keyword).split("-").every((w) => w && p.slug.includes(w)), t("الرابط ما فيهش الكلمة المفتاحية.", "The link does not hold the keyword."))]),
+    keywordCheck("keywordAlt", t("الكلمة المفتاحية فـ alt", "Keyword in alt"), 5, alts.some((a) => containsKeyword(a, keyword)), t("زيدها فنص alt ديال صورة وحدة على الأقل.", "Add it to the alt text of at least one image.")),
     description.length >= MIN_DESCRIPTION
-      ? check("descriptionLength", "طول الوصف", 15, "good", `${description.length} حرف: مزيان.`)
+      ? check("descriptionLength", descLabel, 15, "good", `${chars(description.length)}: ${t("مزيان.", "good.")}`)
       : description.length >= 80
-        ? check("descriptionLength", "طول الوصف", 15, "warn", `${description.length} حرف: زيد حتى ${MIN_DESCRIPTION} على الأقل.`)
-        : check("descriptionLength", "طول الوصف", 15, "bad", `${description.length} حرف: قصير بزاف. كتب ${MIN_DESCRIPTION} حرف على الأقل.`),
+        ? check("descriptionLength", descLabel, 15, "warn", `${chars(description.length)}: ${t(`زيد حتى ${MIN_DESCRIPTION} على الأقل.`, `add up to ${MIN_DESCRIPTION} at least.`)}`)
+        : check("descriptionLength", descLabel, 15, "bad", `${chars(description.length)}: ${t(`قصير بزاف. كتب ${MIN_DESCRIPTION} حرف على الأقل.`, `far too short. Write ${MIN_DESCRIPTION} characters at least.`)}`),
     !p.images.length
-      ? check("imageAlts", "صور بلا alt", 5, "bad", "المنتج ما عندوش صور.")
+      ? check("imageAlts", altLabel, 5, "bad", t("المنتج ما عندوش صور.", "The product has no images."))
       : missingAlts
-        ? check("imageAlts", "صور بلا alt", 5, "bad", `${missingAlts} من ${alts.length} صور بلا alt.`)
-        : check("imageAlts", "صور بلا alt", 5, "good", "كل الصور عندها alt."),
+        ? check("imageAlts", altLabel, 5, "bad", t(`${missingAlts} من ${alts.length} صور بلا alt.`, `${missingAlts} of ${alts.length} images have no alt.`))
+        : check("imageAlts", altLabel, 5, "good", t("كل الصور عندها alt.", "Every image has alt text.")),
     p.faqCount >= MIN_FAQS
-      ? check("faqs", "الأسئلة الشائعة", 5, "good", `${p.faqCount} أسئلة.`)
+      ? check("faqs", faqLabel, 5, "good", t(`${p.faqCount} أسئلة.`, `${p.faqCount} questions.`))
       : p.faqCount
-        ? check("faqs", "الأسئلة الشائعة", 5, "warn", `${p.faqCount} فقط: الأحسن ${MIN_FAQS} على الأقل.`)
-        : check("faqs", "الأسئلة الشائعة", 5, "bad", `زيد ${MIN_FAQS} أسئلة على الأقل.`),
-    p.schemaValid ? check("schema", "Product schema", 10, "good", "البيانات اللي كيحتاجها Google كاملة.") : check("schema", "Product schema", 10, "bad", "خاص صورة وثمن لكل لون."),
-    duplicate ? check("uniqueTitle", "عنوان ما مكررش", 5, "bad", "نفس العنوان كاين فمنتج آخر: بدلو.") : check("uniqueTitle", "عنوان ما مكررش", 5, "good", "العنوان فريد."),
+        ? check("faqs", faqLabel, 5, "warn", t(`${p.faqCount} فقط: الأحسن ${MIN_FAQS} على الأقل.`, `Only ${p.faqCount}: best ${MIN_FAQS} at least.`))
+        : check("faqs", faqLabel, 5, "bad", t(`زيد ${MIN_FAQS} أسئلة على الأقل.`, `Add ${MIN_FAQS} questions at least.`)),
+    p.schemaValid
+      ? check("schema", "Product schema", 10, "good", t("البيانات اللي كيحتاجها Google كاملة.", "The data Google needs is complete."))
+      : check("schema", "Product schema", 10, "bad", t("خاص صورة وثمن لكل لون.", "Each colour needs an image and a price.")),
+    duplicate
+      ? check("uniqueTitle", uniqueLabel, 5, "bad", t("نفس العنوان كاين فمنتج آخر: بدلو.", "Another product has the same title: change it."))
+      : check("uniqueTitle", uniqueLabel, 5, "good", t("العنوان فريد.", "The title is unique.")),
   ];
   return list;
 }
-
 /** Out of 100: a warning earns half its weight. */
 export function languageScore(checks: SeoCheck[]) {
   const total = checks.reduce((n, c) => n + c.weight, 0);
@@ -121,9 +135,9 @@ export function languageScore(checks: SeoCheck[]) {
 /** Checks that do not depend on the language count once as a problem. */
 const SHARED = new Set(["schema", "faqs"]);
 
-export function seoResult(p: ScoreInput) {
-  const ar = seoChecks(p, "ar");
-  const en = seoChecks(p, "en");
+export function seoResult(p: ScoreInput, ui: "ar" | "en" = "ar") {
+  const ar = seoChecks(p, "ar", ui);
+  const en = seoChecks(p, "en", ui);
   const scoreAr = languageScore(ar);
   const scoreEn = languageScore(en);
   const problems = ar.filter((c) => c.status !== "good").length + en.filter((c) => c.status !== "good" && !SHARED.has(c.id)).length;

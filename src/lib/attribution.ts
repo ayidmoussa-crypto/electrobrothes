@@ -25,8 +25,26 @@ export type Touch = { channel: Channel; detail: string | null };
 export const CHANNEL_COOKIE = "eb_ch";
 export const CHANNEL_MAX_AGE = 30 * 24 * 3600;
 
+export const CHANNEL_LABEL_EN: Record<Channel, string> = {
+  INSTAGRAM: "Instagram",
+  TIKTOK: "TikTok",
+  FACEBOOK: "Facebook",
+  YOUTUBE: "YouTube",
+  SEO: "Google (SEO)",
+  GOOGLE_ADS: "Google Ads",
+  META_ADS: "Meta ads",
+  TIKTOK_ADS: "TikTok ads",
+  WHATSAPP: "WhatsApp",
+  PHONE: "Phone call",
+  EMAIL: "Email",
+  REFERRAL: "Other sites",
+  DIRECT: "Direct",
+  OTHER: "Other",
+};
+
 /** Label of a stored channel; orders from before tracking started have none. */
-export const channelLabel = (c: string | null) => (c ? ((CHANNEL_LABEL as Record<string, string>)[c] ?? c) : "قبل التتبع");
+export const channelLabel = (c: string | null, lang: "ar" | "en" = "ar") =>
+  c ? ((lang === "en" ? CHANNEL_LABEL_EN : (CHANNEL_LABEL as Record<string, string>))[c as Channel] ?? c) : lang === "en" ? "Before tracking" : "قبل التتبع";
 
 const PAID = /^(cpc|ppc|paid|paid_?social|paidsocial|ads?|cpm|display|sponsored)$/;
 const SEARCH = /(^|\.)(google|bing|yahoo|duckduckgo|yandex|ecosia|qwant|baidu|brave)\./;
@@ -114,15 +132,16 @@ export function channelOfManualSource(source: string): Channel {
 }
 
 /** Ready links for each place the shop is shared; the owner pastes them as they are. */
-export function trackingLinks(site: string) {
+export function trackingLinks(site: string, lang: "ar" | "en" = "ar") {
+  const tr = (ar: string, en: string) => (lang === "en" ? en : ar);
   const u = (source: string, medium: string, campaign?: string) => `${site}/?utm_source=${source}&utm_medium=${medium}${campaign ? `&utm_campaign=${campaign}` : ""}`;
   return [
-    { where: "البيو ديال إنستغرام", url: u("instagram", "bio") },
-    { where: "الستوريات والبوستات ديال إنستغرام", url: u("instagram", "story") },
-    { where: "البيو ديال تيك توك", url: u("tiktok", "bio") },
-    { where: "صفحة فيسبوك", url: u("facebook", "page") },
-    { where: "الستاتو ديال واتساب", url: u("whatsapp", "status") },
-    { where: "إعلانات Meta (فيسبوك وإنستغرام)", url: u("facebook", "paid", "smiyat-l-i3lan") },
-    { where: "إعلانات تيك توك", url: u("tiktok", "paid", "smiyat-l-i3lan") },
+    { where: tr("البيو ديال إنستغرام", "Instagram bio"), url: u("instagram", "bio") },
+    { where: tr("الستوريات والبوستات ديال إنستغرام", "Instagram stories and posts"), url: u("instagram", "story") },
+    { where: tr("البيو ديال تيك توك", "TikTok bio"), url: u("tiktok", "bio") },
+    { where: tr("صفحة فيسبوك", "Facebook page"), url: u("facebook", "page") },
+    { where: tr("الستاتو ديال واتساب", "WhatsApp status"), url: u("whatsapp", "status") },
+    { where: tr("إعلانات Meta (فيسبوك وإنستغرام)", "Meta ads (Facebook and Instagram)"), url: u("facebook", "paid", "smiyat-l-i3lan") },
+    { where: tr("إعلانات تيك توك", "TikTok ads"), url: u("tiktok", "paid", "smiyat-l-i3lan") },
   ];
 }

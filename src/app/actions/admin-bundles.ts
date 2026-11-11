@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import { requireAdmin } from "@/lib/admin";
+import { adminTr } from "@/lib/admin-lang";
 import { db } from "@/lib/db";
 import { slugify } from "@/lib/product-input";
 
@@ -56,18 +57,18 @@ export async function saveBundle(_: State, fd: FormData): Promise<State> {
   const parsed = bundleInput.safeParse(Object.fromEntries([...fd].filter(([, v]) => typeof v === "string")));
   if (!parsed.success) {
     const items = parsed.error.issues.some((i) => i.path[0] === "items");
-    return { ok: false, message: items ? "زيد على الأقل منتج واحد للباك." : "تحقق من الحقول المطلوبة." };
+    return { ok: false, message: items ? (await adminTr()).tr("زيد على الأقل منتج واحد للباك.", "Add at least one product to the bundle.") : (await adminTr()).tr("تحقق من الحقول المطلوبة.", "Check the required fields.") };
   }
   const { id, items: list, ...b } = parsed.data;
-  if (new Set(list.map((i) => i.productId)).size !== list.length) return { ok: false, message: "نفس المنتج مكرر: بدّل الكمية بلاصة ما تزيدو مرتين." };
+  if (new Set(list.map((i) => i.productId)).size !== list.length) return { ok: false, message: (await adminTr()).tr("نفس المنتج مكرر: بدّل الكمية بلاصة ما تزيدو مرتين.", "The same product is listed twice: change the quantity instead.") };
   const slug = slugify(b.slug || b.nameEn);
-  if (!slug) return { ok: false, message: "تحقق من الرابط (slug)." };
+  if (!slug) return { ok: false, message: (await adminTr()).tr("تحقق من الرابط (slug).", "Check the link (slug).") };
 
   // The pack has to be cheaper than its products bought one by one, or it saves the customer nothing.
   const products = await db.product.findMany({ where: { id: { in: list.map((i) => i.productId) } }, select: { id: true, variants: { select: { price: true } } } });
-  if (products.length !== list.length) return { ok: false, message: "واحد من المنتجات ما بقاش موجود." };
+  if (products.length !== list.length) return { ok: false, message: (await adminTr()).tr("واحد من المنتجات ما بقاش موجود.", "One of the products no longer exists.") };
   const separate = list.reduce((s, i) => s + Math.min(...products.find((p) => p.id === i.productId)!.variants.map((v) => v.price)) * i.quantity, 0);
-  if (b.price >= separate) return { ok: false, message: `ثمن الباك خاصو يكون أقل من ${separate} درهم (ثمن المنتجات بالتفريق).` };
+  if (b.price >= separate) return { ok: false, message: (await adminTr()).tr(`ثمن الباك خاصو يكون أقل من ${separate} درهم (ثمن المنتجات بالتفريق).`, `The bundle price must be under MAD ${separate} (the products' separate price).`) };
 
   const data = { ...b, slug };
   const rows = list.map((i, n) => ({ productId: i.productId, quantity: i.quantity, sortOrder: n }));
@@ -83,19 +84,19 @@ export async function saveBundle(_: State, fd: FormData): Promise<State> {
       savedId = (await db.bundle.create({ data: { ...data, items: { create: rows } }, select: { id: true } })).id;
     }
   } catch (e) {
-    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") return { ok: false, message: "هاد الرابط (slug) مستعمل فباك آخر." };
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") return { ok: false, message: (await adminTr()).tr("هاد الرابط (slug) مستعمل فباك آخر.", "This link (slug) is used by another bundle.") };
     throw e;
   }
   done(slug);
   if (!id) redirect(`/admin/bundles/${savedId}?saved=1`);
-  return { ok: true, message: "تم الحفظ." };
+  return { ok: true, message: (await adminTr()).tr("تم الحفظ.", "Saved.") };
 }
 
 export async function deleteBundle(_: State, fd: FormData): Promise<State> {
   await requireAdmin();
   const id = String(fd.get("id") ?? "");
   const b = await db.bundle.delete({ where: { id }, select: { slug: true } }).catch(() => null);
-  if (!b) return { ok: false, message: "ما لقيناش هاد الباك." };
+  if (!b) return { ok: false, message: (await adminTr()).tr("ما لقيناش هاد الباك.", "Bundle not found.") };
   done(b.slug);
   redirect("/admin/bundles");
 }

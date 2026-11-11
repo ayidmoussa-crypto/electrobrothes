@@ -7,39 +7,41 @@ import { StockHistory } from "@/components/admin/StockHistory";
 import { PageHeader } from "@/components/admin/ui";
 import { buttonClass } from "@/components/ui/button";
 import { requireAdmin } from "@/lib/admin";
+import { adminTr } from "@/lib/admin-lang";
+import { adminLocale } from "@/lib/admin-tr";
 import { editorOptions, productForEditor, stockHistory } from "@/lib/admin-products";
 import { db } from "@/lib/db";
 import { isStaleRating } from "@/lib/reviews/rules";
 import { seoProductDetail } from "@/lib/seo-content/service";
 import { TIME_ZONE } from "@/lib/time";
 
-const checkedDate = new Intl.DateTimeFormat("ar-MA", { dateStyle: "medium", timeZone: TIME_ZONE });
 
 export default async function EditProduct({ params, searchParams }: PageProps<"/admin/products/[id]">) {
-  await requireAdmin();
+  const [, { tr, lang, ar }] = await Promise.all([requireAdmin(), adminTr()]);
+  const checkedDate = new Intl.DateTimeFormat(adminLocale(lang), { dateStyle: "medium", timeZone: TIME_ZONE });
   const [{ id }, sp] = await Promise.all([params, searchParams]);
   const [product, options, history, seo, external] = await Promise.all([
     productForEditor(id),
-    editorOptions(),
+    editorOptions(lang),
     stockHistory(id),
-    seoProductDetail(id),
+    seoProductDetail(id, lang),
     db.externalRating.findMany({ where: { productId: id }, orderBy: [{ status: "asc" }, { source: "asc" }] }),
   ]);
   if (!product || !seo) notFound();
   const missing = [
-    ...seo.checks.ar.filter((c) => c.status !== "good").map((c) => ({ label: `${c.label} (العربية): ${c.hint}`, points: c.weight })),
+    ...seo.checks.ar.filter((c) => c.status !== "good").map((c) => ({ label: `${c.label} (${tr("العربية", "Arabic")}): ${c.hint}`, points: c.weight })),
     ...seo.checks.en.filter((c) => c.status !== "good").map((c) => ({ label: `${c.label} (English): ${c.hint}`, points: c.weight })),
   ];
 
   return (
     <>
       <PageHeader
-        title={product.nameAr}
-        description={sp.created ? "تم إنشاء المنتج بنجاح." : undefined}
+        title={ar ? product.nameAr : product.nameEn}
+        description={sp.created ? tr("تم إنشاء المنتج بنجاح.", "Product created.") : undefined}
         actions={
           <a href={`/products/${product.slug}`} target="_blank" className={buttonClass({ variant: "outline" })}>
             <ExternalLink className="size-4" aria-hidden="true" />
-            عرض في المتجر
+            {tr("عرض في المتجر", "View in shop")}
           </a>
         }
       />
@@ -67,7 +69,7 @@ export default async function EditProduct({ params, searchParams }: PageProps<"/
       </div>
       <ProductEditor initial={product} {...options} />
       <div className="mt-6">
-        <StockHistory rows={history} />
+        <StockHistory rows={history} lang={lang} />
       </div>
     </>
   );

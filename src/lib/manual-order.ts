@@ -14,6 +14,17 @@ export const MANUAL_SOURCES = {
 
 export const SOURCE_LABEL: Record<string, string> = { WEBSITE: "الموقع", ...MANUAL_SOURCES };
 
+export const MANUAL_SOURCES_EN: Record<keyof typeof MANUAL_SOURCES, string> = {
+  WHATSAPP: "WhatsApp",
+  PHONE: "Phone call",
+  INSTAGRAM: "Instagram",
+  FACEBOOK: "Facebook",
+  TIKTOK: "TikTok",
+  OTHER: "Other",
+};
+
+export const sourceLabel = (s: string, lang: "ar" | "en" = "ar") => (lang === "en" ? ({ WEBSITE: "Website", ...MANUAL_SOURCES_EN } as Record<string, string>) : SOURCE_LABEL)[s] ?? s;
+
 const money = z.coerce.number().int().min(0).max(10_000_000);
 
 const lines = z
@@ -23,6 +34,7 @@ const lines = z
 
 /** Where a typed-in order starts. DELIVERED: the customer came to the shop and left with it. */
 export const START_AS = { NEW: "جديد", CONFIRMED: "مؤكَّد", DELIVERED: "تسلّم فالمحل" } as const;
+export const START_AS_EN: Record<keyof typeof START_AS, string> = { NEW: "New", CONFIRMED: "Confirmed", DELIVERED: "Picked up in the shop" };
 export const IN_SHOP_ADDRESS = "استلم من المحل";
 
 export const manualOrderInput = z
@@ -72,3 +84,15 @@ export const MANUAL_ERROR: Record<string, string> = {
   address: "اكتب العنوان.",
   notes: "الملاحظة طويلة بزاف.",
 };
+
+const MANUAL_ERROR_EN: Record<string, string> = {
+  items: "Add at least one product.",
+  name: "Type the customer's name.",
+  phone: "Not a valid Moroccan phone number.",
+  city: "Pick the city.",
+  address: "Type the address.",
+  notes: "The note is too long.",
+};
+
+export const manualError = (key: string | undefined, lang: "ar" | "en" = "ar"): string | undefined =>
+  key === undefined ? undefined : (lang === "en" ? MANUAL_ERROR_EN : MANUAL_ERROR)[key];

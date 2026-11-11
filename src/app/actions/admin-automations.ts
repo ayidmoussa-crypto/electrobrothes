@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/admin";
+import { adminTr } from "@/lib/admin-lang";
 import { isParam, TRIGGERS } from "@/lib/automation-rules";
 import { db } from "@/lib/db";
 
@@ -19,12 +20,12 @@ const ruleInput = z.object({
 export async function addRule(_: State, fd: FormData): Promise<State> {
   await requireAdmin();
   const parsed = ruleInput.safeParse(Object.fromEntries([...fd].filter(([, v]) => typeof v === "string")));
-  if (!parsed.success) return { ok: false, message: "تحقق من الحقول. اسم القالب: حروف لاتينية صغيرة وأرقام و_ فقط." };
+  if (!parsed.success) return { ok: false, message: (await adminTr()).tr("تحقق من الحقول. اسم القالب: حروف لاتينية صغيرة وأرقام و_ فقط.", "Check the fields. Template name: lower-case Latin letters, digits and _ only.") };
   // One select per placeholder, in {{1}}, {{2}}… order; the ones left empty are dropped.
   const params = fd.getAll("param").map(String).filter(isParam);
   await db.automationRule.create({ data: { ...parsed.data, params } });
   revalidatePath("/admin/automations");
-  return { ok: true, message: "تمت إضافة القاعدة، وهي متوقفة حتى تشغّلها." };
+  return { ok: true, message: (await adminTr()).tr("تمت إضافة القاعدة، وهي متوقفة حتى تشغّلها.", "Rule added. It stays off until you turn it on.") };
 }
 
 export async function toggleRule(fd: FormData) {

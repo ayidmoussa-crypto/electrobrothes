@@ -3,21 +3,23 @@ import { ActionForm } from "@/components/admin/ActionForm";
 import { PageHeader, Panel, tdClass, thClass } from "@/components/admin/ui";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { requireAdmin } from "@/lib/admin";
+import { adminTr } from "@/lib/admin-lang";
+import { adminLocale } from "@/lib/admin-tr";
 import { db } from "@/lib/db";
 import { TIME_ZONE } from "@/lib/time";
 
-const when = new Intl.DateTimeFormat("ar-MA", { dateStyle: "medium", timeStyle: "short", timeZone: TIME_ZONE });
 
-const STATUS: Record<string, { label: string; tone: BadgeTone }> = {
-  PENDING: { label: "كيتسنى التأكيد", tone: "accent" },
-  APPLIED: { label: "تنفذ", tone: "success" },
-  CANCELLED: { label: "تلغى", tone: "neutral" },
-  EXPIRED: { label: "سالا وقتو", tone: "neutral" },
-  UNDONE: { label: "تراجعتي عليه", tone: "warning" },
+const STATUS: Record<string, { label: [ar: string, en: string]; tone: BadgeTone }> = {
+  PENDING: { label: ["كيتسنى التأكيد", "Awaiting confirmation"], tone: "accent" },
+  APPLIED: { label: ["تنفذ", "Applied"], tone: "success" },
+  CANCELLED: { label: ["تلغى", "Cancelled"], tone: "neutral" },
+  EXPIRED: { label: ["سالا وقتو", "Expired"], tone: "neutral" },
+  UNDONE: { label: ["تراجعتي عليه", "Undone"], tone: "warning" },
 };
 
 export default async function AssistantLogPage() {
-  await requireAdmin();
+  const [, { tr, lang }] = await Promise.all([requireAdmin(), adminTr()]);
+  const when = new Intl.DateTimeFormat(adminLocale(lang), { dateStyle: "medium", timeStyle: "short", timeZone: TIME_ZONE });
   const rows = await db.assistantAction.findMany({
     orderBy: { createdAt: "desc" },
     take: 100,
@@ -26,14 +28,17 @@ export default async function AssistantLogPage() {
 
   return (
     <>
-      <PageHeader title="سجل المساعد الذكي" description="كل ما اقترحه المساعد وما تنفذ منه. التراجع كيرجع الكمية ويتسجل فسجل حركات المخزون." />
+      <PageHeader
+        title={tr("سجل المساعد الذكي", "Assistant log")}
+        description={tr("كل ما اقترحه المساعد وما تنفذ منه. التراجع كيرجع الكمية ويتسجل فسجل حركات المخزون.", "Everything the assistant proposed and what was applied. Undo restores the quantity and is logged in the stock history.")}
+      />
       <Panel>
         {rows.length ? (
           <div className="-mx-4 overflow-x-auto md:-mx-5">
             <table className="w-full min-w-[46rem]">
               <thead className="border-b border-white/70 bg-white/45">
                 <tr>
-                  {["التاريخ", "العملية", "الحالة", "بواسطة", ""].map((h) => (
+                  {[tr("التاريخ", "Date"), tr("العملية", "Action"), tr("الحالة", "Status"), tr("بواسطة", "By"), ""].map((h) => (
                     <th key={h} className={thClass}>
                       {h}
                     </th>
@@ -54,7 +59,7 @@ export default async function AssistantLogPage() {
                       </span>
                     </td>
                     <td className={tdClass}>
-                      <Badge tone={STATUS[a.status].tone}>{STATUS[a.status].label}</Badge>
+                      <Badge tone={STATUS[a.status].tone}>{tr(...STATUS[a.status].label)}</Badge>
                     </td>
                     <td className={`${tdClass} max-w-44 truncate text-xs text-warm-600`} dir="ltr" title={a.undoneBy ?? a.decidedBy ?? a.requestedBy}>
                       {a.undoneBy ?? a.decidedBy ?? a.requestedBy}
@@ -63,16 +68,16 @@ export default async function AssistantLogPage() {
                       <div className="flex flex-wrap items-start gap-2">
                         {a.status === "PENDING" ? (
                           <>
-                            <ActionForm action={confirmAssistantAction} submitLabel="تأكيد" className="flex flex-wrap items-center gap-2">
+                            <ActionForm action={confirmAssistantAction} submitLabel={tr("تأكيد", "Confirm")} className="flex flex-wrap items-center gap-2">
                               <input type="hidden" name="id" value={a.id} />
                             </ActionForm>
-                            <ActionForm action={cancelAssistantAction} submitLabel="إلغاء" variant="outline" className="flex flex-wrap items-center gap-2">
+                            <ActionForm action={cancelAssistantAction} submitLabel={tr("إلغاء", "Cancel")} variant="outline" className="flex flex-wrap items-center gap-2">
                               <input type="hidden" name="id" value={a.id} />
                             </ActionForm>
                           </>
                         ) : null}
                         {a.status === "APPLIED" ? (
-                          <ActionForm action={undoAssistantAction} submitLabel="تراجع" variant="outline" confirm="متأكد بغيتي تتراجع على هاد العملية؟" className="flex flex-wrap items-center gap-2">
+                          <ActionForm action={undoAssistantAction} submitLabel={tr("تراجع", "Undo")} variant="outline" confirm={tr("متأكد بغيتي تتراجع على هاد العملية؟", "Are you sure you want to undo this action?")} className="flex flex-wrap items-center gap-2">
                             <input type="hidden" name="id" value={a.id} />
                           </ActionForm>
                         ) : null}
@@ -84,7 +89,7 @@ export default async function AssistantLogPage() {
             </table>
           </div>
         ) : (
-          <p className="text-sm text-warm-600">مازال ما كاين والو. حل المساعد من الزر الأصفر وجرب.</p>
+          <p className="text-sm text-warm-600">{tr("مازال ما كاين والو. حل المساعد من الزر الأصفر وجرب.", "Nothing yet. Open the assistant from the yellow button and try it.")}</p>
         )}
       </Panel>
     </>

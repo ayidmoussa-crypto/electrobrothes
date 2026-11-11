@@ -53,11 +53,30 @@ const LABELS: Record<string, string> = {
   faqs: "الأسئلة الشائعة",
 };
 
-export function fieldLabel(field: string) {
+const LABELS_EN: Record<string, string> = {
+  metaTitleAr: "SEO title in Arabic",
+  metaTitleEn: "SEO title in English",
+  metaDescriptionAr: "Meta description in Arabic",
+  metaDescriptionEn: "Meta description in English",
+  focusKeywordAr: "Focus keyword in Arabic",
+  focusKeywordEn: "Focus keyword in English",
+  descriptionAr: "Description in Arabic",
+  descriptionEn: "Description in English",
+  highlightsAr: "Highlights in Arabic",
+  highlightsEn: "Highlights in English",
+  slug: "Link (slug)",
+  categoryId: "Category",
+  brandId: "Brand",
+  faqs: "FAQs",
+};
+
+/** `ui` is the language the owner reads the panel in. */
+export function fieldLabel(field: string, ui: "ar" | "en" = "ar") {
   const [kind, rest] = splitField(field);
-  if (kind === "spec") return `المواصفة: ${rest}`;
-  if (kind === "altAr" || kind === "altEn") return `alt ${kind === "altAr" ? "بالعربية" : "بالإنجليزية"}: ${rest.split("/").pop()}`;
-  return LABELS[field] ?? field;
+  const en = ui === "en";
+  if (kind === "spec") return `${en ? "Spec" : "المواصفة"}: ${rest}`;
+  if (kind === "altAr" || kind === "altEn") return `alt ${kind === "altAr" ? (en ? "in Arabic" : "بالعربية") : en ? "in English" : "بالإنجليزية"}: ${rest.split("/").pop()}`;
+  return (en ? LABELS_EN : LABELS)[field] ?? field;
 }
 
 /** "altAr:/a.jpg" → ["altAr", "/a.jpg"]. Only the first colon splits: image URLs contain colons. */
@@ -121,8 +140,8 @@ export function describeValue(field: string, value: unknown, names: Record<strin
 }
 
 /** One short line for the compact table. */
-export function previewValue(field: string, value: unknown, names: Record<string, string> = {}) {
-  if (splitField(field)[0] === "faqs") return `${(value as Faq[]).length} أسئلة`;
+export function previewValue(field: string, value: unknown, names: Record<string, string> = {}, ui: "ar" | "en" = "ar") {
+  if (splitField(field)[0] === "faqs") return ui === "en" ? `${(value as Faq[]).length} questions` : `${(value as Faq[]).length} أسئلة`;
   return describeValue(field, value, names).join(" · ");
 }
 

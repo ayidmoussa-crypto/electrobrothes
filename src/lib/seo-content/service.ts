@@ -353,7 +353,8 @@ export type SuggestionView = {
   when: Date;
 };
 
-export async function suggestionViews(where: Prisma.SeoSuggestionWhereInput, take = 200): Promise<SuggestionView[]> {
+export async function suggestionViews(where: Prisma.SeoSuggestionWhereInput, take = 200, ui: "ar" | "en" = "ar"): Promise<SuggestionView[]> {
+  const en = ui === "en";
   const [rows, categories, brands] = await Promise.all([
     db.seoSuggestion.findMany({
       where,
@@ -371,21 +372,21 @@ export async function suggestionViews(where: Prisma.SeoSuggestionWhereInput, tak
         nightly: true,
         createdAt: true,
         decidedAt: true,
-        product: { select: { nameAr: true, images: { orderBy: { sortOrder: "asc" }, take: 1, select: { url: true } } } },
+        product: { select: { nameAr: true, nameEn: true, images: { orderBy: { sortOrder: "asc" }, take: 1, select: { url: true } } } },
       },
     }),
-    db.category.findMany({ select: { id: true, nameAr: true } }),
+    db.category.findMany({ select: { id: true, nameAr: true, nameEn: true } }),
     db.brand.findMany({ select: { id: true, name: true } }),
   ]);
-  const names = Object.fromEntries([...categories.map((c) => [c.id, c.nameAr]), ...brands.map((b) => [b.id, b.name])]);
+  const names = Object.fromEntries([...categories.map((c) => [c.id, en ? c.nameEn : c.nameAr]), ...brands.map((b) => [b.id, b.name])]);
   return rows.map((r) => ({
     id: r.id,
     productId: r.productId,
-    productName: r.product.nameAr,
+    productName: en ? r.product.nameEn : r.product.nameAr,
     productImage: r.product.images[0]?.url ?? null,
     field: r.field,
-    label: fieldLabel(r.field),
-    preview: previewValue(r.field, r.newValue, names),
+    label: fieldLabel(r.field, ui),
+    preview: previewValue(r.field, r.newValue, names, ui),
     oldLines: describeValue(r.field, r.oldValue, names),
     newLines: describeValue(r.field, r.newValue, names),
     needsCheck: r.needsCheck,
@@ -398,8 +399,8 @@ export async function suggestionViews(where: Prisma.SeoSuggestionWhereInput, tak
 }
 
 /** One product's changes for the compact table: what waits, and the latest applied value of each field. */
-export async function productChanges(productId: string) {
-  const [pending, applied] = await Promise.all([suggestionViews({ productId, status: "PENDING" }), suggestionViews({ productId, status: "ACCEPTED" }, 100)]);
+export async function productChanges(productId: string, ui: "ar" | "en" = "ar") {
+  const [pending, applied] = await Promise.all([suggestionViews({ productId, status: "PENDING" }, 200, ui), suggestionViews({ productId, status: "ACCEPTED" }, 100, ui)]);
   // Newest first, so an older generation's value for the same field is left out: it can no longer be undone.
   const latest = applied.filter((r, i) => applied.findIndex((a) => a.field === r.field) === i);
   return {
@@ -412,8 +413,8 @@ export async function productChanges(productId: string) {
 export type ProductChanges = Awaited<ReturnType<typeof productChanges>>;
 
 /** Everything the drawer shows about one product. */
-export async function seoProductDetail(productId: string) {
-  const [status, changes] = await Promise.all([productSeoStatus(productId), productChanges(productId)]);
+export async function seoProductDetail(productId: string, ui: "ar" | "en" = "ar") {
+  const [status, changes] = await Promise.all([productSeoStatus(productId, ui), productChanges(productId, ui)]);
   if (!status) return null;
   const p = status.product;
   const preview = (lang: "ar" | "en") => {
@@ -428,7 +429,7 @@ export async function seoProductDetail(productId: string) {
   };
   return {
     id: p.id,
-    name: p.nameAr,
+    name: ui === "en" ? p.nameEn : p.nameAr,
     image: p.images[0]?.url ?? null,
     score: status.score,
     scoreAr: status.scoreAr,
@@ -446,11 +447,30 @@ export type SeoDetail = NonNullable<Awaited<ReturnType<typeof seoProductDetail>>
 export { contentSelect, loadProduct };
 export type { ProductContent };
 
-export const apiErrorMessage = (e: unknown) => {
-  if (e instanceof SeoError) return e.message;
-  if (e instanceof Anthropic.AuthenticationError) return "مفتاح Claude API ما خدامش. تحقق من ANTHROPIC_API_KEY.";
-  if (e instanceof Anthropic.RateLimitError) return "Claude مشغول دابا. عاود جرب من بعد شوية.";
-  if (e instanceof Anthropic.APIConnectionError) return "ما قدرناش نتصلو بـ Claude. عاود جرب.";
-  if (e instanceof Anthropic.APIError) return "وقع مشكل مع Claude. عاود جرب.";
+// The English panel's wording of each SeoError, keyed by the Arabic message it is thrown with.
+const SEO_ERROR_EN: Record<string, string> = {
+  "وصلنا للسقف الشهري. زيد فيه من الإعدادات.": "The monthly cap is reached. Raise it in Settings.",
+  "الإعدادات ناقصة: احفظها مرة وحدة قبل التوليد.": "Settings are missing: save them once before generating.",
+  "ما قدرناش نولدو محتوى لهاد المنتج. عاود جرب.": "Could not generate content for this product. Try again.",
+  "هاد المنتج ما كاينش.": "This product does not exist.",
+  "هاد الرابط مستعمل فمنتج آخر.": "This link is used by another product.",
+  "هاد الصورة تبدلات من بعد الاقتراح.": "This image changed after the suggestion.",
+  "خانة غير معروفة.": "Unknown field.",
+  "هاد الاقتراح ما كاينش.": "This suggestion does not exist.",
+  "هادي خاص التحقق منها: زيدها يدوياً من خانة المواصفات ملي تتأكد.": "This needs checking: add it by hand in the specs once you are sure.",
+  "هاد الخانة خاصها موافقتك.": "This field needs your approval.",
+  "هاد الاقتراح تقرر فيه من قبل.": "This suggestion was already decided.",
+  "هادي ما يمكنش التراجع عليها.": "This cannot be undone.",
+  "هاد الخانة تبدلات من بعد، فما رجعتش القيمة القديمة باش ما يضيعش تعديلك.": "This field changed since, so the old value was not restored to keep your edit.",
+  "هاد الخانة تبدلات من بعد الاقتراح. ولد اقتراحات جديدة باش ما يضيعش تعديلك.": "This field changed after the suggestion. Generate new suggestions so your edit is kept.",
+};
+
+export const apiErrorMessage = (e: unknown, ui: "ar" | "en" = "ar") => {
+  const t = (ar: string, en: string) => (ui === "en" ? en : ar);
+  if (e instanceof SeoError) return ui === "en" ? (SEO_ERROR_EN[e.message] ?? e.message) : e.message;
+  if (e instanceof Anthropic.AuthenticationError) return t("مفتاح Claude API ما خدامش. تحقق من ANTHROPIC_API_KEY.", "The Claude API key does not work. Check ANTHROPIC_API_KEY.");
+  if (e instanceof Anthropic.RateLimitError) return t("Claude مشغول دابا. عاود جرب من بعد شوية.", "Claude is busy right now. Try again in a moment.");
+  if (e instanceof Anthropic.APIConnectionError) return t("ما قدرناش نتصلو بـ Claude. عاود جرب.", "Could not reach Claude. Try again.");
+  if (e instanceof Anthropic.APIError) return t("وقع مشكل مع Claude. عاود جرب.", "Something went wrong with Claude. Try again.");
   return null;
 };

@@ -7,15 +7,17 @@ import { StockBadge, stockMessageKey } from "@/components/store/StockBadge";
 import { Badge } from "@/components/ui/Badge";
 import { buttonClass } from "@/components/ui/button";
 import { requireAdmin } from "@/lib/admin";
+import { adminTr } from "@/lib/admin-lang";
 import { db } from "@/lib/db";
 import { formatMAD } from "@/lib/money";
 import { WEAK_SCORE } from "@/lib/seo-content/rules";
 import { ensureScored } from "@/lib/seo-content/score";
 
-const STOCK_LABEL = { inStock: "متوفر", lowStock: "مخزون منخفض", outOfStock: "نفد" } as const;
 
 export default async function ProductsPage({ searchParams }: PageProps<"/admin/products">) {
-  await requireAdmin();
+  const [, { tr, lang, ar }] = await Promise.all([requireAdmin(), adminTr()]);
+  const STOCK_LABEL = { inStock: tr("متوفر", "In stock"), lowStock: tr("مخزون منخفض", "Low stock"), outOfStock: tr("نفد", "Sold out") };
+  const mad = (v: number) => formatMAD(v, lang);
   const sp = await searchParams;
   const q = (typeof sp.q === "string" ? sp.q : "").trim().slice(0, 80);
   const category = typeof sp.category === "string" ? sp.category : "";
@@ -32,51 +34,51 @@ export default async function ProductsPage({ searchParams }: PageProps<"/admin/p
           : {}),
       },
       include: {
-        category: { select: { nameAr: true } },
+        category: { select: { nameAr: true, nameEn: true } },
         brand: { select: { name: true } },
         images: { take: 1, orderBy: { sortOrder: "asc" } },
         variants: { select: { price: true, stock: true } },
       },
       orderBy: weakOnly ? { seoScore: "asc" } : { updatedAt: "desc" },
     }),
-    db.category.findMany({ select: { id: true, nameAr: true }, orderBy: { sortOrder: "asc" } }),
+    db.category.findMany({ select: { id: true, nameAr: true, nameEn: true }, orderBy: { sortOrder: "asc" } }),
   ]);
   const input ="min-h-11 admin-field rounded-lg px-3 text-sm text-warm-800";
 
   return (
     <>
       <PageHeader
-        title="المنتجات"
-        description={`${products.length} منتج`}
+        title={tr("المنتجات", "Products")}
+        description={tr(`${products.length} منتج`, `${products.length} products`)}
         actions={
           <Link href="/admin/products/new" className={buttonClass()}>
             <Plus className="size-4" aria-hidden="true" />
-            منتج جديد
+            {tr("منتج جديد", "New product")}
           </Link>
         }
       />
       <form method="get" className="mb-4 flex flex-wrap items-end gap-2 admin-card p-3">
         <label className="flex flex-col gap-1 text-xs text-warm-600">
-          بحث
-          <input name="q" defaultValue={q} placeholder="اسم أو SKU" className={`${input} w-56`} />
+          {tr("بحث", "Search")}
+          <input name="q" defaultValue={q} placeholder={tr("اسم أو SKU", "Name or SKU")} className={`${input} w-56`} />
         </label>
         <label className="flex flex-col gap-1 text-xs text-warm-600">
-          القسم
+          {tr("القسم", "Category")}
           <select name="category" defaultValue={category} className={input}>
-            <option value="">كل الأقسام</option>
+            <option value="">{tr("كل الأقسام", "All categories")}</option>
             {categories.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.nameAr}
+                {ar ? c.nameAr : c.nameEn}
               </option>
             ))}
           </select>
         </label>
         <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-semibold text-warm-800">
           <input type="checkbox" name="weak" value="1" defaultChecked={weakOnly} className="size-4" />
-          المنتجات الضعيفة (أقل من {WEAK_SCORE})
+          {tr(`المنتجات الضعيفة (أقل من ${WEAK_SCORE})`, `Weak products (under ${WEAK_SCORE})`)}
         </label>
         <button type="submit" className={buttonClass()}>
-          تصفية
+          {tr("تصفية", "Filter")}
         </button>
       </form>
 
@@ -84,12 +86,12 @@ export default async function ProductsPage({ searchParams }: PageProps<"/admin/p
         <table className="w-full min-w-[48rem]">
           <thead className="border-b border-white/70 bg-white/45">
             <tr>
-              <th className={thClass}>المنتج</th>
-              <th className={thClass}>القسم</th>
-              <th className={thClass}>السعر</th>
-              <th className={thClass}>المخزون</th>
-              <th className={thClass}>الظهور</th>
-              <th className={thClass}>السيو</th>
+              <th className={thClass}>{tr("المنتج", "Product")}</th>
+              <th className={thClass}>{tr("القسم", "Category")}</th>
+              <th className={thClass}>{tr("السعر", "Price")}</th>
+              <th className={thClass}>{tr("المخزون", "Stock")}</th>
+              <th className={thClass}>{tr("الظهور", "Visibility")}</th>
+              <th className={thClass}>{tr("السيو", "SEO")}</th>
             </tr>
           </thead>
           <tbody>
@@ -104,16 +106,16 @@ export default async function ProductsPage({ searchParams }: PageProps<"/admin/p
                         {p.images[0] ? <Image src={p.images[0].url} alt="" fill sizes="48px" unoptimized className="object-contain p-1" /> : null}
                       </span>
                       <span>
-                        <span className="block font-semibold text-ink underline-offset-4 hover:underline">{p.nameAr}</span>
+                        <span className="block font-semibold text-ink underline-offset-4 hover:underline">{ar ? p.nameAr : p.nameEn}</span>
                         <span className="text-xs text-warm-500" dir="ltr">
                           {p.brand.name}
                         </span>
                       </span>
                     </Link>
                   </td>
-                  <td className={tdClass}>{p.category.nameAr}</td>
+                  <td className={tdClass}>{ar ? p.category.nameAr : p.category.nameEn}</td>
                   <td className={tdClass}>
-                    {prices.length ? (Math.min(...prices) === Math.max(...prices) ? formatMAD(prices[0], "ar") : `${formatMAD(Math.min(...prices), "ar")} – ${formatMAD(Math.max(...prices), "ar")}`) : "—"}
+                    {prices.length ? (Math.min(...prices) === Math.max(...prices) ? mad(prices[0]) : `${mad(Math.min(...prices))} – ${mad(Math.max(...prices))}`) : "—"}
                   </td>
                   <td className={tdClass}>
                     <span className="flex items-center gap-2">
@@ -121,9 +123,9 @@ export default async function ProductsPage({ searchParams }: PageProps<"/admin/p
                       <StockBadge stock={stock} label={STOCK_LABEL[stockMessageKey(stock)]} />
                     </span>
                   </td>
-                  <td className={tdClass}>{p.isActive ? <Badge tone="success">ظاهر</Badge> : <Badge>مخفي</Badge>}</td>
+                  <td className={tdClass}>{p.isActive ? <Badge tone="success">{tr("ظاهر", "Visible")}</Badge> : <Badge>{tr("مخفي", "Hidden")}</Badge>}</td>
                   <td className={tdClass}>
-                    <Link href={`/admin/products/${p.id}`} title={p.seoProblems ? `${p.seoProblems} مشكل` : "كلشي كامل"}>
+                    <Link href={`/admin/products/${p.id}`} title={p.seoProblems ? tr(`${p.seoProblems} مشكل`, `${p.seoProblems} issues`) : tr("كلشي كامل", "All complete")}>
                       <ScoreBadge score={p.seoScore} />
                     </Link>
                   </td>

@@ -5,8 +5,9 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import { requireAdmin } from "@/lib/admin";
+import { adminTr } from "@/lib/admin-lang";
 import { db } from "@/lib/db";
-import { PRODUCT_ERRORS, productInput } from "@/lib/product-input";
+import { PRODUCT_ERRORS, PRODUCT_ERRORS_EN, productInput } from "@/lib/product-input";
 import { rescoreProducts } from "@/lib/seo-content/score";
 import { InsufficientStockError, moveStock } from "@/lib/stock";
 import { moroccanDate } from "@/lib/time";
@@ -22,16 +23,18 @@ function refreshStorefront(slug?: string) {
 
 export async function saveProduct(_prev: ProductFormState, formData: FormData): Promise<ProductFormState> {
   const admin = await requireAdmin();
+  const { tr, lang } = await adminTr();
   let json: unknown;
   try {
     json = JSON.parse(String(formData.get("payload") ?? ""));
   } catch {
-    return { ok: false, message: "بيانات غير صالحة." };
+    return { ok: false, message: tr("بيانات غير صالحة.", "Invalid data.") };
   }
   const parsed = productInput.safeParse(json);
   if (!parsed.success) {
-    const errors = [...new Set(parsed.error.issues.map((i) => PRODUCT_ERRORS[i.message] ?? i.message))];
-    return { ok: false, message: "يرجى تصحيح الأخطاء.", errors };
+    const messages: Record<string, string> = lang === "en" ? PRODUCT_ERRORS_EN : PRODUCT_ERRORS;
+    const errors = [...new Set(parsed.error.issues.map((i) => messages[i.message] ?? i.message))];
+    return { ok: false, message: tr("يرجى تصحيح الأخطاء.", "Please fix the errors."), errors };
   }
   const p = parsed.data;
   const data = {
@@ -84,11 +87,11 @@ export async function saveProduct(_prev: ProductFormState, formData: FormData): 
     });
   } catch (e) {
     if (e instanceof InsufficientStockError) {
-      return { ok: false, message: `لا يمكن إنقاص مخزون ${e.sku} أكثر من الكمية المتوفرة الآن. حدّث الصفحة وأعد المحاولة.` };
+      return { ok: false, message: tr(`لا يمكن إنقاص مخزون ${e.sku} أكثر من الكمية المتوفرة الآن. حدّث الصفحة وأعد المحاولة.`, `Stock of ${e.sku} cannot go below what is available now. Refresh the page and try again.`) };
     }
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
       const target = String(e.meta?.target ?? "");
-      return { ok: false, message: target.includes("sku") ? "رمز SKU مستعمل في منتج آخر." : "هذا الرابط (slug) مستعمل في منتج آخر." };
+      return { ok: false, message: target.includes("sku") ? tr("رمز SKU مستعمل في منتج آخر.", "This SKU is used by another product.") : tr("هذا الرابط (slug) مستعمل في منتج آخر.", "This link (slug) is used by another product.") };
     }
     throw e;
   }
@@ -98,15 +101,16 @@ export async function saveProduct(_prev: ProductFormState, formData: FormData): 
   if (!p.id) redirect(`/admin/products/${id}?created=1`);
   // Reload the editor so stock and its base reflect the saved state (and the history shows the moves).
   revalidatePath(`/admin/products/${id}`);
-  return { ok: true, message: "تم حفظ المنتج." };
+  return { ok: true, message: tr("تم حفظ المنتج.", "Product saved.") };
 }
 
 export async function deleteProduct(_prev: ProductFormState, formData: FormData): Promise<ProductFormState> {
   await requireAdmin();
+  const { tr } = await adminTr();
   const id = z.string().min(1).max(40).safeParse(formData.get("id"));
-  if (!id.success) return { ok: false, message: "طلب غير صالح." };
+  if (!id.success) return { ok: false, message: tr("طلب غير صالح.", "Invalid request.") };
   const product = await db.product.findUnique({ where: { id: id.data }, select: { slug: true } });
-  if (!product) return { ok: false, message: "المنتج غير موجود." };
+  if (!product) return { ok: false, message: tr("المنتج غير موجود.", "Product not found.") };
   // Orders keep their own snapshot (name, SKU, price), so deleting a product never rewrites history.
   await db.product.delete({ where: { id: id.data } });
   refreshStorefront(product.slug);

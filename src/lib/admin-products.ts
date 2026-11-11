@@ -3,13 +3,13 @@ import { db } from "./db";
 import type { ProductInput } from "./product-input";
 import { toMoroccanInput } from "./time";
 
-export async function editorOptions() {
+export async function editorOptions(lang: "ar" | "en" = "ar") {
   const [categories, brands] = await Promise.all([
-    db.category.findMany({ select: { id: true, nameAr: true }, orderBy: { sortOrder: "asc" } }),
+    db.category.findMany({ select: { id: true, nameAr: true, nameEn: true }, orderBy: { sortOrder: "asc" } }),
     db.brand.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
   return {
-    categories: categories.map((c) => ({ id: c.id, label: c.nameAr })),
+    categories: categories.map((c) => ({ id: c.id, label: lang === "en" ? c.nameEn : c.nameAr })),
     brands: brands.map((b) => ({ id: b.id, label: b.name })),
     uploadsEnabled: !!(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET),
   };

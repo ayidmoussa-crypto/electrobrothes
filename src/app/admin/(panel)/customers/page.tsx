@@ -3,13 +3,13 @@ import Link from "next/link";
 import { removeSubscriber } from "@/app/actions/admin-customers";
 import { PageHeader, tdClass, thClass } from "@/components/admin/ui";
 import { requireAdmin } from "@/lib/admin";
+import { adminTr } from "@/lib/admin-lang";
+import { adminLocale } from "@/lib/admin-tr";
 import { db } from "@/lib/db";
 import { formatMAD } from "@/lib/money";
 import { formatMoroccanPhone } from "@/lib/phone";
 import { TIME_ZONE } from "@/lib/time";
 
-const dateFmt = new Intl.DateTimeFormat("ar-MA", { dateStyle: "medium", timeStyle: "short", timeZone: TIME_ZONE });
-const dayFmt = new Intl.DateTimeFormat("ar-MA", { dateStyle: "medium", timeZone: TIME_ZONE });
 const LIMIT = 200;
 
 type Buyer = {
@@ -25,7 +25,9 @@ type Buyer = {
 };
 
 export default async function CustomersPage({ searchParams }: PageProps<"/admin/customers">) {
-  await requireAdmin();
+  const [, { tr, lang }] = await Promise.all([requireAdmin(), adminTr()]);
+  const dateFmt = new Intl.DateTimeFormat(adminLocale(lang), { dateStyle: "medium", timeStyle: "short", timeZone: TIME_ZONE });
+  const dayFmt = new Intl.DateTimeFormat(adminLocale(lang), { dateStyle: "medium", timeZone: TIME_ZONE });
   const raw = (await searchParams).q;
   const q = (typeof raw === "string" ? raw : "").trim().slice(0, 60);
   const like = `%${q}%`;
@@ -54,13 +56,13 @@ export default async function CustomersPage({ searchParams }: PageProps<"/admin/
 
   return (
     <>
-      <PageHeader title="الزبناء" description="كل من طلب من عندك، مجموعين برقم الهاتف، مع البريد اللي تخلّى فالصفحة الرئيسية." />
+      <PageHeader title={tr("الزبناء", "Customers")} description={tr("كل من طلب من عندك، مجموعين برقم الهاتف، مع البريد اللي تخلّى فالصفحة الرئيسية.", "Everyone who ordered from you, grouped by phone number, plus the emails left on the home page.")} />
 
       <dl className="mb-5 grid grid-cols-3 gap-3">
         {[
-          ["زبون", buyers.length >= LIMIT ? `+${LIMIT}` : String(buyers.length)],
-          ["شراو أكثر من مرة", String(repeat)],
-          ["بريد إلكتروني", String(emails.length)],
+          [tr("زبون", "Customers"), buyers.length >= LIMIT ? `+${LIMIT}` : String(buyers.length)],
+          [tr("شراو أكثر من مرة", "Bought more than once"), String(repeat)],
+          [tr("بريد إلكتروني", "Emails"), String(emails.length)],
         ].map(([label, value]) => (
           <div key={label} className="admin-card p-4">
             <dt className="text-xs font-semibold text-warm-600">{label}</dt>
@@ -72,16 +74,16 @@ export default async function CustomersPage({ searchParams }: PageProps<"/admin/
       <section aria-labelledby="buyers" className="mb-8">
         <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
           <h2 id="buyers" className="text-lg">
-            المشترين
+            {tr("المشترين", "Buyers")}
           </h2>
           <form method="get" className="flex w-full max-w-sm gap-2">
             <label className="relative flex-1">
-              <span className="sr-only">ابحث عن زبون</span>
+              <span className="sr-only">{tr("ابحث عن زبون", "Search for a customer")}</span>
               <Search className="pointer-events-none absolute start-3 top-3.5 size-4 text-warm-500" aria-hidden="true" />
-              <input name="q" defaultValue={q} placeholder="الاسم، الهاتف، المدينة ولا الحي" className="min-h-11 w-full rounded-lg border border-warm-200 bg-white ps-9 pe-3 text-sm" />
+              <input name="q" defaultValue={q} placeholder={tr("الاسم، الهاتف، المدينة ولا الحي", "Name, phone, city or area")} className="min-h-11 w-full rounded-lg border border-warm-200 bg-white ps-9 pe-3 text-sm" />
             </label>
             <button type="submit" className="min-h-11 cursor-pointer rounded-lg bg-ink px-4 text-sm font-semibold text-white hover:bg-warm-900">
-              بحث
+              {tr("بحث", "Search")}
             </button>
           </form>
         </div>
@@ -90,13 +92,13 @@ export default async function CustomersPage({ searchParams }: PageProps<"/admin/
           <table className="w-full min-w-[52rem]">
             <thead className="border-b border-warm-200">
               <tr>
-                <th className={thClass}>الزبون</th>
-                <th className={thClass}>المدينة والحي</th>
-                <th className={thClass}>شرا من عندنا</th>
-                <th className={thClass}>صرف</th>
-                <th className={thClass}>آخر طلب</th>
+                <th className={thClass}>{tr("الزبون", "Customer")}</th>
+                <th className={thClass}>{tr("المدينة والحي", "City & area")}</th>
+                <th className={thClass}>{tr("شرا من عندنا", "Bought")}</th>
+                <th className={thClass}>{tr("صرف", "Spent")}</th>
+                <th className={thClass}>{tr("آخر طلب", "Last order")}</th>
                 <th className={thClass}>
-                  <span className="sr-only">تواصل</span>
+                  <span className="sr-only">{tr("تواصل", "Contact")}</span>
                 </th>
               </tr>
             </thead>
@@ -120,21 +122,21 @@ export default async function CustomersPage({ searchParams }: PageProps<"/admin/
                   <td className={tdClass}>
                     <span className="flex flex-wrap items-center gap-1.5">
                       <b className="text-lg text-ink tabular-nums">{b.delivered}</b>
-                      <span className="text-xs text-warm-600">{b.delivered === 1 ? "مرة" : "مرات"}</span>
-                      {b.delivered >= 2 ? <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-bold text-yellow-900">وفي</span> : null}
-                      {b.returned ? <span className="rounded-full bg-danger-soft px-2 py-0.5 text-xs font-bold text-danger">رجّع {b.returned}</span> : null}
+                      <span className="text-xs text-warm-600">{b.delivered === 1 ? tr("مرة", "time") : tr("مرات", "times")}</span>
+                      {b.delivered >= 2 ? <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-bold text-yellow-900">{tr("وفي", "Loyal")}</span> : null}
+                      {b.returned ? <span className="rounded-full bg-danger-soft px-2 py-0.5 text-xs font-bold text-danger">{tr(`رجّع ${b.returned}`, `Returned ${b.returned}`)}</span> : null}
                     </span>
-                    <span className="block text-xs text-warm-500">من {b.orders} طلب</span>
+                    <span className="block text-xs text-warm-500">{tr(`من ${b.orders} طلب`, `of ${b.orders} orders`)}</span>
                   </td>
-                  <td className={`${tdClass} font-semibold text-ink tabular-nums`}>{b.spent ? formatMAD(b.spent, "ar") : "—"}</td>
+                  <td className={`${tdClass} font-semibold text-ink tabular-nums`}>{b.spent ? formatMAD(b.spent, lang) : "—"}</td>
                   <td className={`${tdClass} text-sm`}>{dayFmt.format(b.last)}</td>
                   <td className={tdClass}>
                     <a
                       href={`https://wa.me/${b.phone.replace(/\D/g, "")}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      aria-label={`واتساب ${b.name}`}
-                      title="واتساب"
+                      aria-label={tr(`واتساب ${b.name}`, `WhatsApp ${b.name}`)}
+                      title={tr("واتساب", "WhatsApp")}
                       className="grid size-9 place-items-center rounded-full bg-whatsapp text-ink transition-opacity hover:opacity-85"
                     >
                       <MessageCircle className="size-4" aria-hidden="true" />
@@ -145,30 +147,30 @@ export default async function CustomersPage({ searchParams }: PageProps<"/admin/
               {!buyers.length ? (
                 <tr>
                   <td colSpan={6} className="px-3 py-8 text-center text-warm-600">
-                    {q ? "ما كاين حتى زبون بهاد البحث." : "ما كاين حتى زبون مازال. أول طلب غادي يبان هنا."}
+                    {q ? tr("ما كاين حتى زبون بهاد البحث.", "No customer matches this search.") : tr("ما كاين حتى زبون مازال. أول طلب غادي يبان هنا.", "No customers yet. The first order will show here.")}
                   </td>
                 </tr>
               ) : null}
             </tbody>
           </table>
         </div>
-        {buyers.length >= LIMIT ? <p className="mt-2 text-xs text-warm-600">كيبانو {LIMIT} الأوائل. استعمل البحث باش تلقى زبون معيّن.</p> : null}
+        {buyers.length >= LIMIT ? <p className="mt-2 text-xs text-warm-600">{tr(`كيبانو ${LIMIT} الأوائل. استعمل البحث باش تلقى زبون معيّن.`, `The first ${LIMIT} show. Use search to find a given customer.`)}</p> : null}
       </section>
 
       <section aria-labelledby="emails">
         <h2 id="emails" className="mb-1 text-lg">
-          البريد الإلكتروني
+          {tr("البريد الإلكتروني", "Email")}
         </h2>
-        <p className="mb-3 text-sm text-warm-600">عناوين البريد اللي تركها الزوار فالصفحة الرئيسية.</p>
+        <p className="mb-3 text-sm text-warm-600">{tr("عناوين البريد اللي تركها الزوار فالصفحة الرئيسية.", "Email addresses visitors left on the home page.")}</p>
         <div className="admin-card overflow-x-auto">
           <table className="w-full">
             <thead className="border-b border-warm-200">
               <tr>
-                <th className={thClass}>البريد الإلكتروني</th>
-                <th className={thClass}>اللغة</th>
-                <th className={thClass}>التاريخ</th>
+                <th className={thClass}>{tr("البريد الإلكتروني", "Email")}</th>
+                <th className={thClass}>{tr("اللغة", "Language")}</th>
+                <th className={thClass}>{tr("التاريخ", "Date")}</th>
                 <th className={thClass}>
-                  <span className="sr-only">إجراء</span>
+                  <span className="sr-only">{tr("إجراء", "Action")}</span>
                 </th>
               </tr>
             </thead>
@@ -180,12 +182,12 @@ export default async function CustomersPage({ searchParams }: PageProps<"/admin/
                       {e.email}
                     </a>
                   </td>
-                  <td className={tdClass}>{e.locale === "en" ? "الإنجليزية" : "العربية"}</td>
+                  <td className={tdClass}>{e.locale === "en" ? tr("الإنجليزية", "English") : tr("العربية", "Arabic")}</td>
                   <td className={tdClass}>{dateFmt.format(e.createdAt)}</td>
                   <td className={tdClass}>
                     <form action={removeSubscriber}>
                       <input type="hidden" name="id" value={e.id} />
-                      <button type="submit" className="grid size-10 cursor-pointer place-items-center rounded-lg text-warm-600 hover:bg-white hover:text-danger" aria-label={`حذف ${e.email}`}>
+                      <button type="submit" className="grid size-10 cursor-pointer place-items-center rounded-lg text-warm-600 hover:bg-white hover:text-danger" aria-label={tr(`حذف ${e.email}`, `Delete ${e.email}`)}>
                         <Trash2 className="size-4" aria-hidden="true" />
                       </button>
                     </form>
@@ -195,7 +197,7 @@ export default async function CustomersPage({ searchParams }: PageProps<"/admin/
               {!emails.length ? (
                 <tr>
                   <td colSpan={4} className="px-3 py-8 text-center text-warm-600">
-                    لا يوجد أي بريد بعد.
+                    {tr("لا يوجد أي بريد بعد.", "No emails yet.")}
                   </td>
                 </tr>
               ) : null}

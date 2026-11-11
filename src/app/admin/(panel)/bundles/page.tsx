@@ -8,11 +8,12 @@ import { requireAdmin } from "@/lib/admin";
 import { separatePrice } from "@/lib/bundles";
 import { db } from "@/lib/db";
 import { formatMAD } from "@/lib/money";
+import { adminTr } from "@/lib/admin-lang";
 
-const mad = (v: number) => formatMAD(v, "ar");
 
 export default async function BundlesAdminPage() {
-  await requireAdmin();
+  const [, { tr, lang, ar }] = await Promise.all([requireAdmin(), adminTr()]);
+  const mad = (v: number) => formatMAD(v, lang);
   const [bundles, sold] = await Promise.all([
     db.bundle.findMany({
       orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
@@ -22,7 +23,7 @@ export default async function BundlesAdminPage() {
           select: {
             quantity: true,
             product: {
-              select: { nameAr: true, isActive: true, images: { select: { url: true }, orderBy: { sortOrder: "asc" }, take: 1 }, variants: { select: { price: true, stock: true } } },
+              select: { nameAr: true, nameEn: true, isActive: true, images: { select: { url: true }, orderBy: { sortOrder: "asc" }, take: 1 }, variants: { select: { price: true, stock: true } } },
             },
           },
         },
@@ -34,12 +35,16 @@ export default async function BundlesAdminPage() {
   return (
     <>
       <PageHeader
-        title="الباكات"
-        description={sold._count ? `${sold._count} طلب فيه باك، والزبناء وفّروا ${mad(sold._sum.bundleDiscount ?? 0)}.` : "منتجات كتباع مجموعة بثمن أقل. كتبان فالصفحة الرئيسية وفصفحة /bundles."}
+        title={tr("الباكات", "Bundles")}
+        description={
+          sold._count
+            ? tr(`${sold._count} طلب فيه باك، والزبناء وفّروا ${mad(sold._sum.bundleDiscount ?? 0)}.`, `${sold._count} orders with a bundle; customers saved ${mad(sold._sum.bundleDiscount ?? 0)}.`)
+            : tr("منتجات كتباع مجموعة بثمن أقل. كتبان فالصفحة الرئيسية وفصفحة /bundles.", "Products sold together for less. Shown on the home page and on /bundles.")
+        }
         actions={
           <Link href="/admin/bundles/new" className={buttonClass()}>
             <Plus className="size-4" aria-hidden="true" />
-            باك جديد
+            {tr("باك جديد", "New bundle")}
           </Link>
         }
       />
@@ -71,23 +76,29 @@ export default async function BundlesAdminPage() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <Link href={`/admin/bundles/${b.id}`} className="font-bold text-ink underline-offset-4 hover:underline">
-                      {b.nameAr}
+                      {ar ? b.nameAr : b.nameEn}
                     </Link>
-                    <p className="truncate text-sm text-warm-600">{lines.map((l) => `${l.quantity > 1 ? `${l.quantity}× ` : ""}${l.nameAr}`).join(" + ")}</p>
+                    <p className="truncate text-sm text-warm-600">{lines.map((l) => `${l.quantity > 1 ? `${l.quantity}× ` : ""}${ar ? l.nameAr : l.nameEn}`).join(" + ")}</p>
                   </div>
                 </div>
                 <p className="text-sm">
                   <b className="text-ink">{mad(b.price)}</b> <s className="text-warm-500">{mad(separate)}</s>{" "}
-                  {separate > b.price ? <span className="font-semibold text-success">يوفر {mad(separate - b.price)}</span> : null}
+                  {separate > b.price ? <span className="font-semibold text-success">{tr(`يوفر ${mad(separate - b.price)}`, `Saves ${mad(separate - b.price)}`)}</span> : null}
                 </p>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className={`rounded-full px-3 py-1 text-xs font-bold ${live ? "bg-success-soft text-success" : "bg-warm-100 text-warm-600"}`}>
-                    {live ? "ظاهر فالمتجر" : !b.isActive ? "مخبي" : problem ? `مخبي: ${problem.nameAr} ما متوفرش` : "مخبي: الثمن ماشي أقل"}
+                    {live
+                      ? tr("ظاهر فالمتجر", "Live in the shop")
+                      : !b.isActive
+                        ? tr("مخبي", "Hidden")
+                        : problem
+                          ? tr(`مخبي: ${problem.nameAr} ما متوفرش`, `Hidden: ${problem.nameEn} is out of stock`)
+                          : tr("مخبي: الثمن ماشي أقل", "Hidden: the price is not lower")}
                   </span>
                   <form action={toggleBundle}>
                     <input type="hidden" name="id" value={b.id} />
                     <button type="submit" className={buttonClass({ variant: "outline" })}>
-                      {b.isActive ? "خبيه" : "ظهّرو"}
+                      {b.isActive ? tr("خبيه", "Hide") : tr("ظهّرو", "Show")}
                     </button>
                   </form>
                 </div>
@@ -99,11 +110,11 @@ export default async function BundlesAdminPage() {
         <Panel>
           <div className="flex flex-col items-center gap-3 py-8 text-center">
             <Package className="size-10 text-warm-400" aria-hidden="true" />
-            <p className="font-semibold text-ink">مازال ما درتي حتى باك.</p>
-            <p className="max-w-md text-sm text-warm-600">مثلاً: سماعة + پوشيت، ولا جوج كابلات بثمن واحد. الباك كيبان فالصفحة الرئيسية ملي يكون عندو خصم ومنتجاتو متوفرة.</p>
+            <p className="font-semibold text-ink">{tr("مازال ما درتي حتى باك.", "No bundles yet.")}</p>
+            <p className="max-w-md text-sm text-warm-600">{tr("مثلاً: سماعة + پوشيت، ولا جوج كابلات بثمن واحد. الباك كيبان فالصفحة الرئيسية ملي يكون عندو خصم ومنتجاتو متوفرة.", "For example: earbuds + a case, or two cables for one price. A bundle shows on the home page when it has a discount and its products are in stock.")}</p>
             <Link href="/admin/bundles/new" className={buttonClass()}>
               <Plus className="size-4" aria-hidden="true" />
-              دير أول باك
+              {tr("دير أول باك", "Create the first bundle")}
             </Link>
           </div>
         </Panel>

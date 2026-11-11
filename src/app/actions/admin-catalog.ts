@@ -4,6 +4,7 @@ import { revalidatePath, updateTag } from "next/cache";
 import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import { requireAdmin } from "@/lib/admin";
+import { adminTr } from "@/lib/admin-lang";
 import { db } from "@/lib/db";
 import { whatsappDigits } from "@/lib/phone";
 import { slugify } from "@/lib/product-input";
@@ -22,9 +23,9 @@ async function run(task: () => Promise<unknown>, paths: string[], tags: string[]
   try {
     await task();
   } catch (e) {
-    if (e instanceof z.ZodError) return { ok: false, message: "تحقق من الحقول المطلوبة." };
-    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") return { ok: false, message: "هذه القيمة مستعملة من قبل (يجب أن تكون فريدة)." };
-    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2003") return { ok: false, message: "لا يمكن الحذف: هناك عناصر مرتبطة به." };
+    if (e instanceof z.ZodError) return { ok: false, message: (await adminTr()).tr("تحقق من الحقول المطلوبة.", "Check the required fields.") };
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") return { ok: false, message: (await adminTr()).tr("هذه القيمة مستعملة من قبل (يجب أن تكون فريدة).", "This value is already used (it must be unique).") };
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2003") return { ok: false, message: (await adminTr()).tr("لا يمكن الحذف: هناك عناصر مرتبطة به.", "Cannot delete: other items are linked to it.") };
     throw e;
   }
   for (const p of paths) revalidatePath(p);
@@ -54,12 +55,12 @@ export async function saveCategory(_: State, fd: FormData) {
     },
     ["/admin/categories"],
     ["categories", "products"],
-    "تم الحفظ.",
+    (await adminTr()).tr("تم الحفظ.", "Saved."),
   );
 }
 
 export async function deleteCategory(_: State, fd: FormData) {
-  return run(() => db.category.delete({ where: { id: String(fd.get("id")) } }), ["/admin/categories"], ["categories"], "تم الحذف.");
+  return run(() => db.category.delete({ where: { id: String(fd.get("id")) } }), ["/admin/categories"], ["categories"], (await adminTr()).tr("تم الحذف.", "Deleted."));
 }
 
 // ───────── Brands ─────────
@@ -75,12 +76,12 @@ export async function saveBrand(_: State, fd: FormData) {
     },
     ["/admin/brands"],
     ["products"],
-    "تم الحفظ.",
+    (await adminTr()).tr("تم الحفظ.", "Saved."),
   );
 }
 
 export async function deleteBrand(_: State, fd: FormData) {
-  return run(() => db.brand.delete({ where: { id: String(fd.get("id")) } }), ["/admin/brands"], ["products"], "تم الحذف.");
+  return run(() => db.brand.delete({ where: { id: String(fd.get("id")) } }), ["/admin/brands"], ["products"], (await adminTr()).tr("تم الحذف.", "Deleted."));
 }
 
 // ───────── Cities & delivery fees ─────────
@@ -103,7 +104,7 @@ export async function saveCity(_: State, fd: FormData) {
     },
     ["/admin/cities"],
     ["settings"],
-    "تم الحفظ.",
+    (await adminTr()).tr("تم الحفظ.", "Saved."),
   );
 }
 
@@ -130,12 +131,12 @@ export async function saveCoupon(_: State, fd: FormData) {
     },
     ["/admin/coupons"],
     [],
-    "تم الحفظ.",
+    (await adminTr()).tr("تم الحفظ.", "Saved."),
   );
 }
 
 export async function deleteCoupon(_: State, fd: FormData) {
-  return run(() => db.coupon.delete({ where: { id: String(fd.get("id")) } }), ["/admin/coupons"], [], "تم الحذف.");
+  return run(() => db.coupon.delete({ where: { id: String(fd.get("id")) } }), ["/admin/coupons"], [], (await adminTr()).tr("تم الحذف.", "Deleted."));
 }
 
 // ───────── Settings ─────────
@@ -161,6 +162,6 @@ export async function saveSettings(_: State, fd: FormData) {
     },
     ["/admin/settings"],
     ["settings"],
-    "تم حفظ الإعدادات.",
+    (await adminTr()).tr("تم حفظ الإعدادات.", "Settings saved."),
   );
 }

@@ -7,7 +7,9 @@ import { ActionForm } from "@/components/admin/ActionForm";
 import { PaymentMenu, StatusMenu, WhatsAppConfirm } from "@/components/admin/OrderRowMenus";
 import { confirmationText, whatsappLink } from "@/lib/order-whatsapp";
 import { StatusButtons, type StatusOption } from "@/components/admin/StatusButtons";
-import { inputClass, L, PageHeader, Panel, RISK_LABEL, STATUS_LABEL } from "@/components/admin/ui";
+import { inputClass, L, PageHeader, Panel, riskLabel, statusLabel } from "@/components/admin/ui";
+import { adminTr } from "@/lib/admin-lang";
+import { adminLocale } from "@/lib/admin-tr";
 import { Badge } from "@/components/ui/Badge";
 import { requireAdmin } from "@/lib/admin";
 import { CARRIER_NAME, CARRIER_TRACKING_PAGE, carrierHasLogin } from "@/lib/carrier/connection";
@@ -15,7 +17,7 @@ import { CARRIER_LABEL, CARRIER_STATUSES, isCarrierStatus } from "@/lib/carrier/
 import { db } from "@/lib/db";
 import { expectedFromCarrier } from "@/lib/finance";
 import { channelLabel } from "@/lib/attribution";
-import { SOURCE_LABEL } from "@/lib/manual-order";
+import { sourceLabel } from "@/lib/manual-order";
 import { formatMAD } from "@/lib/money";
 import { allowedNext, cashToCollect, type OrderStatus } from "@/lib/order-rules";
 import { formatMoroccanPhone } from "@/lib/phone";
@@ -23,7 +25,6 @@ import { reviewLink } from "@/lib/reviews/customer";
 import { reviewWhatsappMessage } from "@/lib/reviews/rules";
 import { TIME_ZONE } from "@/lib/time";
 
-const dateFmt = new Intl.DateTimeFormat("ar-MA", { dateStyle: "medium", timeStyle: "short", timeZone: TIME_ZONE });
 const VARIANT: Record<OrderStatus, StatusOption["variant"]> = {
   NEW: "outline",
   CONFIRMED: "primary",
@@ -35,7 +36,9 @@ const VARIANT: Record<OrderStatus, StatusOption["variant"]> = {
 };
 
 export default async function OrderDetail({ params, searchParams }: PageProps<"/admin/orders/[id]">) {
-  await requireAdmin();
+  const [, { tr, lang }] = await Promise.all([requireAdmin(), adminTr()]);
+  const dateFmt = new Intl.DateTimeFormat(adminLocale(lang), { dateStyle: "medium", timeStyle: "short", timeZone: TIME_ZONE });
+  const mad = (v: number) => formatMAD(v, lang);
   const { id } = await params;
   const order = await db.order.findUnique({
     where: { id },
@@ -59,12 +62,12 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
   return (
     <>
       <Link href="/admin/orders" className="mb-3 inline-flex min-h-11 items-center gap-1 text-sm text-warm-600 hover:text-ink">
-        <ArrowRight className="size-4" aria-hidden="true" />
-        كل الطلبات
+        <ArrowRight className="size-4 ltr:rotate-180" aria-hidden="true" />
+        {tr("كل الطلبات", "All orders")}
       </Link>
       <PageHeader
-        title={`الطلب ${order.number}`}
-        description={`${dateFmt.format(order.createdAt)} · المصدر: ${SOURCE_LABEL[order.source]} · جا من: ${channelLabel(order.channel)}${order.channelDetail ? ` (${order.channelDetail})` : ""}`}
+        title={tr(`الطلب ${order.number}`, `Order ${order.number}`)}
+        description={`${dateFmt.format(order.createdAt)} · ${tr("المصدر", "Source")}: ${sourceLabel(order.source, lang)} · ${tr("جا من", "Came from")}: ${channelLabel(order.channel, lang)}${order.channelDetail ? ` (${order.channelDetail})` : ""}`}
         actions={
           <div className="flex flex-wrap items-start gap-2">
             <PaymentMenu orderId={order.id} number={order.number} status={order.status} prepaid={prepaid} collected={order.codReceivedAt !== null} />
@@ -74,7 +77,7 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
       />
       {query.unconfirmed ? (
         <p role="alert" className="mb-4 rounded-xl border border-warning bg-warning-soft p-4 font-semibold text-warning-text">
-          الطلب تسجل ولكن ما تأكدش: المخزون تبدل فنفس اللحظة. راجع الكمية وأكّدو من هنا.
+          {tr("الطلب تسجل ولكن ما تأكدش: المخزون تبدل فنفس اللحظة. راجع الكمية وأكّدو من هنا.", "The order was saved but not confirmed: stock changed at the same moment. Check the quantity and confirm it here.")}
         </p>
       ) : null}
 
@@ -84,61 +87,61 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
             <div className="rounded-xl border border-warning bg-warning-soft p-4 text-warning-text">
               <p className="flex items-center gap-2 font-bold">
                 <ShieldAlert className="size-5" aria-hidden="true" />
-                درجة الخطورة: {order.riskScore}/100
+                {tr("درجة الخطورة", "Risk score")}: {order.riskScore}/100
               </p>
               <ul className="mt-2 flex flex-wrap gap-2">
                 {order.riskFlags.map((f) => (
                   <li key={f}>
-                    <Badge tone="warning">{RISK_LABEL[f] ?? f}</Badge>
+                    <Badge tone="warning">{riskLabel(f, lang)}</Badge>
                   </li>
                 ))}
               </ul>
             </div>
           ) : null}
 
-          <Panel title="الزبون">
+          <Panel title={tr("الزبون", "Customer")}>
             <dl className="grid gap-2 text-sm sm:grid-cols-2">
               <div>
-                <dt className="text-warm-600">الاسم</dt>
+                <dt className="text-warm-600">{tr("الاسم", "Name")}</dt>
                 <dd className="font-semibold text-ink">{order.customerName}</dd>
               </div>
               <div>
-                <dt className="text-warm-600">الهاتف</dt>
+                <dt className="text-warm-600">{tr("الهاتف", "Phone")}</dt>
                 <dd className="font-semibold text-ink" dir="ltr">
                   {formatMoroccanPhone(order.phone)}
                 </dd>
               </div>
               <div className="sm:col-span-2">
-                <dt className="text-warm-600">العنوان</dt>
+                <dt className="text-warm-600">{tr("العنوان", "Address")}</dt>
                 <dd className="text-ink">
-                  {order.address}، {order.cityName}
+                  {order.address}{tr("، ", ", ")}{order.cityName}
                 </dd>
               </div>
               {order.notes ? (
                 <div className="sm:col-span-2">
-                  <dt className="text-warm-600">ملاحظات الزبون</dt>
+                  <dt className="text-warm-600">{tr("ملاحظات الزبون", "Customer notes")}</dt>
                   <dd className="text-ink">{order.notes}</dd>
                 </div>
               ) : null}
               <div>
-                <dt className="text-warm-600">طلبات سابقة بنفس الرقم</dt>
+                <dt className="text-warm-600">{tr("طلبات سابقة بنفس الرقم", "Earlier orders, same number")}</dt>
                 <dd className="text-ink">{otherOrders}</dd>
               </div>
             </dl>
             <div className="mt-4 flex flex-wrap gap-2">
               <a href={`tel:${order.phone}`} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-ink px-4 font-semibold text-white hover:bg-warm-900">
                 <Phone className="size-4" aria-hidden="true" />
-                اتصال
+                {tr("اتصال", "Call")}
               </a>
               <WhatsAppConfirm orderId={order.id} status={order.status} href={whatsappLink(order.phone, confirmationText({ ...order, prepaid }))} />
               <Link href={`/admin/inbox?phone=${encodeURIComponent(order.phone)}`} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-warm-200 bg-white px-4 font-semibold text-ink hover:bg-warm-50">
                 <MessagesSquare className="size-4" aria-hidden="true" />
-                المحادثة
+                {tr("المحادثة", "Conversation")}
               </Link>
             </div>
           </Panel>
 
-          <Panel title="المنتجات">
+          <Panel title={tr("المنتجات", "Products")}>
             <ul className="flex flex-col gap-2 text-sm">
               {order.items.map((i) => (
                 <li key={i.id} className="flex justify-between gap-3 border-b border-warm-200 pb-2 last:border-0">
@@ -150,89 +153,89 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
                     </span>
                   </span>
                   <span className="shrink-0 text-warm-800">
-                    {i.quantity} × {formatMAD(i.unitPrice, "ar")}
+                    {i.quantity} × {mad(i.unitPrice)}
                   </span>
                 </li>
               ))}
             </ul>
             <dl className="mt-3 flex flex-col gap-1 border-t border-warm-200 pt-3 text-sm">
               <div className="flex justify-between">
-                <dt className="text-warm-600">المجموع الفرعي</dt>
-                <dd>{formatMAD(order.subtotal, "ar")}</dd>
+                <dt className="text-warm-600">{tr("المجموع الفرعي", "Subtotal")}</dt>
+                <dd>{mad(order.subtotal)}</dd>
               </div>
               {order.bundleDiscount ? (
                 <div className="flex justify-between">
-                  <dt className="text-warm-600">خصم الباك</dt>
-                  <dd className="text-success">−{formatMAD(order.bundleDiscount, "ar")}</dd>
+                  <dt className="text-warm-600">{tr("خصم الباك", "Bundle discount")}</dt>
+                  <dd className="text-success">−{mad(order.bundleDiscount)}</dd>
                 </div>
               ) : null}
               {order.discount - order.bundleDiscount ? (
                 <div className="flex justify-between">
-                  <dt className="text-warm-600">الخصم {order.couponCode ? `(${order.couponCode})` : ""}</dt>
-                  <dd className="text-success">−{formatMAD(order.discount - order.bundleDiscount, "ar")}</dd>
+                  <dt className="text-warm-600">{tr("الخصم", "Discount")} {order.couponCode ? `(${order.couponCode})` : ""}</dt>
+                  <dd className="text-success">−{mad(order.discount - order.bundleDiscount)}</dd>
                 </div>
               ) : null}
               <div className="flex justify-between">
-                <dt className="text-warm-600">التوصيل</dt>
-                <dd>{order.shippingFee ? formatMAD(order.shippingFee, "ar") : "مجاني"}</dd>
+                <dt className="text-warm-600">{tr("التوصيل", "Delivery")}</dt>
+                <dd>{order.shippingFee ? mad(order.shippingFee) : tr("مجاني", "Free")}</dd>
               </div>
               <div className="flex justify-between text-base">
-                <dt className="font-bold text-ink">{prepaid ? "المجموع (مدفوع مسبقاً)" : "المبلغ عند الاستلام"}</dt>
-                <dd className="font-extrabold text-ink">{formatMAD(order.total, "ar")}</dd>
+                <dt className="font-bold text-ink">{prepaid ? tr("المجموع (مدفوع مسبقاً)", "Total (prepaid)") : tr("المبلغ عند الاستلام", "Cash on delivery")}</dt>
+                <dd className="font-extrabold text-ink">{mad(order.total)}</dd>
               </div>
               {prepaid ? (
                 <div className="flex justify-between rounded-lg bg-success-soft px-2 py-1.5 font-bold text-success">
-                  <dt>شركة التوصيل تجمع</dt>
-                  <dd>{formatMAD(cashToCollect(order.total, prepaid), "ar")}</dd>
+                  <dt>{tr("شركة التوصيل تجمع", "Carrier collects")}</dt>
+                  <dd>{mad(cashToCollect(order.total, prepaid))}</dd>
                 </div>
               ) : null}
               <div className="mt-2 flex justify-between border-t border-warm-200 pt-2">
-                <dt className="text-warm-600">تكلفة السلعة (لك فقط)</dt>
-                <dd>{goodsCost === null ? "ثمن الشراء ناقص" : formatMAD(goodsCost, "ar")}</dd>
+                <dt className="text-warm-600">{tr("تكلفة السلعة (لك فقط)", "Cost of goods (only you see this)")}</dt>
+                <dd>{goodsCost === null ? tr("ثمن الشراء ناقص", "Purchase price missing") : mad(goodsCost)}</dd>
               </div>
             </dl>
           </Panel>
 
-          <Panel title="الشحنة والتتبع">
+          <Panel title={tr("الشحنة والتتبع", "Shipment & tracking")}>
             {shippable ? (
               <>
-                <ActionForm action={saveShipment} submitLabel="حفظ الشحنة" variant="dark" className="grid gap-3 sm:grid-cols-2">
+                <ActionForm action={saveShipment} submitLabel={tr("حفظ الشحنة", "Save shipment")} variant="dark" className="grid gap-3 sm:grid-cols-2">
                   <input type="hidden" name="orderId" value={order.id} />
-                  <L label={`رقم التتبع (${CARRIER_NAME})`}>
+                  <L label={tr(`رقم التتبع (${CARRIER_NAME})`, `Tracking number (${CARRIER_NAME})`)}>
                     <input name="trackingNumber" dir="ltr" maxLength={60} defaultValue={order.trackingNumber ?? ""} className={`${inputClass} text-start`} />
                   </L>
-                  <L label="الرسوم الحقيقية ديال هاد الطرد (درهم)">
+                  <L label={tr("الرسوم الحقيقية ديال هاد الطرد (درهم)", "Real fee for this parcel (MAD)")}>
                     <input name="carrierFee" type="number" min={0} defaultValue={order.carrierFee ?? ""} className={inputClass} />
                   </L>
                 </ActionForm>
 
-                <h3 className="mt-5 text-sm font-bold text-ink">سجّل خطوة جديدة</h3>
-                <ActionForm action={addShipmentEvent} submitLabel="تسجيل الخطوة" className="mt-2 grid gap-3 sm:grid-cols-2">
+                <h3 className="mt-5 text-sm font-bold text-ink">{tr("سجّل خطوة جديدة", "Record a new step")}</h3>
+                <ActionForm action={addShipmentEvent} submitLabel={tr("تسجيل الخطوة", "Record step")} className="mt-2 grid gap-3 sm:grid-cols-2">
                   <input type="hidden" name="orderId" value={order.id} />
-                  <L label="الخطوة">
+                  <L label={tr("الخطوة", "Step")}>
                     <select name="status" className={inputClass}>
                       {CARRIER_STATUSES.map((s) => (
                         <option key={s} value={s}>
-                          {CARRIER_LABEL[s].ar}
+                          {CARRIER_LABEL[s][lang]}
                         </option>
                       ))}
                     </select>
                   </L>
-                  <L label="ملاحظة (اختياري)">
+                  <L label={tr("ملاحظة (اختياري)", "Note (optional)")}>
                     <input name="note" maxLength={300} className={inputClass} />
                   </L>
                 </ActionForm>
-                <p className="mt-2 text-xs text-warm-600">«استلمته الشركة» كيدوز الطلب لقيد الشحن، و«تم التسليم» و«رجع» كيبدلو الحالة والمخزون بوحدهم.</p>
+                <p className="mt-2 text-xs text-warm-600">{tr("«استلمته الشركة» كيدوز الطلب لقيد الشحن، و«تم التسليم» و«رجع» كيبدلو الحالة والمخزون بوحدهم.", "“Picked up” moves the order to shipping; “Delivered” and “Returned” change the status and stock on their own.")}</p>
               </>
             ) : (
-              <p className="text-sm text-warm-600">كتبدا الشحنة من بعد تأكيد الطلب.</p>
+              <p className="text-sm text-warm-600">{tr("كتبدا الشحنة من بعد تأكيد الطلب.", "The shipment starts once the order is confirmed.")}</p>
             )}
 
             {order.events.length ? (
               <ol className="mt-4 flex flex-col gap-3 border-s-2 border-warm-200 ps-4 text-sm">
                 {order.events.map((e) => (
                   <li key={e.id}>
-                    <p className="font-semibold text-ink">{isCarrierStatus(e.status) ? CARRIER_LABEL[e.status].ar : e.status}</p>
+                    <p className="font-semibold text-ink">{isCarrierStatus(e.status) ? CARRIER_LABEL[e.status][lang] : e.status}</p>
                     <p className="text-xs text-warm-600">
                       {dateFmt.format(e.occurredAt)} · <span dir="ltr">{e.actor}</span>
                     </p>
@@ -245,9 +248,12 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
             <p className="mt-4 flex items-start gap-2 rounded-lg bg-warm-100 p-3 text-xs text-warm-600">
               <Truck className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
               <span>
-                {carrierHasLogin() ? "بيانات الدخول كاينين، والربط المباشر كيتسنى وثائق API من الشركة." : "الربط المباشر مع Express Relais كيتسنى بيانات الدخول ووثائق API من الشركة."} دابا التتبع كيتسجل بيدك.{" "}
+                {carrierHasLogin()
+                  ? tr("بيانات الدخول كاينين، والربط المباشر كيتسنى وثائق API من الشركة.", "The login is set; the direct link waits for the carrier's API documents.")
+                  : tr("الربط المباشر مع Express Relais كيتسنى بيانات الدخول ووثائق API من الشركة.", "The direct link with Express Relais waits for the login and API documents from the carrier.")}{" "}
+                {tr("دابا التتبع كيتسجل بيدك.", "For now tracking is recorded by hand.")}{" "}
                 <a href={CARRIER_TRACKING_PAGE} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
-                  صفحة التتبع ديال الشركة
+                  {tr("صفحة التتبع ديال الشركة", "Carrier tracking page")}
                 </a>
               </span>
             </p>
@@ -255,25 +261,27 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
         </div>
 
         <div className="flex flex-col gap-6">
-          <Panel title="تغيير الحالة">
+          <Panel title={tr("تغيير الحالة", "Change status")}>
             {allowedNext(order.status).length ? (
               <StatusButtons
                 withNote
                 orderId={order.id}
-                options={allowedNext(order.status).map((to) => ({ to, label: STATUS_LABEL[to], variant: VARIANT[to] }))}
+                options={allowedNext(order.status).map((to) => ({ to, label: statusLabel(to, lang), variant: VARIANT[to] }))}
               />
             ) : (
-              <p className="text-sm text-warm-600">الطريق العادي سالا هنا. إلا بغيتي تبدلها بيدك، استعمل قائمة الحالة فوق.</p>
+              <p className="text-sm text-warm-600">{tr("الطريق العادي سالا هنا. إلا بغيتي تبدلها بيدك، استعمل قائمة الحالة فوق.", "The usual path ends here. To change it by hand, use the status menu above.")}</p>
             )}
-            <p className="mt-3 text-xs text-warm-600">يُخصم المخزون عند التأكيد ويُعاد عند الإلغاء أو الإرجاع.</p>
+            <p className="mt-3 text-xs text-warm-600">{tr("يُخصم المخزون عند التأكيد ويُعاد عند الإلغاء أو الإرجاع.", "Stock is taken on confirmation and given back on cancellation or return.")}</p>
           </Panel>
 
           {order.status === "DELIVERED" ? (
-            <Panel title="التحصيل من شركة التوصيل">
-              <p className="mb-2 text-sm text-warm-600">{order.codReceivedAt ? `توصلتي بيه ${dateFmt.format(order.codReceivedAt)}.` : `المنتظر: ${formatMAD(expected, "ar")}، يعني المبلغ ناقص الرسوم.`}</p>
-              <ActionForm action={setCodReceived} submitLabel="حفظ" variant="dark">
+            <Panel title={tr("التحصيل من شركة التوصيل", "Collection from the carrier")}>
+              <p className="mb-2 text-sm text-warm-600">{order.codReceivedAt
+                  ? tr(`توصلتي بيه ${dateFmt.format(order.codReceivedAt)}.`, `Received ${dateFmt.format(order.codReceivedAt)}.`)
+                  : tr(`المنتظر: ${mad(expected)}، يعني المبلغ ناقص الرسوم.`, `Expected: ${mad(expected)}, the amount minus the fee.`)}</p>
+              <ActionForm action={setCodReceived} submitLabel={tr("حفظ", "Save")} variant="dark">
                 <input type="hidden" name="orderId" value={order.id} />
-                <L label="المبلغ اللي توصلتي بيه (فارغ = مازال)">
+                <L label={tr("المبلغ اللي توصلتي بيه (فارغ = مازال)", "Amount received (empty = not yet)")}>
                   <input name="amount" type="number" min={0} defaultValue={order.codReceivedAmount ?? ""} className={inputClass} />
                 </L>
               </ActionForm>
@@ -281,25 +289,25 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
           ) : null}
 
           {order.status === "DELIVERED" ? (
-            <Panel title="طلب التقييم">
-              <p className="text-sm text-warm-600">{reviewed} من {order.items.length} منتجات تقيّمات.</p>
+            <Panel title={tr("طلب التقييم", "Review request")}>
+              <p className="text-sm text-warm-600">{tr(`${reviewed} من ${order.items.length} منتجات تقيّمات.`, `${reviewed} of ${order.items.length} products reviewed.`)}</p>
               <a href={`https://wa.me/${waNumber}?text=${encodeURIComponent(reviewWhatsappMessage(order.customerName, order.number, reviewLink(order.id)))}`} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-lg bg-whatsapp px-4 font-semibold text-ink hover:opacity-90">
                 <MessageCircle className="size-4" aria-hidden="true" />
-                رسالة التقييم فواتساب
+                {tr("رسالة التقييم فواتساب", "Review message on WhatsApp")}
               </a>
               <a href={reviewLink(order.id)} target="_blank" rel="noopener noreferrer" className="mt-2 block text-xs text-warm-600 underline underline-offset-2">
-                الرابط الخاص بهذا الطلب
+                {tr("الرابط الخاص بهذا الطلب", "This order's own link")}
               </a>
             </Panel>
           ) : null}
 
-          <Panel title="سجل الطلب">
+          <Panel title={tr("سجل الطلب", "Order history")}>
             <ol className="flex flex-col gap-3 border-s-2 border-warm-200 ps-4 text-sm">
               {order.logs.map((l) => (
                 <li key={l.id}>
-                  <p className="font-semibold text-ink">{STATUS_LABEL[l.toStatus]}</p>
+                  <p className="font-semibold text-ink">{statusLabel(l.toStatus, lang)}</p>
                   <p className="text-xs text-warm-600">
-                    {dateFmt.format(l.createdAt)} · <span dir="ltr">{l.actor === "customer" ? "الزبون" : l.actor}</span>
+                    {dateFmt.format(l.createdAt)} · <span dir="ltr">{l.actor === "customer" ? tr("الزبون", "Customer") : l.actor}</span>
                   </p>
                   {l.note ? <p className="mt-1 text-warm-800">{l.note}</p> : null}
                 </li>
@@ -307,14 +315,14 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
             </ol>
           </Panel>
 
-          <Panel title="القائمة السوداء">
+          <Panel title={tr("القائمة السوداء", "Blacklist")}>
             {blacklisted ? (
-              <p className="text-sm font-semibold text-danger">هذا الرقم في القائمة السوداء. لن يتمكن من الطلب.</p>
+              <p className="text-sm font-semibold text-danger">{tr("هذا الرقم في القائمة السوداء. لن يتمكن من الطلب.", "This number is on the blacklist. It cannot order.")}</p>
             ) : (
-              <ActionForm action={addToBlacklist} submitLabel="حظر هذا الرقم" variant="outline" confirm="حظر هذا الرقم من الطلب عبر الموقع؟">
+              <ActionForm action={addToBlacklist} submitLabel={tr("حظر هذا الرقم", "Block this number")} variant="outline" confirm={tr("حظر هذا الرقم من الطلب عبر الموقع؟", "Block this number from ordering on the site?")}>
                 <input type="hidden" name="phone" value={order.phone} />
                 <label className="flex flex-col gap-1 text-sm text-warm-600">
-                  السبب
+                  {tr("السبب", "Reason")}
                   <input name="reason" maxLength={200} className="min-h-11 admin-field rounded-lg px-3 text-base text-warm-800" />
                 </label>
               </ActionForm>

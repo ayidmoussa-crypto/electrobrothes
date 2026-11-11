@@ -4,15 +4,16 @@ import { ReviewCard } from "@/components/admin/ReviewCard";
 import { PageHeader, Panel } from "@/components/admin/ui";
 import type { Prisma } from "@/generated/prisma/client";
 import { requireAdmin } from "@/lib/admin";
+import { adminTr } from "@/lib/admin-lang";
+import { adminLocale } from "@/lib/admin-tr";
 import { db } from "@/lib/db";
 import { isNegativeReview, isStaleRating } from "@/lib/reviews/rules";
 import { TIME_ZONE } from "@/lib/time";
 
-const when = new Intl.DateTimeFormat("ar-MA", { dateStyle: "medium", timeZone: TIME_ZONE });
 const TABS = [
-  { id: "pending", text: "كيتسناو" },
-  { id: "approved", text: "منشورين" },
-  { id: "rejected", text: "مرفوضين" },
+  { id: "pending", text: ["كيتسناو", "Waiting"] },
+  { id: "approved", text: ["منشورين", "Published"] },
+  { id: "rejected", text: ["مرفوضين", "Rejected"] },
 ] as const;
 type Tab = (typeof TABS)[number]["id"];
 
@@ -24,7 +25,8 @@ const WHERE: Record<Tab, Prisma.ReviewWhereInput> = {
 };
 
 export default async function ReviewsPage({ searchParams }: PageProps<"/admin/reviews">) {
-  await requireAdmin();
+  const [, { tr, lang, ar }] = await Promise.all([requireAdmin(), adminTr()]);
+  const when = new Intl.DateTimeFormat(adminLocale(lang), { dateStyle: "medium", timeZone: TIME_ZONE });
   const raw = (await searchParams).tab;
   const tab: Tab = raw === "approved" || raw === "rejected" ? raw : "pending";
   const [rows, pending, negative, externalApproved, externalPending] = await Promise.all([
@@ -46,41 +48,41 @@ export default async function ReviewsPage({ searchParams }: PageProps<"/admin/re
         createdAt: true,
         suggestedReply: true,
         replyText: true,
-        product: { select: { nameAr: true } },
+        product: { select: { nameAr: true, nameEn: true } },
         orderItem: { select: { order: { select: { id: true, number: true, phone: true, customerName: true } } } },
       },
     }),
     db.review.count({ where: WHERE.pending }),
     db.review.count({ where: { ...WHERE.pending, rating: { lte: 2 } } }),
-    db.externalRating.findMany({ where: { status: "APPROVED" }, select: { id: true, source: true, lastCheckedAt: true, productId: true, product: { select: { nameAr: true } } } }),
+    db.externalRating.findMany({ where: { status: "APPROVED" }, select: { id: true, source: true, lastCheckedAt: true, productId: true, product: { select: { nameAr: true, nameEn: true } } } }),
     db.externalRating.count({ where: { status: "PENDING" } }),
   ]);
   const stale = externalApproved.filter((r) => isStaleRating(r.lastCheckedAt));
 
   return (
     <>
-      <PageHeader title="التقييمات" description="ما كيبان حتى تقييم فالمتجر قبل موافقتك." />
+      <PageHeader title={tr("التقييمات", "Reviews")} description={tr("ما كيبان حتى تقييم فالمتجر قبل موافقتك.", "No review shows in the shop before you approve it.")} />
 
       {negative ? (
         <p role="alert" className="mb-3 flex items-center gap-2 rounded-xl bg-warning-soft p-3 text-sm font-bold text-warning-text">
           <TriangleAlert className="size-4 shrink-0" aria-hidden="true" />
-          {negative} تقييم سلبي كيتسنى: اتصل بالزبون قبل ما تقرر.
+          {tr(`${negative} تقييم سلبي كيتسنى: اتصل بالزبون قبل ما تقرر.`, `${negative} negative reviews waiting: call the customer before you decide.`)}
         </p>
       ) : null}
 
       {stale.length || externalPending ? (
-        <Panel title="تقييمات خارجية" className="mb-3">
-          {externalPending ? <p className="text-sm text-warm-800">{externalPending} مصدر كيتسنى تأكيدك فصفحة المنتج.</p> : null}
+        <Panel title={tr("تقييمات خارجية", "External ratings")} className="mb-3">
+          {externalPending ? <p className="text-sm text-warm-800">{tr(`${externalPending} مصدر كيتسنى تأكيدك فصفحة المنتج.`, `${externalPending} sources wait for your check on the product page.`)}</p> : null}
           {stale.length ? (
             <ul className="mt-1 text-sm">
               {stale.map((r) => (
                 <li key={r.id} className="flex flex-wrap items-center gap-2 py-1">
                   <TriangleAlert className="size-3.5 shrink-0 text-warning-text" aria-hidden="true" />
                   <Link href={`/admin/products/${r.productId}`} className="font-semibold text-ink underline underline-offset-2">
-                    {r.product.nameAr}
+                    {ar ? r.product.nameAr : r.product.nameEn}
                   </Link>
                   <span className="text-warm-600">
-                    {r.source}: آخر تحديث {when.format(r.lastCheckedAt)}
+                    {r.source}: {tr("آخر تحديث", "last updated")} {when.format(r.lastCheckedAt)}
                   </span>
                 </li>
               ))}
@@ -89,10 +91,10 @@ export default async function ReviewsPage({ searchParams }: PageProps<"/admin/re
         </Panel>
       ) : null}
 
-      <nav aria-label="حالة التقييمات" className="mb-3 flex flex-wrap gap-1">
+      <nav aria-label={tr("حالة التقييمات", "Review status")} className="mb-3 flex flex-wrap gap-1">
         {TABS.map((t) => (
           <Link key={t.id} href={t.id === "pending" ? "/admin/reviews" : `/admin/reviews?tab=${t.id}`} aria-current={tab === t.id ? "true" : undefined} className={`inline-flex min-h-10 items-center rounded-full px-3 text-xs font-semibold ${tab === t.id ? "bg-ink text-white" : "admin-card text-warm-800"}`}>
-            {t.text}
+            {tr(t.text[0], t.text[1])}
             {t.id === "pending" ? ` (${pending})` : ""}
           </Link>
         ))}
@@ -106,7 +108,7 @@ export default async function ReviewsPage({ searchParams }: PageProps<"/admin/re
               review={{
                 id: r.id,
                 productId: r.productId,
-                productName: r.product.nameAr,
+                productName: ar ? r.product.nameAr : r.product.nameEn,
                 author: r.authorName,
                 city: r.city,
                 rating: r.rating,
@@ -125,7 +127,7 @@ export default async function ReviewsPage({ searchParams }: PageProps<"/admin/re
         </div>
       ) : (
         <Panel>
-          <p className="text-sm text-warm-600">ما كاين حتى تقييم هنا. الزبون كيقيّم من الرابط الخاص بعد ما يتوصل بالطلب.</p>
+          <p className="text-sm text-warm-600">{tr("ما كاين حتى تقييم هنا. الزبون كيقيّم من الرابط الخاص بعد ما يتوصل بالطلب.", "No reviews here. A customer reviews from their own link once the order arrives.")}</p>
         </Panel>
       )}
     </>

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { buttonClass } from "@/components/ui/button";
+import { useAdminTr } from "./AdminLang";
 
 type Ask = { title: string; detail?: ReactNode; yes: string; resolve: (ok: boolean) => void };
 
@@ -12,8 +13,9 @@ type Ask = { title: string; detail?: ReactNode; yes: string; resolve: (ok: boole
  */
 export function useConfirm() {
   const [ask, setAsk] = useState<Ask | null>(null);
+  const { tr } = useAdminTr();
   const confirm = (q: Omit<Ask, "resolve" | "yes"> & { yes?: string }) =>
-    new Promise<boolean>((resolve) => setAsk({ yes: "نعم، بدّل", ...q, resolve }));
+    new Promise<boolean>((resolve) => setAsk({ yes: tr("نعم، بدّل", "Yes, change"), ...q, resolve }));
   const dialog = ask ? (
     <ConfirmDialog
       ask={ask}
@@ -28,6 +30,7 @@ export function useConfirm() {
 
 function ConfirmDialog({ ask, onDone }: { ask: Ask; onDone: (ok: boolean) => void }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const { tr } = useAdminTr();
   useEffect(() => {
     // Modal: drawn above everything (portals included), focus kept inside, Escape cancels.
     ref.current?.showModal();
@@ -50,7 +53,7 @@ function ConfirmDialog({ ask, onDone }: { ask: Ask; onDone: (ok: boolean) => voi
         {ask.detail ? <div className="mt-2 text-sm leading-relaxed text-warm-600">{ask.detail}</div> : null}
         <div className="mt-6 flex flex-wrap justify-end gap-2">
           <button value="" className={buttonClass({ variant: "outline" })}>
-            لا، رجع
+            {tr("لا، رجع", "No, go back")}
           </button>
           <button value="yes" autoFocus className={buttonClass()}>
             {ask.yes}

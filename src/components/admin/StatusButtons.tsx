@@ -4,6 +4,7 @@ import { LoaderCircle } from "lucide-react";
 import { useActionState } from "react";
 import { setOrderStatus, type ActionState } from "@/app/actions/admin-orders";
 import { buttonClass, type ButtonVariant } from "@/components/ui/button";
+import { useAdminTr } from "./AdminLang";
 import { FormMessage } from "./ui";
 
 export type StatusOption = { to: string; label: string; variant: ButtonVariant };
@@ -14,6 +15,7 @@ export type StatusOption = { to: string; label: string; variant: ButtonVariant }
  */
 export function StatusButtons({ orderId, options, withNote = false }: { orderId: string; options: StatusOption[]; withNote?: boolean }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(setOrderStatus, {});
+  const { tr } = useAdminTr();
   if (!options.length) return null;
 
   return (
@@ -21,7 +23,7 @@ export function StatusButtons({ orderId, options, withNote = false }: { orderId:
       <input type="hidden" name="orderId" value={orderId} />
       {withNote ? (
         <label className="flex flex-col gap-1 text-sm font-semibold text-ink">
-          ملاحظة (اختياري)
+          {tr("ملاحظة (اختياري)", "Note (optional)")}
           <textarea name="note" rows={2} maxLength={500} className="admin-field rounded-lg px-3 py-2 text-base font-normal text-warm-800" />
         </label>
       ) : null}

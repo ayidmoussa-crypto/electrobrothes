@@ -104,7 +104,8 @@ export async function dailyHistory(overview: Awaited<ReturnType<typeof seoOvervi
 export type TechCheck = { id: string; label: string; status: "good" | "warn" | "bad"; detail: string };
 
 /** What can be counted in the database: fast, so it renders with the page. */
-export async function contentChecks(): Promise<TechCheck[]> {
+export async function contentChecks(ui: "ar" | "en" = "ar"): Promise<TechCheck[]> {
+  const t = (ar: string, en: string) => (ui === "en" ? en : ar);
   const [[alts], [duplicates], [short]] = await Promise.all([
     db.$queryRaw<{ n: number }[]>`
       SELECT count(*)::int AS n FROM "ProductImage" i JOIN "Product" p ON p."id" = i."productId"
@@ -114,9 +115,9 @@ export async function contentChecks(): Promise<TechCheck[]> {
   ]);
   const counted = (id: string, label: string, n: number, none: string, some: string): TechCheck => ({ id, label, status: n ? "warn" : "good", detail: n ? `${n} ${some}` : none });
   return [
-    counted("alts", "صور بلا alt", alts.n, "كل الصور عندها alt", "صور بلا alt"),
-    counted("duplicates", "عناوين مكررة", duplicates.n, "ما كاين حتى عنوان مكرر", "منتجات عندها نفس العنوان"),
-    counted("short", "أوصاف قصيرة", short.n, "كل الأوصاف كافية", "منتجات وصفها أقل من 150 حرف"),
+    counted("alts", t("صور بلا alt", "Images without alt"), alts.n, t("كل الصور عندها alt", "Every image has alt"), t("صور بلا alt", "images without alt")),
+    counted("duplicates", t("عناوين مكررة", "Duplicate titles"), duplicates.n, t("ما كاين حتى عنوان مكرر", "No duplicate title"), t("منتجات عندها نفس العنوان", "products share a title")),
+    counted("short", t("أوصاف قصيرة", "Short descriptions"), short.n, t("كل الأوصاف كافية", "Every description is long enough"), t("منتجات وصفها أقل من 150 حرف", "products with a description under 150 characters")),
   ];
 }
 
@@ -124,7 +125,8 @@ export async function contentChecks(): Promise<TechCheck[]> {
  * Reads the real pages from the running site, so a green dot means it is actually served. Runs
  * in its own Suspense boundary: the rest of the page never waits for it.
  */
-export async function siteChecks(origin: string): Promise<TechCheck[]> {
+export async function siteChecks(origin: string, ui: "ar" | "en" = "ar"): Promise<TechCheck[]> {
+  const t = (ar: string, en: string) => (ui === "en" ? en : ar);
   const read = async (path: string) => {
     try {
       const res = await fetch(origin + path, { signal: AbortSignal.timeout(10_000), cache: "no-store" });
@@ -136,14 +138,14 @@ export async function siteChecks(origin: string): Promise<TechCheck[]> {
   const sample = await db.product.findFirst({ where: VISIBLE, orderBy: { seoScore: "desc" }, select: { slug: true } });
   const [sitemap, robots, page] = await Promise.all([read("/sitemap.xml"), read("/robots.txt"), sample ? read(`/products/${encodeURIComponent(sample.slug)}`) : null]);
 
-  const result = (id: string, label: string, ok: boolean | null, good: string, bad: string): TechCheck => (ok === null ? { id, label, status: "warn", detail: "ما قدرناش نفحصها دابا" } : { id, label, status: ok ? "good" : "bad", detail: ok ? good : bad });
+  const result = (id: string, label: string, ok: boolean | null, good: string, bad: string): TechCheck => (ok === null ? { id, label, status: "warn", detail: t("ما قدرناش نفحصها دابا", "Could not check it now") } : { id, label, status: ok ? "good" : "bad", detail: ok ? good : bad });
   const fromPage = (ok: (html: string) => boolean) => (page === null ? null : ok(page));
   return [
-    result("sitemap", "sitemap", sitemap === null ? null : sitemap.includes("<urlset") && (!sample || sitemap.includes(sample.slug)), "خدام وفيه المنتجات", "ناقص ولا ما فيهش المنتجات"),
-    result("robots", "robots.txt", robots === null ? null : robots.includes("Sitemap:") && !/^Disallow:\s*\/\s*$/m.test(robots), "خدام وكيشير لـ sitemap", "كيمنع الأرشفة ولا ما فيهش sitemap"),
-    result("schema", "Product schema", fromPage((h) => h.includes('"@type":"Product"')), "كاين فصفحة المنتج", "ما لقيناهش فصفحة المنتج"),
-    result("hreflang", "hreflang", fromPage((h) => /hrefLang="ar"/i.test(h) && /hrefLang="en"/i.test(h)), "العربية والإنجليزية مربوطين", "ناقص فصفحة المنتج"),
-    result("openGraph", "Open Graph", fromPage((h) => h.includes('property="og:title"') && h.includes('property="og:image"')), "العنوان والصورة كاينين", "ناقص فصفحة المنتج"),
+    result("sitemap", "sitemap", sitemap === null ? null : sitemap.includes("<urlset") && (!sample || sitemap.includes(sample.slug)), t("خدام وفيه المنتجات", "Works and lists the products"), t("ناقص ولا ما فيهش المنتجات", "Missing, or without the products")),
+    result("robots", "robots.txt", robots === null ? null : robots.includes("Sitemap:") && !/^Disallow:\s*\/\s*$/m.test(robots), t("خدام وكيشير لـ sitemap", "Works and points to the sitemap"), t("كيمنع الأرشفة ولا ما فيهش sitemap", "Blocks indexing or has no sitemap")),
+    result("schema", "Product schema", fromPage((h) => h.includes('"@type":"Product"')), t("كاين فصفحة المنتج", "On the product page"), t("ما لقيناهش فصفحة المنتج", "Not found on the product page")),
+    result("hreflang", "hreflang", fromPage((h) => /hrefLang="ar"/i.test(h) && /hrefLang="en"/i.test(h)), t("العربية والإنجليزية مربوطين", "Arabic and English are linked"), t("ناقص فصفحة المنتج", "Missing on the product page")),
+    result("openGraph", "Open Graph", fromPage((h) => h.includes('property="og:title"') && h.includes('property="og:image"')), t("العنوان والصورة كاينين", "Title and image are there"), t("ناقص فصفحة المنتج", "Missing on the product page")),
   ];
 }
 
@@ -152,7 +154,7 @@ export type SeoSort = "asc" | "desc";
 export const SEO_PAGE_SIZE = 24;
 
 /** One page of the grid. Everything is filtered and sorted on saved, indexed columns. */
-export async function seoProductPage({ q, color, sort, page }: { q: string; color: SeoColorFilter; sort: SeoSort; page: number }) {
+export async function seoProductPage({ q, color, sort, page }: { q: string; color: SeoColorFilter; sort: SeoSort; page: number }, ui: "ar" | "en" = "ar") {
   const where: Prisma.ProductWhereInput = {
     ...VISIBLE,
     ...(color === "red" ? { seoScore: { lt: 50 } } : color === "orange" ? { seoScore: { gte: 50, lt: 80 } } : color === "green" ? { seoScore: { gte: 80 } } : {}),
@@ -168,6 +170,7 @@ export async function seoProductPage({ q, color, sort, page }: { q: string; colo
       select: {
         id: true,
         nameAr: true,
+        nameEn: true,
         seoScore: true,
         seoScoreAr: true,
         seoScoreEn: true,
@@ -180,15 +183,15 @@ export async function seoProductPage({ q, color, sort, page }: { q: string; colo
   return {
     total,
     pages: Math.max(1, Math.ceil(total / SEO_PAGE_SIZE)),
-    products: rows.map((p) => ({ id: p.id, name: p.nameAr, image: p.images[0]?.url ?? null, score: p.seoScore, scoreAr: p.seoScoreAr, scoreEn: p.seoScoreEn, problems: p.seoProblems, suggestions: p._count.seoSuggestions })),
+    products: rows.map((p) => ({ id: p.id, name: ui === "en" ? p.nameEn : p.nameAr, image: p.images[0]?.url ?? null, score: p.seoScore, scoreAr: p.seoScoreAr, scoreEn: p.seoScoreEn, problems: p.seoProblems, suggestions: p._count.seoSuggestions })),
   };
 }
 
 export type SeoGridProduct = Awaited<ReturnType<typeof seoProductPage>>["products"][number];
 
 /** The live detail behind a drawer or product page: rules run once, on this one product. */
-export async function productSeoStatus(productId: string) {
+export async function productSeoStatus(productId: string, ui: "ar" | "en" = "ar") {
   const [p, { flags }] = await Promise.all([db.product.findUnique({ where: { id: productId }, select: { ...scoreSelect, isActive: true } }), titleDuplicates()]);
   if (!p) return null;
-  return { product: p, ...seoResult(scoreInput(p, flags.get(productId) ?? NOT_DUPLICATE)) };
+  return { product: p, ...seoResult(scoreInput(p, flags.get(productId) ?? NOT_DUPLICATE), ui) };
 }

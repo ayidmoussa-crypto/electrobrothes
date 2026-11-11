@@ -6,7 +6,9 @@ import { markConfirmSent, setOrderStatus, setPrepaid, type ActionState } from "@
 import { allowedNext, canSetPrepaid, deliveredByHand, holdsStock, ORDER_STATUSES, paymentState, undoesDelivery, type OrderStatus } from "@/lib/order-rules";
 import { useConfirm } from "./ConfirmDialog";
 import { PillMenu, type PillOption } from "./PillMenu";
-import { STATUS_LABEL } from "./ui";
+import { statusLabel } from "./ui";
+import { useAdminTr } from "./AdminLang";
+import type { Tr } from "@/lib/admin-tr";
 
 // Same soft background + strong text pairs as the badges (all ≥4.5:1); the dot repeats it in the menu.
 const STATUS_STYLE: Record<OrderStatus, { tone: string; dot: string }> = {
@@ -21,22 +23,22 @@ const STATUS_STYLE: Record<OrderStatus, { tone: string; dot: string }> = {
 // Steps that undo a sale: asked twice.
 const ASK_FIRST: OrderStatus[] = ["CANCELLED", "RETURNING", "RETURNED"];
 // A new order whose confirmation message went out on WhatsApp: still NEW, waiting for the reply.
-const WAITING = { label: "فانتظار الرد", tone: "bg-warning-soft text-warning-text", dot: "bg-warning" };
+const WAITING = { label: ["فانتظار الرد", "Awaiting reply"], tone: "bg-warning-soft text-warning-text", dot: "bg-warning" } as const;
 
 const PAYMENT = {
-  PENDING: { label: "في الانتظار", tone: "bg-warning-soft text-warning-text", dot: "bg-warning" },
-  PREPAID: { label: "مدفوع مسبقاً", tone: "bg-success-soft text-success", dot: "bg-success" },
-  PAID: { label: "مدفوع", tone: "bg-success-soft text-success", dot: "bg-success" },
-  NONE: { label: "غير مدفوع", tone: "bg-warm-100 text-warm-600", dot: "bg-warm-400" },
+  PENDING: { label: ["في الانتظار", "Pending"], tone: "bg-warning-soft text-warning-text", dot: "bg-warning" },
+  PREPAID: { label: ["مدفوع مسبقاً", "Prepaid"], tone: "bg-success-soft text-success", dot: "bg-success" },
+  PAID: { label: ["مدفوع", "Paid"], tone: "bg-success-soft text-success", dot: "bg-success" },
+  NONE: { label: ["غير مدفوع", "Unpaid"], tone: "bg-warm-100 text-warm-600", dot: "bg-warm-400" },
 } as const;
 
 /** What a hand-picked change does, told before it is done. */
-function changeEffects(from: OrderStatus, to: OrderStatus) {
+function changeEffects(from: OrderStatus, to: OrderStatus, tr: Tr) {
   const out: string[] = [];
-  if (deliveredByHand(from, to)) out.push("سلّمتها بيدك: بلا رسوم توصيل، والفلوس كتتحسب عندك.");
-  if (undoesDelivery(from, to)) out.push("التسليم والفلوس ديالو كيتمسحو من المالية.");
-  if (holdsStock(from) && !holdsStock(to)) out.push("السلعة كترجع للمخزون.");
-  if (!holdsStock(from) && holdsStock(to)) out.push("السلعة كتنقص من المخزون.");
+  if (deliveredByHand(from, to)) out.push(tr("سلّمتها بيدك: بلا رسوم توصيل، والفلوس كتتحسب عندك.", "Delivered by hand: no delivery fee, and the money counts as yours."));
+  if (undoesDelivery(from, to)) out.push(tr("التسليم والفلوس ديالو كيتمسحو من المالية.", "The delivery and its money are removed from finance."));
+  if (holdsStock(from) && !holdsStock(to)) out.push(tr("السلعة كترجع للمخزون.", "The goods go back to stock."));
+  if (!holdsStock(from) && holdsStock(to)) out.push(tr("السلعة كتنقص من المخزون.", "The goods come off the stock."));
   return out;
 }
 
@@ -53,12 +55,13 @@ export function StatusMenu({ orderId, status, number, waiting = false }: { order
   const [state, action, pending] = useActionState<ActionState, FormData>(setOrderStatus, {});
   const [, start] = useTransition();
   const [confirm, dialog] = useConfirm();
-  const label = waiting && status === "NEW" ? WAITING : { label: STATUS_LABEL[status], ...STATUS_STYLE[status] };
+  const { tr, lang } = useAdminTr();
+  const label = waiting && status === "NEW" ? { ...WAITING, label: tr(...WAITING.label) } : { label: statusLabel(status, lang), ...STATUS_STYLE[status] };
   // Every status in its usual order, all open: by hand the owner may jump anywhere (he sometimes
   // delivers an order himself). Stock follows on its own.
   const options: PillOption[] = ORDER_STATUSES.map((s) => ({
     value: s,
-    label: s === status ? label.label : STATUS_LABEL[s],
+    label: s === status ? label.label : statusLabel(s, lang),
     dot: STATUS_STYLE[s].dot,
     danger: s === "CANCELLED",
   }));
@@ -66,7 +69,7 @@ export function StatusMenu({ orderId, status, number, waiting = false }: { order
   return (
     <div>
       <PillMenu
-        label={`حالة الطلب ${number}`}
+        label={tr(`حالة الطلب ${number}`, `Status of order ${number}`)}
         current={{ value: status, label: label.label, dot: label.dot }}
         tone={label.tone}
         // One width for every status, so the WhatsApp buttons next to them line up in the list.
@@ -77,13 +80,13 @@ export function StatusMenu({ orderId, status, number, waiting = false }: { order
           const s = to as OrderStatus;
           // Off the usual path (or undoing a sale): asked first, with what will happen.
           if (ASK_FIRST.includes(s) || !allowedNext(status).includes(s)) {
-            const effects = changeEffects(status, s);
+            const effects = changeEffects(status, s, tr);
             const ok = await confirm({
-              title: `${STATUS_LABEL[status]} ← ${STATUS_LABEL[s]}`,
-              yes: `نعم، ${STATUS_LABEL[s]}`,
+              title: tr(`${statusLabel(status)} ← ${statusLabel(s)}`, `${statusLabel(status, "en")} → ${statusLabel(s, "en")}`),
+              yes: tr(`نعم، ${statusLabel(s)}`, `Yes, ${statusLabel(s, "en")}`),
               detail: (
                 <>
-                  <p>الطلب {number}.</p>
+                  <p>{tr(`الطلب ${number}.`, `Order ${number}.`)}</p>
                   {effects.length ? (
                     <ul className="mt-2 list-disc ps-5">
                       {effects.map((e) => (
@@ -115,11 +118,13 @@ export function StatusMenu({ orderId, status, number, waiting = false }: { order
 export function PaymentMenu({ orderId, status, prepaid, collected, number }: { orderId: string; status: OrderStatus; prepaid: boolean; collected: boolean; number: string }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(setPrepaid, {});
   const [, start] = useTransition();
+  const { tr } = useAdminTr();
   const p = PAYMENT[paymentState(status, prepaid)];
-  const note = status === "DELIVERED" && !prepaid ? (collected ? "تحصّل" : "عند شركة التوصيل") : prepaid ? "التوصيل يجمع 0 د.م." : null;
+  const pLabel = tr(p.label[0], p.label[1]);
+  const note = status === "DELIVERED" && !prepaid ? (collected ? tr("تحصّل", "Collected") : tr("عند شركة التوصيل", "With the carrier")) : prepaid ? tr("التوصيل يجمع 0 د.م.", "Carrier collects MAD 0") : null;
   const choices: PillOption[] = [
-    { value: "0", label: PAYMENT.PENDING.label, dot: PAYMENT.PENDING.dot },
-    { value: "1", label: PAYMENT.PREPAID.label, dot: PAYMENT.PREPAID.dot },
+    { value: "0", label: tr(...PAYMENT.PENDING.label), dot: PAYMENT.PENDING.dot },
+    { value: "1", label: tr(...PAYMENT.PREPAID.label), dot: PAYMENT.PREPAID.dot },
   ];
   const current = prepaid ? "1" : "0";
 
@@ -127,8 +132,8 @@ export function PaymentMenu({ orderId, status, prepaid, collected, number }: { o
     <div>
       {canSetPrepaid(status) ? (
         <PillMenu
-          label={`الدفع ديال الطلب ${number}`}
-          current={{ value: current, label: p.label, dot: p.dot }}
+          label={tr(`الدفع ديال الطلب ${number}`, `Payment of order ${number}`)}
+          current={{ value: current, label: pLabel, dot: p.dot }}
           tone={p.tone}
           options={choices}
           pending={pending}
@@ -140,7 +145,7 @@ export function PaymentMenu({ orderId, status, prepaid, collected, number }: { o
           }}
         />
       ) : (
-        <span className={`inline-flex min-h-8 items-center rounded-full px-2.5 text-xs font-bold ${p.tone}`}>{p.label}</span>
+        <span className={`inline-flex min-h-8 items-center rounded-full px-2.5 text-xs font-bold ${p.tone}`}>{pLabel}</span>
       )}
       {note ? <span className="mt-1 block text-xs text-warm-600">{note}</span> : null}
       <Message state={state} />
@@ -154,6 +159,7 @@ export function PaymentMenu({ orderId, status, prepaid, collected, number }: { o
  */
 export function WhatsAppConfirm({ orderId, href, status, compact = false }: { orderId: string; href: string; status: OrderStatus; compact?: boolean }) {
   const [, start] = useTransition();
+  const { tr } = useAdminTr();
   return (
     <a
       href={href}
@@ -162,8 +168,8 @@ export function WhatsAppConfirm({ orderId, href, status, compact = false }: { or
       onClick={() => {
         if (status === "NEW") start(() => markConfirmSent(orderId));
       }}
-      aria-label={compact ? "رسالة التأكيد فواتساب" : undefined}
-      title={compact ? "رسالة التأكيد فواتساب" : undefined}
+      aria-label={compact ? tr("رسالة التأكيد فواتساب", "Confirmation message on WhatsApp") : undefined}
+      title={compact ? tr("رسالة التأكيد فواتساب", "Confirmation message on WhatsApp") : undefined}
       className={
         compact
           ? "grid size-8 shrink-0 place-items-center rounded-full bg-whatsapp text-ink transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-yellow-300"
@@ -171,7 +177,7 @@ export function WhatsAppConfirm({ orderId, href, status, compact = false }: { or
       }
     >
       <MessageCircle className="size-4" aria-hidden="true" />
-      {compact ? null : "تأكيد عبر واتساب"}
+      {compact ? null : tr("تأكيد عبر واتساب", "Confirm on WhatsApp")}
     </a>
   );
 }

@@ -3,54 +3,55 @@
 import type { LucideIcon } from "lucide-react";
 import { Check, ChevronDown, Headphones, PencilLine, PlugZap, SlidersHorizontal, Smartphone } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
+import { useAdminTr } from "./AdminLang";
 
-export type SpecGroup = { label: string; icon: LucideIcon; keys: [string, string][] };
+export type SpecGroup = { label: [ar: string, en: string]; icon: LucideIcon; keys: [key: string, ar: string, en: string][] };
 
 // The spec keys the shop uses, by family. The first family shows as filters on category pages.
 export const SPEC_GROUPS: SpecGroup[] = [
   {
-    label: "فلاتر الأقسام",
+    label: ["فلاتر الأقسام", "Category filters"],
     icon: SlidersHorizontal,
     keys: [
-      ["ram", "الذاكرة (RAM)"],
-      ["storage", "التخزين"],
-      ["screen", "الشاشة"],
-      ["cpu", "المعالج"],
+      ["ram", "الذاكرة (RAM)", "Memory (RAM)"],
+      ["storage", "التخزين", "Storage"],
+      ["screen", "الشاشة", "Screen"],
+      ["cpu", "المعالج", "Processor"],
     ],
   },
   {
-    label: "هواتف وساعات",
+    label: ["هواتف وساعات", "Phones & watches"],
     icon: Smartphone,
     keys: [
-      ["gpu", "معالج الرسوميات"],
-      ["camera", "الكاميرا"],
-      ["battery", "البطارية"],
-      ["water", "مقاومة الماء"],
+      ["gpu", "معالج الرسوميات", "Graphics"],
+      ["camera", "الكاميرا", "Camera"],
+      ["battery", "البطارية", "Battery"],
+      ["water", "مقاومة الماء", "Water resistance"],
     ],
   },
   {
-    label: "سماعات وصوت",
+    label: ["سماعات وصوت", "Headphones & audio"],
     icon: Headphones,
     keys: [
-      ["type", "النوع"],
-      ["anc", "عزل الضوضاء (ANC)"],
-      ["connectivity", "الاتصال"],
+      ["type", "النوع", "Type"],
+      ["anc", "عزل الضوضاء (ANC)", "Noise cancelling (ANC)"],
+      ["connectivity", "الاتصال", "Connectivity"],
     ],
   },
   {
-    label: "شواحن وكابلات",
+    label: ["شواحن وكابلات", "Chargers & cables"],
     icon: PlugZap,
     keys: [
-      ["power", "القدرة"],
-      ["port", "المنفذ"],
-      ["capacity", "السعة"],
-      ["length", "الطول"],
+      ["power", "القدرة", "Power"],
+      ["port", "المنفذ", "Port"],
+      ["capacity", "السعة", "Capacity"],
+      ["length", "الطول", "Length"],
     ],
   },
 ];
 export const KNOWN_SPECS = new Set(SPEC_GROUPS.flatMap((g) => g.keys.map(([k]) => k)));
 export const FILTER_SPECS = new Set(SPEC_GROUPS[0].keys.map(([k]) => k));
-const LABEL = new Map(SPEC_GROUPS.flatMap((g) => g.keys));
+const LABEL = new Map(SPEC_GROUPS.flatMap((g) => g.keys.map(([k, ar, en]) => [k, [ar, en] as const])));
 const groupOf = (key: string) => SPEC_GROUPS.findIndex((g) => g.keys.some(([k]) => k === key));
 
 /**
@@ -63,6 +64,7 @@ export function SpecPicker({ value, custom, onPick, onOther }: { value: string; 
   const box = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
   const listId = useId();
+  const { tr } = useAdminTr();
 
   useEffect(() => {
     if (!open) return;
@@ -82,7 +84,8 @@ export function SpecPicker({ value, custom, onPick, onOther }: { value: string; 
     };
   }, [open]);
 
-  const label = custom ? "مواصفة أخرى" : value ? (LABEL.get(value) ?? value) : "اختر المواصفة";
+  const known = LABEL.get(value);
+  const label = custom ? tr("مواصفة أخرى", "Other spec") : value ? (known ? tr(...known) : value) : tr("اختر المواصفة", "Pick the spec");
   const pick = (key: string) => {
     onPick(key);
     setOpen(false);
@@ -97,7 +100,7 @@ export function SpecPicker({ value, custom, onPick, onOther }: { value: string; 
         aria-haspopup="true"
         aria-expanded={open}
         aria-controls={listId}
-        aria-label={`المواصفة: ${label}`}
+        aria-label={`${tr("المواصفة", "Spec")}: ${label}`}
         onClick={() => {
           setFamily(groupOf(value));
           setOpen((o) => !o);
@@ -117,7 +120,7 @@ export function SpecPicker({ value, custom, onPick, onOther }: { value: string; 
               const expanded = family === gi;
               const holds = groupOf(value) === gi;
               return (
-                <li key={g.label}>
+                <li key={g.label[1]}>
                   <button
                     type="button"
                     aria-expanded={expanded}
@@ -129,13 +132,13 @@ export function SpecPicker({ value, custom, onPick, onOther }: { value: string; 
                     <span className={`grid size-7 shrink-0 place-items-center rounded-md ${holds ? "bg-yellow-500 text-ink" : "bg-warm-100 text-warm-700"}`}>
                       <g.icon className="size-3.5" aria-hidden="true" />
                     </span>
-                    <span className="flex-1">{g.label}</span>
+                    <span className="flex-1">{tr(...g.label)}</span>
                     <span className="text-xs font-normal text-warm-500 tabular-nums">{g.keys.length}</span>
                     <ChevronDown className={`size-4 shrink-0 text-warm-500 transition-transform ${expanded ? "rotate-180" : ""}`} aria-hidden="true" />
                   </button>
                   {expanded ? (
                     <ul className="my-1 ms-6 flex flex-col gap-0.5 border-s border-warm-200 ps-2">
-                      {g.keys.map(([k, name]) => {
+                      {g.keys.map(([k, ar, en]) => {
                         const chosen = k === value && !custom;
                         return (
                           <li key={k}>
@@ -147,7 +150,7 @@ export function SpecPicker({ value, custom, onPick, onOther }: { value: string; 
                                 chosen ? "bg-yellow-100 font-semibold text-yellow-900" : "text-warm-700 hover:bg-warm-100 hover:text-ink"
                               }`}
                             >
-                              {name}
+                              {tr(ar, en)}
                               {chosen ? <Check className="size-4 shrink-0" aria-hidden="true" /> : null}
                             </button>
                           </li>
@@ -173,7 +176,7 @@ export function SpecPicker({ value, custom, onPick, onOther }: { value: string; 
               <span className="grid size-7 shrink-0 place-items-center rounded-md bg-warm-100 text-warm-700">
                 <PencilLine className="size-3.5" aria-hidden="true" />
               </span>
-              مواصفة أخرى…
+              {tr("مواصفة أخرى…", "Other spec…")}
             </button>
           </div>
         </div>

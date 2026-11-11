@@ -9,6 +9,7 @@ import { cancelAssistantAction, confirmAssistantAction, undoAssistantAction, typ
 import { buttonClass } from "@/components/ui/button";
 import type { AssistantCard, AssistantChoice, AssistantReply, AssistantUsageView } from "@/lib/assistant/rules";
 import { overBudget } from "@/lib/assistant/rules";
+import { useAdminTr } from "./AdminLang";
 
 type Message = {
   id: number;
@@ -61,15 +62,16 @@ function toRequest(messages: Message[]) {
 function UsageMeter({ usage }: { usage: AssistantUsageView }) {
   const cap = usage.capCents * 10_000;
   const percent = cap ? Math.min(100, Math.round((usage.spentMicros / cap) * 100)) : 100;
+  const { tr, ar } = useAdminTr();
   return (
-    <div className="px-4 pb-2.5" title="استهلاك Claude API هاد الشهر">
+    <div className="px-4 pb-2.5" title={tr("استهلاك Claude API هاد الشهر", "Claude API spend this month")}>
       <div className="flex justify-between text-xs text-warm-300" dir="ltr">
         <span>
           {dollars(usage.spentMicros)} / {dollars(cap)}
         </span>
-        <span dir="rtl">هاد الشهر</span>
+        <span dir={ar ? "rtl" : "ltr"}>{tr("هاد الشهر", "This month")}</span>
       </div>
-      <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/15" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100} aria-label="استهلاك الميزانية الشهرية">
+      <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/15" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100} aria-label={tr("استهلاك الميزانية الشهرية", "Monthly budget spent")}>
         <div className={`h-full rounded-full ${overBudget(usage.spentMicros, usage.capCents) ? "bg-danger" : "bg-yellow-500"}`} style={{ width: `${percent}%` }} />
       </div>
     </div>
@@ -80,6 +82,7 @@ function ProposalCard({ card, onChange }: { card: AssistantCard; onChange: (stat
   const [busy, setBusy] = useState<"confirm" | "cancel" | "undo" | null>(null);
   const [error, setError] = useState("");
   const router = useRouter();
+  const { tr } = useAdminTr();
 
   const act = async (kind: "confirm" | "cancel" | "undo", action: (s: AssistantActionState, fd: FormData) => Promise<AssistantActionState>, next: AssistantCard["status"]) => {
     setBusy(kind);
@@ -92,10 +95,10 @@ function ProposalCard({ card, onChange }: { card: AssistantCard; onChange: (stat
         onChange(next);
         router.refresh();
       } else {
-        setError(result.message ?? "وقع مشكل.");
+        setError(result.message ?? tr("وقع مشكل.", "Something went wrong."));
       }
     } catch {
-      setError("ما قدرناش نوصلو للسيرفر. عاود جرب.");
+      setError(tr("ما قدرناش نوصلو للسيرفر. عاود جرب.", "Could not reach the server. Try again."));
     } finally {
       setBusy(null);
     }
@@ -139,11 +142,11 @@ function ProposalCard({ card, onChange }: { card: AssistantCard; onChange: (stat
           <>
             <button type="button" disabled={!!busy} onClick={() => act("confirm", confirmAssistantAction, "APPLIED")} className={buttonClass({ variant: "primary" })}>
               {busy === "confirm" ? spinner : <Check className="size-4" aria-hidden="true" />}
-              تأكيد
+              {tr("تأكيد", "Confirm")}
             </button>
             <button type="button" disabled={!!busy} onClick={() => act("cancel", cancelAssistantAction, "CANCELLED")} className={smallGhost}>
               {busy === "cancel" ? spinner : null}
-              إلغاء
+              {tr("إلغاء", "Cancel")}
             </button>
           </>
         ) : null}
@@ -151,17 +154,17 @@ function ProposalCard({ card, onChange }: { card: AssistantCard; onChange: (stat
           <>
             <span className="flex items-center gap-1 px-1 text-sm font-semibold text-success" role="status">
               <Check className="size-4" aria-hidden="true" />
-              تسجل
+              {tr("تسجل", "Saved")}
             </span>
             <button type="button" disabled={!!busy} onClick={() => act("undo", undoAssistantAction, "UNDONE")} className={smallGhost}>
               {busy === "undo" ? spinner : <RotateCcw className="size-4" aria-hidden="true" />}
-              تراجع
+              {tr("تراجع", "Undo")}
             </button>
           </>
         ) : null}
-        {card.status === "CANCELLED" ? <span className="px-1 text-sm text-warm-600">تلغى</span> : null}
-        {card.status === "UNDONE" ? <span className="px-1 text-sm text-warm-600">تراجعتي عليه</span> : null}
-        {card.status === "EXPIRED" ? <span className="px-1 text-sm text-warm-600">سالا وقتو</span> : null}
+        {card.status === "CANCELLED" ? <span className="px-1 text-sm text-warm-600">{tr("تلغى", "Cancelled")}</span> : null}
+        {card.status === "UNDONE" ? <span className="px-1 text-sm text-warm-600">{tr("تراجعتي عليه", "Undone")}</span> : null}
+        {card.status === "EXPIRED" ? <span className="px-1 text-sm text-warm-600">{tr("سالا وقتو", "Expired")}</span> : null}
       </div>
       {error ? (
         <p role="alert" className="bg-danger-soft px-3 py-2 text-sm font-medium text-danger">
@@ -185,6 +188,7 @@ export function AssistantWidget() {
   const textarea = useRef<HTMLTextAreaElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
+  const { tr } = useAdminTr();
 
   const blocked = usage ? overBudget(usage.spentMicros, usage.capCents) : false;
 
@@ -216,14 +220,14 @@ export function AssistantWidget() {
       const shrunk = await Promise.all(chosen.map(shrink));
       setPhotos((p) => [...p, ...shrunk]);
     } catch {
-      setNotice("ما قدرناش نقراو هاد الصورة. جرب JPG ولا PNG.");
+      setNotice(tr("ما قدرناش نقراو هاد الصورة. جرب JPG ولا PNG.", "Could not read this image. Try JPG or PNG."));
     }
     if (fileInput.current) fileInput.current.value = "";
   };
 
   const send = async (text: string, images: string[], button?: { hidden?: string }) => {
     const typed = text.trim();
-    const clean = typed || (images.length ? "شوف هاد الصورة" : "");
+    const clean = typed || (images.length ? tr("شوف هاد الصورة", "Look at this photo") : "");
     if (!clean || sending) return;
     const userMessage: Message = { id: nextId.current++, role: "user", text: clean, hidden: button?.hidden, auto: !!button || !typed, images: images.length ? images : undefined };
     const next = [...messages, userMessage];
@@ -241,13 +245,13 @@ export function AssistantWidget() {
       });
       const data = (await res.json().catch(() => null)) as (AssistantReply & { error?: string }) | null;
       if (!res.ok || !data || data.error) {
-        added = { id: nextId.current++, role: "assistant", text: res.status === 401 ? "سالات الجلسة. دخل من جديد." : (data?.error ?? "وقع مشكل. عاود جرب."), error: true };
+        added = { id: nextId.current++, role: "assistant", text: res.status === 401 ? tr("سالات الجلسة. دخل من جديد.", "Your session ended. Log in again.") : (data?.error ?? tr("وقع مشكل. عاود جرب.", "Something went wrong. Try again.")), error: true };
       } else {
         added = { id: nextId.current++, role: "assistant", text: data.reply, cards: data.cards, choices: data.choices };
         setUsage(data.usage);
       }
     } catch {
-      added = { id: nextId.current++, role: "assistant", text: "ما قدرناش نوصلو للسيرفر. عاود جرب.", error: true };
+      added = { id: nextId.current++, role: "assistant", text: tr("ما قدرناش نوصلو للسيرفر. عاود جرب.", "Could not reach the server. Try again."), error: true };
     }
     setMessages((m) => [...m, added]);
     setSending(false);
@@ -265,8 +269,8 @@ export function AssistantWidget() {
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        aria-label={open ? "سد المساعد الذكي" : "حل المساعد الذكي"}
-        title="المساعد الذكي"
+        aria-label={open ? tr("سد المساعد الذكي", "Close the assistant") : tr("حل المساعد الذكي", "Open the assistant")}
+        title={tr("المساعد الذكي", "Assistant")}
         className="fixed end-4 bottom-28 z-40 grid size-14 cursor-pointer place-items-center rounded-full bg-yellow-500 text-ink shadow-lg shadow-ink/25 transition-colors hover:bg-yellow-600 active:bg-yellow-700 lg:end-6 lg:bottom-6"
       >
         {open ? <X className="size-6" aria-hidden="true" /> : <Sparkles className="size-6" aria-hidden="true" />}
@@ -275,7 +279,7 @@ export function AssistantWidget() {
       {open ? (
         <section
           role="dialog"
-          aria-label="المساعد الذكي"
+          aria-label={tr("المساعد الذكي", "Assistant")}
           className="fixed end-4 bottom-44 z-40 flex h-[min(38rem,calc(100dvh-12.5rem))] w-[min(26rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-warm-200 bg-warm-50 shadow-2xl shadow-ink/30 lg:end-6 lg:bottom-24 lg:h-[min(38rem,calc(100dvh-8rem))]"
         >
           <header className="bg-ink text-white">
@@ -283,9 +287,9 @@ export function AssistantWidget() {
               <span className="grid size-8 place-items-center rounded-full bg-yellow-500 text-ink">
                 <Bot className="size-4.5" aria-hidden="true" />
               </span>
-              <p className="min-w-0 flex-1 font-extrabold">المساعد الذكي</p>
+              <p className="min-w-0 flex-1 font-extrabold">{tr("المساعد الذكي", "Assistant")}</p>
               <Link href="/admin/assistant" className="rounded-md px-1 text-xs text-warm-300 underline underline-offset-2 hover:text-white">
-                السجل
+                {tr("السجل", "Log")}
               </Link>
             </div>
             {usage ? <UsageMeter usage={usage} /> : null}
@@ -294,15 +298,15 @@ export function AssistantWidget() {
           <div ref={list} className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3" aria-live="polite">
             {messages.length === 0 ? (
               <div className="rounded-xl bg-white p-3 text-sm text-warm-800">
-                <p className="font-semibold">صور منتج ولا كتب ليا شنو بغيتي فالمنتجات:</p>
+                <p className="font-semibold">{tr("صور منتج ولا كتب ليا شنو بغيتي فالمنتجات:", "Send a product photo or tell me what to change in the products:")}</p>
                 <ul className="mt-1 space-y-0.5 text-warm-600">
-                  <li>المخزون: «جبت منو 20 كحل» · «سالا الأبيض»</li>
-                  <li>الثمن: «QCY T13 دير ليه 230» · «تخفيض من 300 ل 250»</li>
-                  <li>لون جديد: «زيد ليه الأزرق، جاني منو 10»</li>
-                  <li>النصوص: «بدل العنوان ديال Anker Zolo» · «حسّن الوصف»</li>
-                  <li>منتج جديد: صور ليا المنتج</li>
+                  <li>{tr("المخزون: «جبت منو 20 كحل» · «سالا الأبيض»", "Stock: “got 20 black ones” · “white is sold out”")}</li>
+                  <li>{tr("الثمن: «QCY T13 دير ليه 230» · «تخفيض من 300 ل 250»", "Price: “set QCY T13 to 230” · “discount from 300 to 250”")}</li>
+                  <li>{tr("لون جديد: «زيد ليه الأزرق، جاني منو 10»", "New colour: “add blue, I got 10”")}</li>
+                  <li>{tr("النصوص: «بدل العنوان ديال Anker Zolo» · «حسّن الوصف»", "Texts: “change the Anker Zolo title” · “improve the description”")}</li>
+                  <li>{tr("منتج جديد: صور ليا المنتج", "New product: send me a photo of it")}</li>
                 </ul>
-                <p className="mt-2 text-xs text-warm-600">ما كنبدل والو حتى تضغط «تأكيد».</p>
+                <p className="mt-2 text-xs text-warm-600">{tr("ما كنبدل والو حتى تضغط «تأكيد».", "Nothing changes until you press “Confirm”.")}</p>
               </div>
             ) : null}
 
@@ -312,7 +316,7 @@ export function AssistantWidget() {
                   <div className="mb-1 flex gap-1">
                     {m.images.map((src, i) => (
                       <span key={i} className="relative size-20 overflow-hidden rounded-lg bg-warm-100">
-                        <Image src={src} alt="الصورة اللي صيفطتي" fill sizes="80px" unoptimized className="object-cover" />
+                        <Image src={src} alt={tr("الصورة اللي صيفطتي", "The photo you sent")} fill sizes="80px" unoptimized className="object-cover" />
                       </span>
                     ))}
                   </div>
@@ -354,10 +358,10 @@ export function AssistantWidget() {
                       <button
                         type="button"
                         disabled={sending || m.id !== lastId}
-                        onClick={() => send("حتى واحد ما هو هادا، المنتج ما كاينش فالمتجر", [], {})}
+                        onClick={() => send(tr("حتى واحد ما هو هادا، المنتج ما كاينش فالمتجر", "None of these: the product is not in the shop"), [], {})}
                         className="min-h-11 cursor-pointer rounded-lg px-2 text-sm font-semibold text-warm-800 transition-colors hover:bg-warm-100 disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        حتى واحد ما هو هادا
+                        {tr("حتى واحد ما هو هادا", "None of these")}
                       </button>
                     </div>
                   </div>
@@ -368,7 +372,7 @@ export function AssistantWidget() {
             {sending ? (
               <p className="flex items-center justify-end gap-2 text-sm text-warm-600" role="status">
                 <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
-                كنقلب...
+                {tr("كنقلب…", "Searching…")}
               </p>
             ) : null}
           </div>
@@ -388,7 +392,7 @@ export function AssistantWidget() {
                     <button
                       type="button"
                       onClick={() => setPhotos((p) => p.filter((_, j) => j !== i))}
-                      aria-label="حيد الصورة"
+                      aria-label={tr("حيد الصورة", "Remove photo")}
                       className="absolute end-0 top-0 grid size-6 cursor-pointer place-items-center rounded-bl-lg bg-ink text-white"
                     >
                       <X className="size-3.5" aria-hidden="true" />
@@ -404,9 +408,9 @@ export function AssistantWidget() {
             ) : null}
             {blocked ? (
               <p className="mb-2 rounded-lg bg-warning-soft px-2 py-1 text-xs text-warning-text">
-                وصلنا للسقف الشهري.{" "}
+                {tr("وصلنا للسقف الشهري.", "The monthly cap is reached.")}{" "}
                 <Link href="/admin/settings" className="underline underline-offset-2">
-                  زيد فيه من الإعدادات
+                  {tr("زيد فيه من الإعدادات", "Raise it in Settings")}
                 </Link>
               </p>
             ) : null}
@@ -417,15 +421,15 @@ export function AssistantWidget() {
                 accept="image/*"
                 multiple
                 hidden
-                aria-label="زيد صورة"
+                aria-label={tr("زيد صورة", "Add a photo")}
                 onChange={(e) => addFiles(e.target.files)}
               />
               <button
                 type="button"
                 onClick={() => fileInput.current?.click()}
                 disabled={photos.length >= MAX_IMAGES || blocked}
-                aria-label="زيد صورة"
-                title="زيد صورة"
+                aria-label={tr("زيد صورة", "Add a photo")}
+                title={tr("زيد صورة", "Add a photo")}
                 className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-lg text-warm-800 transition-colors hover:bg-warm-100 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <ImagePlus className="size-5" aria-hidden="true" />
@@ -444,15 +448,15 @@ export function AssistantWidget() {
                 maxLength={3500}
                 disabled={blocked}
                 dir="auto"
-                placeholder="كتب هنا..."
-                aria-label="رسالتك للمساعد"
+                placeholder={tr("كتب هنا…", "Type here…")}
+                aria-label={tr("رسالتك للمساعد", "Your message to the assistant")}
                 className="max-h-28 min-h-11 flex-1 resize-none rounded-lg bg-warm-100 px-3 py-2.5 text-base text-warm-800 placeholder:text-warm-400 disabled:cursor-not-allowed"
               />
               <button
                 type="submit"
                 disabled={sending || blocked || (!input.trim() && !photos.length)}
-                aria-label="صيفط"
-                title="صيفط"
+                aria-label={tr("صيفط", "Send")}
+                title={tr("صيفط", "Send")}
                 className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-lg bg-yellow-500 text-ink transition-colors hover:bg-yellow-600 active:bg-yellow-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Send className="size-5 rtl:-scale-x-100" aria-hidden="true" />

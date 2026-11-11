@@ -15,6 +15,15 @@ export const STOCK_REASON_LABEL: Record<StockReason, string> = {
   ORDER_RETURNED: "إرجاع طلب",
 };
 
+export const STOCK_REASON_LABEL_EN: Record<StockReason, string> = {
+  OPENING: "Opening balance",
+  STOCK_IN: "Stock in",
+  ADJUSTMENT: "Adjustment / out",
+  ORDER_CONFIRMED: "Order confirmed",
+  ORDER_CANCELLED: "Order cancelled",
+  ORDER_RETURNED: "Order returned",
+};
+
 /** "أسود · 128GB", or null for a product without colours. */
 export const colorLabel = (v: { colorAr: string | null; storage: string | null }) => [v.colorAr, v.storage].filter(Boolean).join(" · ") || null;
 

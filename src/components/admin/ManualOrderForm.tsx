@@ -6,15 +6,16 @@ import { useActionState, useMemo, useState } from "react";
 import { createOrderByHand, type ActionState } from "@/app/actions/admin-orders";
 import { buttonClass } from "@/components/ui/button";
 import { submitKeepingValues } from "@/lib/forms";
-import { IN_SHOP_ADDRESS, MANUAL_SOURCES, manualTotals, START_AS, suggestedShipping } from "@/lib/manual-order";
+import { IN_SHOP_ADDRESS, MANUAL_SOURCES, MANUAL_SOURCES_EN, manualTotals, START_AS, START_AS_EN, suggestedShipping } from "@/lib/manual-order";
+import { useAdminTr } from "./AdminLang";
 import { formatMAD } from "@/lib/money";
 import { FormMessage, inputClass, L, Panel } from "./ui";
 
 type StartAs = keyof typeof START_AS;
-const START_HINT: Record<StartAs, string> = {
-  NEW: "كيبقى جديد حتى تأكدو مع الزبون. المخزون ما كيتقاسش.",
-  CONFIRMED: "الزبون أكّد: كيدخل مؤكَّد ويُخصم من المخزون.",
-  DELIVERED: "الزبون جا للمحل وخدا السلعة: كيتسجل مسلَّم، بلا توصيل، والفلوس عندك.",
+const START_HINT: Record<StartAs, [ar: string, en: string]> = {
+  NEW: ["كيبقى جديد حتى تأكدو مع الزبون. المخزون ما كيتقاسش.", "Stays new until you confirm it with the customer. Stock is not touched."],
+  CONFIRMED: ["الزبون أكّد: كيدخل مؤكَّد ويُخصم من المخزون.", "The customer confirmed: it goes in confirmed and comes off the stock."],
+  DELIVERED: ["الزبون جا للمحل وخدا السلعة: كيتسجل مسلَّم، بلا توصيل، والفلوس عندك.", "The customer came to the shop and took the goods: recorded as delivered, no delivery, and the money is yours."],
 };
 
 export type PickVariant = { id: string; productId: string; name: string; label: string | null; colorHex: string | null; sku: string; price: number; stock: number; image: string | null };
@@ -33,6 +34,8 @@ export function ManualOrderForm({
   defaults: { name: string; phone: string };
 }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(createOrderByHand, {});
+  const { tr, lang } = useAdminTr();
+  const mad = (v: number) => formatMAD(v, lang);
   const [lines, setLines] = useState<Line[]>([]);
   const [query, setQuery] = useState("");
   const [cityId, setCityId] = useState("");
@@ -76,7 +79,7 @@ export function ManualOrderForm({
       <input type="hidden" name="items" value={JSON.stringify(lines)} />
       <div className="flex flex-col gap-6">
         {/* Above the next card: glass cards each make their own layer, which would cover the search results. */}
-        <Panel title="المنتجات" className="relative z-10">
+        <Panel title={tr("المنتجات", "Products")} className="relative z-10">
           <div className="relative">
             <Search className="pointer-events-none absolute start-3 top-3.5 size-4 text-warm-500" aria-hidden="true" />
             <input
@@ -88,8 +91,8 @@ export function ManualOrderForm({
                 e.preventDefault();
                 if (results[0] && nextOf(results[0])) add(results[0]);
               }}
-              placeholder="ابحث باسم المنتج أو الـ SKU"
-              aria-label="ابحث عن منتج"
+              placeholder={tr("ابحث باسم المنتج أو الـ SKU", "Search by product name or SKU")}
+              aria-label={tr("ابحث عن منتج", "Search for a product")}
               className={`${inputClass} ps-9`}
             />
             {results.length ? (
@@ -119,13 +122,13 @@ export function ManualOrderForm({
                                 ))}
                               </span>
                             ) : null}
-                            {colours.length > 1 ? `${colours.length} ألوان · ` : ""}
-                            {stock < 1 ? "نفد المخزون" : `بقي ${stock}`}
+                            {colours.length > 1 ? tr(`${colours.length} ألوان · `, `${colours.length} colours · `) : ""}
+                            {stock < 1 ? tr("نفد المخزون", "Out of stock") : tr(`بقي ${stock}`, `${stock} left`)}
                           </span>
                         </span>
                         <span className="shrink-0 font-bold text-ink">
-                          {Math.max(...prices) > low ? "من " : ""}
-                          {formatMAD(low, "ar")}
+                          {Math.max(...prices) > low ? tr("من ", "From ") : ""}
+                          {mad(low)}
                         </span>
                       </button>
                     </li>
@@ -133,7 +136,7 @@ export function ManualOrderForm({
                 })}
               </ul>
             ) : query.trim() ? (
-              <p className="mt-2 text-sm text-warm-600">ما كاين حتى منتج بهاد الاسم.</p>
+              <p className="mt-2 text-sm text-warm-600">{tr("ما كاين حتى منتج بهاد الاسم.", "No product with this name.")}</p>
             ) : null}
           </div>
 
@@ -150,10 +153,11 @@ export function ManualOrderForm({
                       <span className="block font-semibold text-ink">{v.name}</span>
                       <span className="flex items-center gap-1.5 text-xs text-warm-600">
                         <Swatch hex={v.colorHex} />
-                        {v.label ? `${v.label} · ` : ""}بقي {v.stock}
+                        {v.label ? `${v.label} · ` : ""}
+                        {tr(`بقي ${v.stock}`, `${v.stock} left`)}
                       </span>
                       {siblings.length > 1 ? (
-                        <span role="radiogroup" aria-label={`لون ${v.name}`} className="mt-1.5 flex flex-wrap gap-1.5">
+                        <span role="radiogroup" aria-label={tr(`لون ${v.name}`, `Colour of ${v.name}`)} className="mt-1.5 flex flex-wrap gap-1.5">
                           {siblings.map((s) => {
                             const taken = s.id !== v.id && lines.some((x) => x.variantId === s.id);
                             return (
@@ -162,8 +166,8 @@ export function ManualOrderForm({
                                 type="button"
                                 role="radio"
                                 aria-checked={s.id === v.id}
-                                aria-label={`${s.label ?? ""}${s.stock < 1 ? " (نفد)" : ""}`}
-                                title={`${s.label ?? ""} · بقي ${s.stock}`}
+                                aria-label={`${s.label ?? ""}${s.stock < 1 ? tr(" (نفد)", " (sold out)") : ""}`}
+                                title={`${s.label ?? ""} · ${tr(`بقي ${s.stock}`, `${s.stock} left`)}`}
                                 disabled={s.stock < 1 || taken}
                                 onClick={() =>
                                   setLines((all) =>
@@ -187,20 +191,20 @@ export function ManualOrderForm({
                       ) : null}
                     </span>
                     <span className="flex items-center gap-1">
-                      <button type="button" aria-label="نقّص الكمية" disabled={l.qty <= 1} onClick={() => patch(l.variantId, { qty: l.qty - 1 })} className={buttonClass({ variant: "outline", size: "icon" })}>
+                      <button type="button" aria-label={tr("نقّص الكمية", "Decrease quantity")} disabled={l.qty <= 1} onClick={() => patch(l.variantId, { qty: l.qty - 1 })} className={buttonClass({ variant: "outline", size: "icon" })}>
                         <Minus className="size-4" aria-hidden="true" />
                       </button>
                       <span className="w-8 text-center font-bold text-ink" aria-live="polite">
                         {l.qty}
                       </span>
-                      <button type="button" aria-label="زيد الكمية" disabled={l.qty >= v.stock} onClick={() => patch(l.variantId, { qty: l.qty + 1 })} className={buttonClass({ variant: "outline", size: "icon" })}>
+                      <button type="button" aria-label={tr("زيد الكمية", "Increase quantity")} disabled={l.qty >= v.stock} onClick={() => patch(l.variantId, { qty: l.qty + 1 })} className={buttonClass({ variant: "outline", size: "icon" })}>
                         <Plus className="size-4" aria-hidden="true" />
                       </button>
                     </span>
-                    <L label="الثمن" className="w-24">
+                    <L label={tr("الثمن", "Price")} className="w-24">
                       <input type="number" min={0} value={l.unitPrice} onChange={(e) => patch(l.variantId, { unitPrice: num(e.target.value) })} className={inputClass} />
                     </L>
-                    <button type="button" aria-label={`حيد ${v.name}`} onClick={() => setLines((all) => all.filter((x) => x.variantId !== l.variantId))} className={buttonClass({ variant: "ghost", size: "icon" })}>
+                    <button type="button" aria-label={tr(`حيد ${v.name}`, `Remove ${v.name}`)} onClick={() => setLines((all) => all.filter((x) => x.variantId !== l.variantId))} className={buttonClass({ variant: "ghost", size: "icon" })}>
                       <Trash2 className="size-4" aria-hidden="true" />
                     </button>
                   </li>
@@ -208,21 +212,21 @@ export function ManualOrderForm({
               })}
             </ul>
           ) : (
-            <p className="mt-3 text-sm text-warm-600">ابحث عن منتج وزيدو للطلب.</p>
+            <p className="mt-3 text-sm text-warm-600">{tr("ابحث عن منتج وزيدو للطلب.", "Search for a product and add it to the order.")}</p>
           )}
         </Panel>
 
-        <Panel title="الزبون">
+        <Panel title={tr("الزبون", "Customer")}>
           <div className="grid gap-3 sm:grid-cols-2">
-            <L label="الاسم">
+            <L label={tr("الاسم", "Name")}>
               <input name="name" required maxLength={80} defaultValue={defaults.name} className={inputClass} />
             </L>
-            <L label="الهاتف">
+            <L label={tr("الهاتف", "Phone")}>
               <input name="phone" type="tel" inputMode="tel" required dir="ltr" defaultValue={defaults.phone} className={`${inputClass} text-start`} />
             </L>
-            <L label="المدينة">
+            <L label={tr("المدينة", "City")}>
               <select name="cityId" required value={cityId} onChange={(e) => setCityId(e.target.value)} className={inputClass}>
-                <option value="">اختر المدينة</option>
+                <option value="">{tr("اختر المدينة", "Pick the city")}</option>
                 {cities.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
@@ -230,49 +234,49 @@ export function ManualOrderForm({
                 ))}
               </select>
             </L>
-            <L label="مصدر الطلب">
+            <L label={tr("مصدر الطلب", "Order source")}>
               <select name="source" defaultValue="WHATSAPP" className={inputClass}>
-                {Object.entries(MANUAL_SOURCES).map(([k, label]) => (
+                {Object.entries(lang === "en" ? MANUAL_SOURCES_EN : MANUAL_SOURCES).map(([k, label]) => (
                   <option key={k} value={k}>
                     {label}
                   </option>
                 ))}
               </select>
             </L>
-            <L label={inShop ? "العنوان (اختياري)" : "العنوان"} className="sm:col-span-2">
+            <L label={inShop ? tr("العنوان (اختياري)", "Address (optional)") : tr("العنوان", "Address")} className="sm:col-span-2">
               <input name="address" required={!inShop} maxLength={300} placeholder={inShop ? IN_SHOP_ADDRESS : undefined} className={inputClass} />
             </L>
-            <L label="ملاحظات (اختياري)" className="sm:col-span-2">
+            <L label={tr("ملاحظات (اختياري)", "Notes (optional)")} className="sm:col-span-2">
               <textarea name="notes" rows={2} maxLength={500} className={`${inputClass} py-2`} />
             </L>
           </div>
         </Panel>
       </div>
 
-      <Panel title="الملخص" className="h-fit lg:sticky lg:top-40">
+      <Panel title={tr("الملخص", "Summary")} className="h-fit lg:sticky lg:top-40">
         <div className="grid grid-cols-2 gap-3">
-          <L label="الخصم (درهم)">
+          <L label={tr("الخصم (درهم)", "Discount (MAD)")}>
             <input name="discount" type="number" min={0} value={discount} onChange={(e) => setDiscount(num(e.target.value))} className={inputClass} />
           </L>
-          <L label="التوصيل (درهم)">
+          <L label={tr("التوصيل (درهم)", "Delivery (MAD)")}>
             <input name="shippingFee" type="number" min={0} value={shipping} onChange={(e) => setShippingTyped(num(e.target.value))} className={inputClass} />
           </L>
         </div>
         <dl className="mt-4 flex flex-col gap-1 text-sm">
           <div className="flex justify-between">
-            <dt className="text-warm-600">المجموع الفرعي</dt>
-            <dd>{formatMAD(subtotal, "ar")}</dd>
+            <dt className="text-warm-600">{tr("المجموع الفرعي", "Subtotal")}</dt>
+            <dd>{mad(subtotal)}</dd>
           </div>
           <div className="mt-2 flex justify-between border-t border-warm-200 pt-2 text-base">
-            <dt className="font-bold text-ink">{inShop ? "المبلغ اللي خلّص" : "المبلغ عند الاستلام"}</dt>
-            <dd className="font-extrabold text-ink">{totals.total === null ? "—" : formatMAD(totals.total, "ar")}</dd>
+            <dt className="font-bold text-ink">{inShop ? tr("المبلغ اللي خلّص", "Amount paid") : tr("المبلغ عند الاستلام", "Cash on delivery")}</dt>
+            <dd className="font-extrabold text-ink">{totals.total === null ? "—" : mad(totals.total)}</dd>
           </div>
         </dl>
-        {totals.total === null ? <p className="mt-2 text-sm font-medium text-danger">الخصم أكبر من ثمن المنتجات.</p> : null}
+        {totals.total === null ? <p className="mt-2 text-sm font-medium text-danger">{tr("الخصم أكبر من ثمن المنتجات.", "The discount is larger than the products' price.")}</p> : null}
         <fieldset className="mt-4">
-          <legend className="text-sm font-semibold text-ink">حالة الطلب</legend>
+          <legend className="text-sm font-semibold text-ink">{tr("حالة الطلب", "Order status")}</legend>
           <div className="mt-2 grid grid-cols-3 gap-1 rounded-xl bg-warm-100 p-1">
-            {(Object.entries(START_AS) as [StartAs, string][]).map(([value, label]) => (
+            {(Object.entries(lang === "en" ? START_AS_EN : START_AS) as [StartAs, string][]).map(([value, label]) => (
               <label
                 key={value}
                 className="flex min-h-10 cursor-pointer items-center justify-center rounded-lg px-2 text-center text-sm font-semibold text-warm-600 transition-colors has-checked:bg-white has-checked:text-ink has-checked:shadow-sm has-focus-visible:ring-3 has-focus-visible:ring-yellow-300"
@@ -282,11 +286,11 @@ export function ManualOrderForm({
               </label>
             ))}
           </div>
-          <p className="mt-2 text-xs text-warm-600">{START_HINT[startAs]}</p>
+          <p className="mt-2 text-xs text-warm-600">{tr(...START_HINT[startAs])}</p>
         </fieldset>
         <button type="submit" disabled={pending || !lines.length || totals.total === null} className={buttonClass({ className: "mt-4 w-full" })}>
           {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : null}
-          سجّل الطلب
+          {tr("سجّل الطلب", "Save order")}
         </button>
         <div className="mt-3">
           <FormMessage state={state} />

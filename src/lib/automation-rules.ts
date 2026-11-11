@@ -53,6 +53,29 @@ export const PARAMS = {
   review_link: "رابط التقييم",
 } as const;
 
+export const TRIGGERS_EN: Record<keyof typeof TRIGGERS, string> = {
+  order_created: "New order",
+  order_confirmed: "Order confirmed",
+  order_shipping: "Order shipped",
+  out_for_delivery: "Out for delivery today",
+  delivery_failed: "Delivery attempt failed",
+  order_delivered: "Delivered",
+  order_returning: "Returning",
+  order_returned: "Order returned",
+  order_cancelled: "Order cancelled",
+};
+
+export const PARAMS_EN: Record<keyof typeof PARAMS, string> = {
+  name: "Customer name",
+  number: "Order number",
+  total: "Amount",
+  products: "Products",
+  city: "City",
+  address: "Address",
+  tracking: "Tracking number",
+  review_link: "Review link",
+};
+
 export type ParamKey = keyof typeof PARAMS;
 export const isParam = (s: string): s is ParamKey => s in PARAMS;
 

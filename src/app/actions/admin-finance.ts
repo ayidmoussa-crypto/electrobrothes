@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/admin";
+import { adminTr } from "@/lib/admin-lang";
 import { db } from "@/lib/db";
 import { BUSINESS_CATEGORIES, expectedFromCarrier, PERSONAL_CATEGORIES } from "@/lib/finance";
 import { feeFields, toFeeOrder } from "@/lib/finance-data";
@@ -27,10 +28,10 @@ const expenseInput = z
 export async function addExpense(_: State, fd: FormData): Promise<State> {
   const admin = await requireAdmin();
   const parsed = expenseInput.safeParse(fields(fd));
-  if (!parsed.success) return { ok: false, message: "تحقق من النوع والمبلغ والتاريخ." };
+  if (!parsed.success) return { ok: false, message: (await adminTr()).tr("تحقق من النوع والمبلغ والتاريخ.", "Check the type, amount and date.") };
   await db.expense.create({ data: { ...parsed.data, actor: admin.email } });
   refresh();
-  return { ok: true, message: "تمت الإضافة." };
+  return { ok: true, message: (await adminTr()).tr("تمت الإضافة.", "Added.") };
 }
 
 export async function deleteExpense(fd: FormData) {
@@ -46,10 +47,10 @@ const capitalInput = z.object({ type: z.enum(["INJECTION", "WITHDRAWAL"]), amoun
 export async function addCapital(_: State, fd: FormData): Promise<State> {
   const admin = await requireAdmin();
   const parsed = capitalInput.safeParse(fields(fd));
-  if (!parsed.success) return { ok: false, message: "تحقق من المبلغ والتاريخ." };
+  if (!parsed.success) return { ok: false, message: (await adminTr()).tr("تحقق من المبلغ والتاريخ.", "Check the amount and date.") };
   await db.capitalEntry.create({ data: { ...parsed.data, actor: admin.email } });
   refresh();
-  return { ok: true, message: "تمت الإضافة." };
+  return { ok: true, message: (await adminTr()).tr("تمت الإضافة.", "Added.") };
 }
 
 export async function deleteCapital(fd: FormData) {
@@ -64,7 +65,7 @@ export async function deleteCapital(fd: FormData) {
 export async function markCodReceived(_: State, fd: FormData): Promise<State> {
   await requireAdmin();
   const ids = z.array(z.string().min(1).max(40)).min(1).max(200).safeParse(fd.getAll("orderId"));
-  if (!ids.success) return { ok: false, message: "اختر طلباً واحداً على الأقل." };
+  if (!ids.success) return { ok: false, message: (await adminTr()).tr("اختر طلباً واحداً على الأقل.", "Pick at least one order.") };
   const orders = await db.order.findMany({ where: { id: { in: ids.data }, status: "DELIVERED", codReceivedAt: null }, select: { id: true, ...feeFields } });
   const now = new Date();
   await db.$transaction(
@@ -77,7 +78,7 @@ export async function markCodReceived(_: State, fd: FormData): Promise<State> {
   );
   refresh();
   revalidatePath("/admin/orders");
-  return { ok: true, message: `تم تسجيل ${orders.length} تحويل.` };
+  return { ok: true, message: (await adminTr()).tr(`تم تسجيل ${orders.length} تحويل.`, `${orders.length} transfers recorded.`) };
 }
 
 const oneInput = z.object({
@@ -89,11 +90,11 @@ const oneInput = z.object({
 export async function setCodReceived(_: State, fd: FormData): Promise<State> {
   await requireAdmin();
   const parsed = oneInput.safeParse(fields(fd));
-  if (!parsed.success) return { ok: false, message: "تحقق من المبلغ." };
+  if (!parsed.success) return { ok: false, message: (await adminTr()).tr("تحقق من المبلغ.", "Check the amount.") };
   const { orderId, amount: received } = parsed.data;
   await db.order.updateMany({ where: { id: orderId }, data: { codReceivedAmount: received, codReceivedAt: received === null ? null : new Date() } });
   refresh();
   revalidatePath(`/admin/orders/${orderId}`);
   revalidatePath("/admin/orders");
-  return { ok: true, message: received === null ? "تم حذف التحويل." : "تم تسجيل التحويل." };
+  return { ok: true, message: received === null ? (await adminTr()).tr("تم حذف التحويل.", "Transfer removed.") : (await adminTr()).tr("تم تسجيل التحويل.", "Transfer recorded.") };
 }

@@ -7,6 +7,7 @@ import { acceptAllSeoSuggestions, acceptSeoSuggestion, generateSeoSuggestions, r
 import { buttonClass } from "@/components/ui/button";
 import { scoreTone } from "@/lib/seo-content/checks";
 import type { ProductChanges, SuggestionView } from "@/lib/seo-content/service";
+import { useAdminTr } from "./AdminLang";
 import { FormMessage } from "./ui";
 
 /** Lets the drawer reload its score and checks as soon as a change is decided. */
@@ -36,6 +37,7 @@ function ChangeRow({ row }: { row: SuggestionView }) {
   const [error, setError] = useState("");
   const router = useRouter();
   const onChanged = useContext(SeoChangedContext);
+  const { tr } = useAdminTr();
 
   const act = async (action: (id: string) => Promise<SeoActionState>) => {
     setBusy(true);
@@ -45,9 +47,9 @@ function ChangeRow({ row }: { row: SuggestionView }) {
       if (result.ok) {
         router.refresh();
         onChanged?.();
-      } else setError(result.message ?? "وقع مشكل.");
+      } else setError(result.message ?? tr("وقع مشكل.", "Something went wrong."));
     } catch {
-      setError("ما قدرناش نوصلو للسيرفر. عاود جرب.");
+      setError(tr("ما قدرناش نوصلو للسيرفر. عاود جرب.", "Could not reach the server. Try again."));
     } finally {
       setBusy(false);
     }
@@ -62,7 +64,7 @@ function ChangeRow({ row }: { row: SuggestionView }) {
           <span className={`w-28 shrink-0 truncate text-xs font-semibold md:w-44 ${waiting && row.approval ? "text-warning-text" : "text-warm-800"}`} title={row.label}>
             {row.label}
           </span>
-          {row.oldLines.length === 0 ? <span className="shrink-0 rounded bg-yellow-100 px-1.5 text-xs font-semibold text-yellow-900">جديد</span> : null}
+          {row.oldLines.length === 0 ? <span className="shrink-0 rounded bg-yellow-100 px-1.5 text-xs font-semibold text-yellow-900">{tr("جديد", "New")}</span> : null}
           {/* bdi: Latin values keep their reading order but stay in the same column as Arabic ones. */}
           <span className="min-w-0 flex-1 truncate text-sm text-warm-800">
             <bdi>{row.preview}</bdi>
@@ -72,28 +74,28 @@ function ChangeRow({ row }: { row: SuggestionView }) {
         {waiting ? (
           <>
             {!row.needsCheck ? (
-              <button type="button" disabled={busy} onClick={() => act(acceptSeoSuggestion)} aria-label={`قبول: ${row.label}`} title="قبول" className={`${iconButton} bg-yellow-500 text-ink hover:bg-yellow-600 active:bg-yellow-700`}>
+              <button type="button" disabled={busy} onClick={() => act(acceptSeoSuggestion)} aria-label={`${tr("قبول", "Accept")}: ${row.label}`} title={tr("قبول", "Accept")} className={`${iconButton} bg-yellow-500 text-ink hover:bg-yellow-600 active:bg-yellow-700`}>
                 <Check className="size-4" aria-hidden="true" />
               </button>
             ) : null}
-            <button type="button" disabled={busy} onClick={() => act(rejectSeoSuggestion)} aria-label={`رفض: ${row.label}`} title="رفض" className={`${iconButton} text-warm-800 hover:bg-warm-200`}>
+            <button type="button" disabled={busy} onClick={() => act(rejectSeoSuggestion)} aria-label={`${tr("رفض", "Reject")}: ${row.label}`} title={tr("رفض", "Reject")} className={`${iconButton} text-warm-800 hover:bg-warm-200`}>
               <X className="size-4" aria-hidden="true" />
             </button>
           </>
         ) : (
-          <button type="button" disabled={busy} onClick={() => act(undoSeoSuggestion)} aria-label={`تراجع: ${row.label}`} title="تراجع" className={`${iconButton} text-warm-800 hover:bg-warm-200`}>
+          <button type="button" disabled={busy} onClick={() => act(undoSeoSuggestion)} aria-label={`${tr("تراجع", "Undo")}: ${row.label}`} title={tr("تراجع", "Undo")} className={`${iconButton} text-warm-800 hover:bg-warm-200`}>
             <RotateCcw className="size-4" aria-hidden="true" />
           </button>
         )}
       </div>
       {open ? (
         <div className={`grid gap-3 border-t border-warm-200 bg-white p-3 ${row.oldLines.length ? "md:grid-cols-2" : ""}`}>
-          {row.oldLines.length ? <FullValue title="القديم" lines={row.oldLines} /> : null}
-          <FullValue title={waiting ? "الجديد" : "المطبق"} lines={row.newLines} />
+          {row.oldLines.length ? <FullValue title={tr("القديم", "Old")} lines={row.oldLines} /> : null}
+          <FullValue title={waiting ? tr("الجديد", "New") : tr("المطبق", "Applied")} lines={row.newLines} />
           {row.needsCheck ? (
             <p className="flex items-center gap-1.5 text-xs font-semibold text-warning-text md:col-span-2">
               <CircleAlert className="size-3.5 shrink-0" aria-hidden="true" />
-              Claude ما متأكدش من هاد المواصفة. زيدها يدوياً من صفحة المنتج ملي تتأكد.
+              {tr("Claude ما متأكدش من هاد المواصفة. زيدها يدوياً من صفحة المنتج ملي تتأكد.", "Claude is not sure of this spec. Add it by hand on the product page once you have checked it.")}
             </p>
           ) : null}
         </div>
@@ -133,6 +135,7 @@ export function AppliedList({ rows }: { rows: SuggestionView[] }) {
 
 /** What a product has: orange rows first, the others, then one line for what already went live. */
 export function ChangesTable({ product }: { product: ProductChanges }) {
+  const { tr } = useAdminTr();
   return (
     <>
       {product.pending.length ? (
@@ -143,12 +146,12 @@ export function ChangesTable({ product }: { product: ProductChanges }) {
         </ul>
       ) : null}
       {product.auto.length ? (
-        <CollapsedGroup label={`تطبقو تلقائياً (${product.auto.length})`}>
+        <CollapsedGroup label={tr(`تطبقو تلقائياً (${product.auto.length})`, `Applied automatically (${product.auto.length})`)}>
           <AppliedList rows={product.auto} />
         </CollapsedGroup>
       ) : null}
       {product.accepted.length ? (
-        <CollapsedGroup label={`اللي قبلتي (${product.accepted.length})`}>
+        <CollapsedGroup label={tr(`اللي قبلتي (${product.accepted.length})`, `You accepted (${product.accepted.length})`)}>
           <AppliedList rows={product.accepted} />
         </CollapsedGroup>
       ) : null}
@@ -162,6 +165,7 @@ export function AcceptAllButton({ productId, count }: { productId: string; count
   const [pending, start] = useTransition();
   const router = useRouter();
   const onChanged = useContext(SeoChangedContext);
+  const { tr } = useAdminTr();
   if (!count) return null;
   const acceptAll = () =>
     start(async () => {
@@ -172,7 +176,7 @@ export function AcceptAllButton({ productId, count }: { productId: string; count
         router.refresh();
         onChanged?.();
       } catch {
-        setState({ ok: false, message: "ما قدرناش نوصلو للسيرفر. عاود جرب." });
+        setState({ ok: false, message: tr("ما قدرناش نوصلو للسيرفر. عاود جرب.", "Could not reach the server. Try again.") });
       }
     });
   return (
@@ -180,7 +184,7 @@ export function AcceptAllButton({ productId, count }: { productId: string; count
       <FormMessage state={state} />
       <button type="button" disabled={pending} onClick={acceptAll} className={buttonClass({ className: "!min-h-9 shrink-0 !px-3 !text-sm" })}>
         {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : null}
-        قبول الكل ({count})
+        {tr(`قبول الكل (${count})`, `Accept all (${count})`)}
       </button>
     </span>
   );
@@ -191,6 +195,7 @@ export function SeoPanel({ productId, score, missing, changes }: { productId: st
   const [pending, start] = useTransition();
   const [showMissing, setShowMissing] = useState(false);
   const router = useRouter();
+  const { tr } = useAdminTr();
 
   const generate = () =>
     start(async () => {
@@ -199,22 +204,22 @@ export function SeoPanel({ productId, score, missing, changes }: { productId: st
         setState(await generateSeoSuggestions(productId));
         router.refresh();
       } catch {
-        setState({ ok: false, message: "ما قدرناش نوصلو للسيرفر. عاود جرب." });
+        setState({ ok: false, message: tr("ما قدرناش نوصلو للسيرفر. عاود جرب.", "Could not reach the server. Try again.") });
       }
     });
 
   return (
-    <section className="admin-card overflow-hidden" aria-label="السيو والمحتوى">
+    <section className="admin-card overflow-hidden" aria-label={tr("السيو والمحتوى", "SEO & content")}>
       <div className="flex flex-wrap items-center justify-between gap-2 p-3">
         <button type="button" onClick={() => setShowMissing((s) => !s)} aria-expanded={showMissing} disabled={!missing.length} className="flex cursor-pointer items-center gap-2 text-start disabled:cursor-default">
           <ScoreBadge score={score} />
-          <span className="text-sm font-bold text-ink">نقطة السيو</span>
-          <span className="text-xs text-warm-600">{missing.length ? `${missing.length} حاجة ناقصة` : "كلشي كامل"}</span>
+          <span className="text-sm font-bold text-ink">{tr("نقطة السيو", "SEO score")}</span>
+          <span className="text-xs text-warm-600">{missing.length ? tr(`${missing.length} حاجة ناقصة`, `${missing.length} things missing`) : tr("كلشي كامل", "All complete")}</span>
           {missing.length ? <ChevronDown className={`size-3.5 text-warm-600 transition-transform ${showMissing ? "rotate-180" : ""}`} aria-hidden="true" /> : null}
         </button>
         <button type="button" onClick={generate} disabled={pending} className={buttonClass({ className: "!min-h-10 !px-3 !text-sm" })}>
           {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <Sparkles className="size-4" aria-hidden="true" />}
-          ✨ توليد بالذكاء الاصطناعي
+          {tr("توليد بالذكاء الاصطناعي", "Generate with AI")}
         </button>
       </div>
       {state.message ? (
@@ -237,7 +242,7 @@ export function SeoPanel({ productId, score, missing, changes }: { productId: st
       {changes.pending.length || changes.auto.length || changes.accepted.length ? (
         <div className="border-t border-warm-200 bg-white">
           <ChangesTable product={changes} />
-          <p className="border-t border-warm-200 bg-warm-50 px-3 py-1.5 text-xs text-warm-600">كل قبول ولا تراجع كيحدّث هاد الصفحة: احفظ تعديلاتك ديال المنتج قبل.</p>
+          <p className="border-t border-warm-200 bg-warm-50 px-3 py-1.5 text-xs text-warm-600">{tr("كل قبول ولا تراجع كيحدّث هاد الصفحة: احفظ تعديلاتك ديال المنتج قبل.", "Every accept or undo reloads this page: save your product edits first.")}</p>
         </div>
       ) : null}
     </section>
@@ -246,8 +251,9 @@ export function SeoPanel({ productId, score, missing, changes }: { productId: st
 
 export function ScoreBadge({ score }: { score: number }) {
   const tone = { green: "bg-success-soft text-success", orange: "bg-warning-soft text-warning-text", red: "bg-danger-soft text-danger" }[scoreTone(score)];
+  const { tr } = useAdminTr();
   return (
-    <span className={`inline-grid min-w-10 place-items-center rounded-full px-2 py-0.5 text-sm font-extrabold ${tone}`} title={`${score} من 100`}>
+    <span className={`inline-grid min-w-10 place-items-center rounded-full px-2 py-0.5 text-sm font-extrabold ${tone}`} title={tr(`${score} من 100`, `${score} of 100`)}>
       {score}
     </span>
   );

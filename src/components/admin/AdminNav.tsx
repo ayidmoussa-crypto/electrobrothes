@@ -31,64 +31,65 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { logout } from "@/app/actions/admin-auth";
+import { useAdminTr } from "./AdminLang";
 
-type Item = { href: string; label: string; icon: LucideIcon; children?: Item[] };
+type Item = { href: string; label: [ar: string, en: string]; icon: LucideIcon; children?: Item[] };
 
 const items: Item[] = [
-  { href: "/admin", label: "الإحصائيات", icon: LayoutDashboard },
+  { href: "/admin", label: ["الإحصائيات", "Overview"], icon: LayoutDashboard },
   {
     href: "/admin/orders",
-    label: "الطلبات",
+    label: ["الطلبات", "Orders"],
     icon: ShoppingCart,
     children: [
-      { href: "/admin/orders", label: "كل الطلبات", icon: ShoppingCart },
-      { href: "/admin/orders/new", label: "إضافة طلب", icon: Plus },
+      { href: "/admin/orders", label: ["كل الطلبات", "All orders"], icon: ShoppingCart },
+      { href: "/admin/orders/new", label: ["إضافة طلب", "New order"], icon: Plus },
     ],
   },
   {
     href: "/admin/inbox",
-    label: "الرسائل",
+    label: ["الرسائل", "Messages"],
     icon: MessagesSquare,
     children: [
-      { href: "/admin/inbox", label: "المحادثات", icon: MessagesSquare },
-      { href: "/admin/automations", label: "الأتمتة", icon: Zap },
+      { href: "/admin/inbox", label: ["المحادثات", "Conversations"], icon: MessagesSquare },
+      { href: "/admin/automations", label: ["الأتمتة", "Automations"], icon: Zap },
     ],
   },
   {
     href: "/admin/customers",
-    label: "الزبناء",
+    label: ["الزبناء", "Customers"],
     icon: Users,
     children: [
-      { href: "/admin/customers", label: "كل الزبناء", icon: Users },
-      { href: "/admin/reviews", label: "التقييمات", icon: Star },
-      { href: "/admin/blacklist", label: "القائمة السوداء", icon: Ban },
+      { href: "/admin/customers", label: ["كل الزبناء", "All customers"], icon: Users },
+      { href: "/admin/reviews", label: ["التقييمات", "Reviews"], icon: Star },
+      { href: "/admin/blacklist", label: ["القائمة السوداء", "Blacklist"], icon: Ban },
     ],
   },
   {
     href: "/admin/products",
-    label: "المنتجات",
+    label: ["المنتجات", "Products"],
     icon: Package,
     // "New" comes after the list: activeChild takes the last match, so the most specific address wins.
     children: [
-      { href: "/admin/products", label: "كل المنتجات", icon: Package },
-      { href: "/admin/products/new", label: "إضافة منتج", icon: Plus },
-      { href: "/admin/categories", label: "الأقسام", icon: Boxes },
-      { href: "/admin/brands", label: "الماركات", icon: Tags },
-      { href: "/admin/bundles", label: "الباكات", icon: Gift },
-      { href: "/admin/coupons", label: "الكوبونات", icon: TicketPercent },
+      { href: "/admin/products", label: ["كل المنتجات", "All products"], icon: Package },
+      { href: "/admin/products/new", label: ["إضافة منتج", "New product"], icon: Plus },
+      { href: "/admin/categories", label: ["الأقسام", "Categories"], icon: Boxes },
+      { href: "/admin/brands", label: ["الماركات", "Brands"], icon: Tags },
+      { href: "/admin/bundles", label: ["الباكات", "Bundles"], icon: Gift },
+      { href: "/admin/coupons", label: ["الكوبونات", "Coupons"], icon: TicketPercent },
     ],
   },
-  { href: "/admin/finance", label: "المالية", icon: Landmark },
-  { href: "/admin/seo", label: "السيو", icon: Sparkles },
+  { href: "/admin/finance", label: ["المالية", "Finance"], icon: Landmark },
+  { href: "/admin/seo", label: ["السيو", "SEO"], icon: Sparkles },
   {
     href: "/admin/settings",
-    label: "الإعدادات",
+    label: ["الإعدادات", "Settings"],
     icon: Settings,
     children: [
-      { href: "/admin/settings", label: "إعدادات المتجر", icon: Settings },
-      { href: "/admin/cities", label: "المدن والتوصيل", icon: MapPin },
+      { href: "/admin/settings", label: ["إعدادات المتجر", "Shop settings"], icon: Settings },
+      { href: "/admin/cities", label: ["المدن والتوصيل", "Cities & delivery"], icon: MapPin },
       // The assistant itself is the floating button; this is only its history.
-      { href: "/admin/assistant", label: "سجل المساعد", icon: Bot },
+      { href: "/admin/assistant", label: ["سجل المساعد", "Assistant log"], icon: Bot },
     ],
   },
 ];
@@ -109,6 +110,7 @@ function NavGroup({ item, children, pathname }: { item: Item; children: Item[]; 
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLLIElement>(null);
   const arrow = useRef<HTMLButtonElement>(null);
+  const { tr } = useAdminTr();
   const current = activeChild(pathname, children);
   const Icon = item.icon;
 
@@ -141,14 +143,14 @@ function NavGroup({ item, children, pathname }: { item: Item; children: Item[]; 
         {current ? <motion.span layoutId="admin-top-pill" transition={spring} aria-hidden="true" className="absolute inset-0 -z-10 rounded-full bg-yellow-500 shadow-md shadow-yellow-500/25" /> : null}
         <Link href={item.href} aria-current={current?.href === item.href ? "page" : current ? "true" : undefined} className="flex min-h-10 items-center gap-2 rounded-s-full ps-3.5 pe-1">
           <Icon className="size-4.5" aria-hidden="true" />
-          {item.label}
+          {tr(...item.label)}
         </Link>
         <button
           ref={arrow}
           type="button"
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
-          aria-label={`صفحات ${item.label}`}
+          aria-label={tr(`صفحات ${item.label[0]}`, `${item.label[1]} pages`)}
           className="grid min-h-10 w-8 cursor-pointer place-items-center rounded-e-full"
         >
           <ChevronDown className={`size-4 transition-transform duration-200 ${open ? "rotate-180" : ""}`} aria-hidden="true" />
@@ -172,7 +174,7 @@ function NavGroup({ item, children, pathname }: { item: Item; children: Item[]; 
                     }`}
                   >
                     <ChildIcon className="size-4.5" aria-hidden="true" />
-                    {label}
+                    {tr(...label)}
                   </Link>
                 </li>
               );
@@ -187,6 +189,7 @@ function NavGroup({ item, children, pathname }: { item: Item; children: Item[]; 
 /** Desktop: the sections under the header; a yellow pill glides to the current one. Wraps rather than scrolls, which would clip the sub-page panel. */
 export function AdminTopNav() {
   const pathname = usePathname();
+  const { tr } = useAdminTr();
   return (
     <MotionConfig reducedMotion="user">
       <LayoutGroup id="admin-top">
@@ -208,7 +211,7 @@ export function AdminTopNav() {
                     <motion.span layoutId="admin-top-pill" transition={spring} aria-hidden="true" className="absolute inset-0 -z-10 rounded-full bg-yellow-500 shadow-md shadow-yellow-500/25" />
                   ) : null}
                   <Icon className="size-4.5" aria-hidden="true" />
-                  {label}
+                  {tr(...label)}
                 </Link>
               </li>
             );
@@ -225,6 +228,7 @@ export function AdminTopNav() {
  */
 export function AdminBottomNav({ email }: { email: string }) {
   const pathname = usePathname();
+  const { tr } = useAdminTr();
   // Remembers the page the sheet was opened on, so following a link closes it.
   const [openOn, setOpenOn] = useState<string | null>(null);
   const open = openOn === pathname;
@@ -248,7 +252,7 @@ export function AdminBottomNav({ email }: { email: string }) {
               }`}
             >
               <Icon className="size-5" aria-hidden="true" />
-              {label}
+              {tr(...label)}
             </Link>
           </li>
         );
@@ -287,7 +291,7 @@ export function AdminBottomNav({ email }: { email: string }) {
               key="sheet"
               role="dialog"
               aria-modal="true"
-              aria-label="المزيد من الأقسام"
+              aria-label={tr("المزيد من الأقسام", "More sections")}
               initial={{ y: "110%" }}
               animate={{ y: 0 }}
               exit={{ y: "110%" }}
@@ -298,7 +302,7 @@ export function AdminBottomNav({ email }: { email: string }) {
                 <p className="truncate text-sm text-warm-300" dir="ltr" title={email}>
                   {email}
                 </p>
-                <button type="button" onClick={close} aria-label="إغلاق" className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-full hover:bg-white/10">
+                <button type="button" onClick={close} aria-label={tr("إغلاق", "Close")} className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-full hover:bg-white/10">
                   <X className="size-5" aria-hidden="true" />
                 </button>
               </div>
@@ -307,22 +311,22 @@ export function AdminBottomNav({ email }: { email: string }) {
                 const pages = children.filter((c) => !PRIMARY.includes(c.href) && !c.href.endsWith("/new"));
                 return pages.length ? (
                   <div key={href} className="mb-3">
-                    <p className="mb-2 px-2 text-xs font-bold text-warm-300">{label}</p>
+                    <p className="mb-2 px-2 text-xs font-bold text-warm-300">{tr(...label)}</p>
                     {sheetGrid(pages)}
                   </div>
                 ) : null;
               })}
-              <p className="mb-2 px-2 text-xs font-bold text-warm-300">باقي الأقسام</p>
+              <p className="mb-2 px-2 text-xs font-bold text-warm-300">{tr("باقي الأقسام", "Other sections")}</p>
               {sheetGrid(more.filter((i) => !i.children))}
               <div className="mt-3 grid grid-cols-2 gap-2 border-t border-white/10 pt-3 text-sm">
                 <Link href="/" target="_blank" className="flex min-h-11 items-center justify-center gap-2 rounded-xl text-warm-300 hover:bg-white/10 hover:text-white">
                   <ExternalLink className="size-4.5" aria-hidden="true" />
-                  عرض المتجر
+                  {tr("عرض المتجر", "View shop")}
                 </Link>
                 <form action={logout}>
                   <button type="submit" className="flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl text-warm-300 hover:bg-white/10 hover:text-white">
                     <LogOut className="size-4.5" aria-hidden="true" />
-                    تسجيل الخروج
+                    {tr("تسجيل الخروج", "Log out")}
                   </button>
                 </form>
               </div>
@@ -331,7 +335,7 @@ export function AdminBottomNav({ email }: { email: string }) {
         ) : null}
       </AnimatePresence>
 
-      <nav aria-label="أقسام لوحة التحكم" className="glass-dark fixed inset-x-3 bottom-3 z-30 rounded-3xl border p-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] lg:hidden">
+      <nav aria-label={tr("أقسام لوحة التحكم", "Dashboard sections")} className="glass-dark fixed inset-x-3 bottom-3 z-30 rounded-3xl border p-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] lg:hidden">
         <LayoutGroup id="admin-bottom">
           <ul className="isolate flex items-stretch gap-1">
             {primary.map((item) => {
@@ -342,7 +346,7 @@ export function AdminBottomNav({ email }: { email: string }) {
                   <Link href={href} aria-current={active ? "page" : undefined} className={tab(active)}>
                     {active ? pill : null}
                     <Icon className="size-5" aria-hidden="true" />
-                    {label}
+                    {tr(...label)}
                   </Link>
                 </li>
               );
@@ -351,7 +355,7 @@ export function AdminBottomNav({ email }: { email: string }) {
               <button type="button" onClick={() => setOpenOn(open ? null : pathname)} aria-expanded={open} aria-haspopup="dialog" className={`${tab(moreActive || open)} cursor-pointer`}>
                 {moreActive || open ? pill : null}
                 <LayoutGrid className="size-5" aria-hidden="true" />
-                المزيد
+                {tr("المزيد", "More")}
               </button>
             </li>
           </ul>

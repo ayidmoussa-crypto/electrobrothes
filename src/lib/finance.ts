@@ -21,8 +21,29 @@ export const PERSONAL_CATEGORIES = {
   OTHER: "أخرى",
 } as const;
 
-export const categoryLabel = (scope: "BUSINESS" | "PERSONAL", key: string) =>
-  ((scope === "BUSINESS" ? BUSINESS_CATEGORIES : PERSONAL_CATEGORIES) as Record<string, string>)[key] ?? key;
+/** The same categories for the panel in English. */
+export const BUSINESS_CATEGORIES_EN: Record<keyof typeof BUSINESS_CATEGORIES, string> = {
+  ADS: "Ads",
+  STOCK_EXTRA: "Purchase costs (transport, customs)",
+  PACKAGING: "Packaging",
+  SALARY: "Wages",
+  RENT: "Rent",
+  TOOLS: "Subscriptions & tools",
+  DAMAGE: "Lost goods",
+  OTHER: "Other",
+};
+
+export const PERSONAL_CATEGORIES_EN: Record<keyof typeof PERSONAL_CATEGORIES, string> = {
+  LIVING: "Personal spending",
+  FAMILY: "Family",
+  TRANSPORT: "Transport",
+  DEBT: "Debts",
+  LOSS: "Personal loss",
+  OTHER: "Other",
+};
+
+export const categoryLabel = (scope: "BUSINESS" | "PERSONAL", key: string, lang: "ar" | "en" = "ar") =>
+  ((scope === "BUSINESS" ? (lang === "en" ? BUSINESS_CATEGORIES_EN : BUSINESS_CATEGORIES) : lang === "en" ? PERSONAL_CATEGORIES_EN : PERSONAL_CATEGORIES) as Record<string, string>)[key] ?? key;
 
 /** What decides the carrier's cut on one parcel. */
 export type FeeOrder = {

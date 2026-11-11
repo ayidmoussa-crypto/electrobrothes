@@ -2,26 +2,28 @@ import { Trash2 } from "lucide-react";
 import { addToBlacklist, removeFromBlacklist } from "@/app/actions/admin-orders";
 import { ActionForm } from "@/components/admin/ActionForm";
 import { inputClass, L, PageHeader, Panel, tdClass, thClass } from "@/components/admin/ui";
+import { adminTr } from "@/lib/admin-lang";
+import { adminLocale } from "@/lib/admin-tr";
 import { requireAdmin } from "@/lib/admin";
 import { db } from "@/lib/db";
 import { formatMoroccanPhone } from "@/lib/phone";
 import { TIME_ZONE } from "@/lib/time";
 
-const dateFmt = new Intl.DateTimeFormat("ar-MA", { dateStyle: "medium", timeZone: TIME_ZONE });
 
 export default async function BlacklistPage() {
-  await requireAdmin();
+  const [, { tr, lang }] = await Promise.all([requireAdmin(), adminTr()]);
+  const dateFmt = new Intl.DateTimeFormat(adminLocale(lang), { dateStyle: "medium", timeZone: TIME_ZONE });
   const entries = await db.blacklist.findMany({ orderBy: { createdAt: "desc" } });
 
   return (
     <>
-      <PageHeader title="القائمة السوداء" description="الأرقام المحظورة لا يمكنها الطلب عبر الموقع (طلبات وهمية، رفض متكرر للاستلام…)." />
-      <Panel title="حظر رقم" className="mb-4">
-        <ActionForm action={addToBlacklist} submitLabel="حظر" className="flex flex-wrap items-end gap-3">
-          <L label="رقم الهاتف">
+      <PageHeader title={tr("القائمة السوداء", "Blacklist")} description={tr("الأرقام المحظورة لا يمكنها الطلب عبر الموقع (طلبات وهمية، رفض متكرر للاستلام…).", "Blocked numbers cannot order on the site (fake orders, repeated refusals…).")} />
+      <Panel title={tr("حظر رقم", "Block a number")} className="mb-4">
+        <ActionForm action={addToBlacklist} submitLabel={tr("حظر", "Block")} className="flex flex-wrap items-end gap-3">
+          <L label={tr("رقم الهاتف", "Phone number")}>
             <input name="phone" type="tel" required dir="ltr" placeholder="06 12 34 56 78" className={inputClass} />
           </L>
-          <L label="السبب" className="min-w-64 flex-1">
+          <L label={tr("السبب", "Reason")} className="min-w-64 flex-1">
             <input name="reason" maxLength={200} className={inputClass} />
           </L>
         </ActionForm>
@@ -30,11 +32,11 @@ export default async function BlacklistPage() {
         <table className="w-full">
           <thead className="border-b border-white/70 bg-white/45">
             <tr>
-              <th className={thClass}>الرقم</th>
-              <th className={thClass}>السبب</th>
-              <th className={thClass}>التاريخ</th>
+              <th className={thClass}>{tr("الرقم", "Number")}</th>
+              <th className={thClass}>{tr("السبب", "Reason")}</th>
+              <th className={thClass}>{tr("التاريخ", "Date")}</th>
               <th className={thClass}>
-                <span className="sr-only">إجراء</span>
+                <span className="sr-only">{tr("إجراء", "Action")}</span>
               </th>
             </tr>
           </thead>
@@ -49,7 +51,7 @@ export default async function BlacklistPage() {
                 <td className={tdClass}>
                   <form action={removeFromBlacklist}>
                     <input type="hidden" name="id" value={e.id} />
-                    <button type="submit" className="grid size-10 cursor-pointer place-items-center rounded-lg text-warm-600 hover:bg-white/70 hover:text-danger" aria-label={`إزالة ${formatMoroccanPhone(e.phone)} من القائمة`}>
+                    <button type="submit" className="grid size-10 cursor-pointer place-items-center rounded-lg text-warm-600 hover:bg-white/70 hover:text-danger" aria-label={tr(`إزالة ${formatMoroccanPhone(e.phone)} من القائمة`, `Remove ${formatMoroccanPhone(e.phone)} from the list`)}>
                       <Trash2 className="size-4" aria-hidden="true" />
                     </button>
                   </form>
@@ -59,7 +61,7 @@ export default async function BlacklistPage() {
             {!entries.length ? (
               <tr>
                 <td colSpan={4} className="px-3 py-8 text-center text-warm-600">
-                  القائمة فارغة.
+                  {tr("القائمة فارغة.", "The list is empty.")}
                 </td>
               </tr>
             ) : null}

@@ -4,6 +4,7 @@ import { LoaderCircle } from "lucide-react";
 import { startTransition, useActionState, useEffect, useRef, type ReactNode } from "react";
 import { buttonClass, type ButtonVariant } from "@/components/ui/button";
 import { submitKeepingValues } from "@/lib/forms";
+import { useAdminTr } from "./AdminLang";
 import { useConfirm } from "./ConfirmDialog";
 import { FormMessage } from "./ui";
 
@@ -29,6 +30,7 @@ export function ActionForm({
   const [state, formAction, pending] = useActionState(action, {});
   const form = useRef<HTMLFormElement>(null);
   const [ask, dialog] = useConfirm();
+  const { tr } = useAdminTr();
   // A saved form shows the saved values and an "add" form empties; a failed one keeps what was typed.
   useEffect(() => {
     if (state.ok) form.current?.reset();
@@ -43,7 +45,7 @@ export function ActionForm({
           // Asked in the page first; the form is sent once the owner says yes.
           e.preventDefault();
           const data = new FormData(e.currentTarget);
-          ask({ title: confirm, yes: "نعم" }).then((ok) => {
+          ask({ title: confirm, yes: tr("نعم", "Yes") }).then((ok) => {
             if (ok) startTransition(() => formAction(data));
           });
         }}

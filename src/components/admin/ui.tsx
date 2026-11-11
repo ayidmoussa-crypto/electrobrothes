@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import type { OrderStatus } from "@/lib/order-rules";
+import type { AdminLang } from "@/lib/admin-tr";
 
 export const STATUS_LABEL: Record<OrderStatus, string> = {
   NEW: "جديد",
@@ -13,6 +14,18 @@ export const STATUS_LABEL: Record<OrderStatus, string> = {
   RETURNED: "أُرجعت بنجاح",
 };
 
+export const STATUS_LABEL_EN: Record<OrderStatus, string> = {
+  NEW: "New",
+  CONFIRMED: "Confirmed",
+  CANCELLED: "Cancelled",
+  SHIPPING: "Shipping",
+  DELIVERED: "Delivered",
+  RETURNING: "Returning",
+  RETURNED: "Returned",
+};
+
+export const statusLabel = (s: OrderStatus, lang: AdminLang = "ar") => (lang === "en" ? STATUS_LABEL_EN : STATUS_LABEL)[s];
+
 const STATUS_TONE: Record<OrderStatus, BadgeTone> = {
   NEW: "accent",
   CONFIRMED: "neutral",
@@ -23,8 +36,8 @@ const STATUS_TONE: Record<OrderStatus, BadgeTone> = {
   RETURNED: "neutral",
 };
 
-export function StatusBadge({ status }: { status: OrderStatus }) {
-  return <Badge tone={STATUS_TONE[status]}>{STATUS_LABEL[status]}</Badge>;
+export function StatusBadge({ status, lang = "ar" }: { status: OrderStatus; lang?: AdminLang }) {
+  return <Badge tone={STATUS_TONE[status]}>{statusLabel(status, lang)}</Badge>;
 }
 
 export const RISK_LABEL: Record<string, string> = {
@@ -35,6 +48,17 @@ export const RISK_LABEL: Record<string, string> = {
   many_from_ip: "طلبات كثيرة من نفس الجهاز",
   high_value: "قيمة مرتفعة",
 };
+
+const RISK_LABEL_EN: Record<string, string> = {
+  blacklisted: "On the blacklist",
+  bot_honeypot: "Likely a bot",
+  duplicate_phone: "Repeat order, same number",
+  too_fast: "Form filled very fast",
+  many_from_ip: "Many orders from one device",
+  high_value: "High value",
+};
+
+export const riskLabel = (key: string, lang: AdminLang = "ar") => (lang === "en" ? RISK_LABEL_EN : RISK_LABEL)[key] ?? key;
 
 export function PageHeader({ title, description, actions }: { title: string; description?: string; actions?: ReactNode }) {
   return (

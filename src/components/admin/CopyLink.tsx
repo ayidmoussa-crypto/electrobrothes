@@ -2,10 +2,12 @@
 
 import { Check, Copy } from "lucide-react";
 import { useState } from "react";
+import { useAdminTr } from "./AdminLang";
 
 /** A link shown in full with a button that copies it. */
 export function CopyLink({ label, url }: { label: string; url: string }) {
   const [copied, setCopied] = useState(false);
+  const { tr } = useAdminTr();
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(url);
@@ -26,7 +28,7 @@ export function CopyLink({ label, url }: { label: string; url: string }) {
           className="inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg bg-ink px-3 text-sm font-semibold text-white transition-colors hover:bg-warm-800"
         >
           {copied ? <Check className="size-4 text-yellow-500" aria-hidden="true" /> : <Copy className="size-4" aria-hidden="true" />}
-          <span aria-live="polite">{copied ? "تنسخ" : "نسخ"}</span>
+          <span aria-live="polite">{copied ? tr("تنسخ", "Copied") : tr("نسخ", "Copy")}</span>
         </button>
       </div>
     </div>

@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 import { formatMAD } from "@/lib/money";
+import { useAdminTr } from "../AdminLang";
 
 export type TrendPoint = { label: string; revenue: number; net: number; orders: number };
 
 const W = 640;
 const H = 200;
 const PAD = { top: 14, right: 12, bottom: 28, left: 52 };
-const mad = (v: number) => formatMAD(v, "ar");
 
 /** A round step for about four grid lines. */
 function niceStep(span: number) {
@@ -36,6 +36,8 @@ function curve(points: [number, number][]) {
  */
 export function TrendChart({ data, metric, label, total }: { data: TrendPoint[]; metric: "revenue" | "net"; label: string; total: number }) {
   const [active, setActive] = useState(data.length - 1);
+  const { tr, lang } = useAdminTr();
+  const mad = (v: number) => formatMAD(v, lang);
   const n = data.length;
   const values = data.map((d) => d[metric]);
   const max = Math.max(0, ...values);
@@ -62,7 +64,7 @@ export function TrendChart({ data, metric, label, total }: { data: TrendPoint[];
     <div>
       <div className="mb-3 flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
         <p>
-          <span className="block text-xs text-warm-600">المجموع فالفترة</span>
+          <span className="block text-xs text-warm-600">{tr("المجموع فالفترة", "Period total")}</span>
           <span className={`text-2xl font-extrabold ${total < 0 ? "text-danger" : "text-ink"}`}>{mad(total)}</span>
         </p>
         {/* The slot under the pointer, read beside the total so it never hides the line. */}
@@ -71,7 +73,7 @@ export function TrendChart({ data, metric, label, total }: { data: TrendPoint[];
             {a.label}
           </span>
           <b className={a[metric] < 0 ? "text-danger" : "text-ink"}>{mad(a[metric])}</b>
-          <span className="text-warm-600">· {a.orders} طلب</span>
+          <span className="text-warm-600">· {tr(`${a.orders} طلب`, `${a.orders} orders`)}</span>
         </p>
       </div>
       <div dir="ltr">
@@ -124,7 +126,7 @@ export function TrendChart({ data, metric, label, total }: { data: TrendPoint[];
         <caption>{label}</caption>
         <thead>
           <tr>
-            <th>الفترة</th>
+            <th>{tr("الفترة", "Period")}</th>
             <th>{label}</th>
           </tr>
         </thead>

@@ -3,12 +3,13 @@ import Link from "next/link";
 import { ManualOrderForm } from "@/components/admin/ManualOrderForm";
 import { PageHeader } from "@/components/admin/ui";
 import { requireAdmin } from "@/lib/admin";
+import { adminTr } from "@/lib/admin-lang";
 import { db } from "@/lib/db";
 import { formatMoroccanPhone, normalizeMoroccanPhone } from "@/lib/phone";
 import { colorLabel } from "@/lib/stock";
 
 export default async function NewOrderPage({ searchParams }: PageProps<"/admin/orders/new">) {
-  await requireAdmin();
+  const [, { tr, ar }] = await Promise.all([requireAdmin(), adminTr()]);
   const q = await searchParams;
   const [variants, cities, settings] = await Promise.all([
     db.variant.findMany({
@@ -22,11 +23,11 @@ export default async function NewOrderPage({ searchParams }: PageProps<"/admin/o
         colorHex: true,
         storage: true,
         productId: true,
-        product: { select: { nameAr: true, images: { orderBy: { sortOrder: "asc" }, take: 1, select: { url: true } } } },
+        product: { select: { nameAr: true, nameEn: true, images: { orderBy: { sortOrder: "asc" }, take: 1, select: { url: true } } } },
       },
       orderBy: [{ product: { nameAr: "asc" } }, { sortOrder: "asc" }],
     }),
-    db.city.findMany({ where: { isActive: true }, orderBy: [{ sortOrder: "asc" }, { nameAr: "asc" }], select: { id: true, nameAr: true, shippingFee: true } }),
+    db.city.findMany({ where: { isActive: true }, orderBy: [{ sortOrder: "asc" }, { nameAr: "asc" }], select: { id: true, nameAr: true, nameEn: true, shippingFee: true } }),
     db.settings.findUnique({ where: { id: 1 }, select: { freeShippingThreshold: true } }),
   ]);
 
@@ -37,15 +38,15 @@ export default async function NewOrderPage({ searchParams }: PageProps<"/admin/o
   return (
     <>
       <Link href="/admin/orders" className="mb-3 inline-flex min-h-11 items-center gap-1 text-sm text-warm-600 hover:text-ink">
-        <ArrowRight className="size-4" aria-hidden="true" />
-        كل الطلبات
+        <ArrowRight className="size-4 ltr:rotate-180" aria-hidden="true" />
+        {tr("كل الطلبات", "All orders")}
       </Link>
-      <PageHeader title="إضافة طلب" description="طلب جا من واتساب، مكالمة، ولا مواقع التواصل." />
+      <PageHeader title={tr("إضافة طلب", "New order")} description={tr("طلب جا من واتساب، مكالمة، ولا مواقع التواصل.", "An order from WhatsApp, a call or social media.")} />
       <ManualOrderForm
         variants={variants.map((v) => ({
           id: v.id,
           productId: v.productId,
-          name: v.product.nameAr,
+          name: ar ? v.product.nameAr : v.product.nameEn,
           label: colorLabel(v),
           colorHex: v.colorHex,
           sku: v.sku,
@@ -53,7 +54,7 @@ export default async function NewOrderPage({ searchParams }: PageProps<"/admin/o
           stock: v.stock,
           image: v.product.images[0]?.url ?? null,
         }))}
-        cities={cities.map((c) => ({ id: c.id, name: c.nameAr, fee: c.shippingFee }))}
+        cities={cities.map((c) => ({ id: c.id, name: ar ? c.nameAr : c.nameEn, fee: c.shippingFee }))}
         freeThreshold={settings?.freeShippingThreshold ?? 1000}
         defaults={{ name, phone: phone ? formatMoroccanPhone(phone) : "" }}
       />

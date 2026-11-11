@@ -149,3 +149,25 @@ export const PRODUCT_ERRORS: Record<string, string> = {
   specKey: "مفتاح المواصفة بحروف لاتينية صغيرة (مثال: ram)",
   spec: "قيمة المواصفة مطلوبة باللغتين",
 };
+
+export const PRODUCT_ERRORS_EN: Record<keyof typeof PRODUCT_ERRORS, string> = {
+  slug: "The link (slug) may only hold lower-case Latin letters, digits and dashes",
+  nameAr: "The Arabic name is required",
+  nameEn: "The English name is required",
+  descriptionAr: "The Arabic description is too short (10 characters at least)",
+  descriptionEn: "The English description is too short (10 characters at least)",
+  category: "Pick the category",
+  brand: "Pick the brand",
+  dealEndsAt: "The deal end date is not valid",
+  image: "An image link must start with https:// or /",
+  images: "Add at least one image",
+  sku: "Every option needs a SKU",
+  price: "The price must be above 0",
+  variants: "Add at least one option",
+  duplicateSku: "SKUs must be different",
+  compareAt: "The price before discount must be above the current price",
+  colorRequired: "With more than one colour, name each colour",
+  duplicateColor: "Colour names must be different",
+  specKey: "A spec key uses lower-case Latin letters (e.g. ram)",
+  spec: "A spec value is required in both languages",
+};

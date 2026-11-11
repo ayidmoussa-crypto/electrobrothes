@@ -26,16 +26,18 @@ import { ActionForm } from "@/components/admin/ActionForm";
 import { TrendChart } from "@/components/admin/finance/TrendChart";
 import { requireAdmin } from "@/lib/admin";
 import { db } from "@/lib/db";
-import { BUSINESS_CATEGORIES, categoryLabel, changePct, expectedFromCarrier, PERSONAL_CATEGORIES } from "@/lib/finance";
+import { BUSINESS_CATEGORIES, BUSINESS_CATEGORIES_EN, categoryLabel, changePct, expectedFromCarrier, PERSONAL_CATEGORIES, PERSONAL_CATEGORIES_EN } from "@/lib/finance";
 import { feeFields, loadCapital, loadPeriod, toFeeOrder } from "@/lib/finance-data";
 import { channelLabel } from "@/lib/attribution";
 import { formatMAD } from "@/lib/money";
+import { adminTr, type AdminLang, type Tr } from "@/lib/admin-lang";
+import { adminLocale } from "@/lib/admin-tr";
 import { TIME_ZONE, toMoroccanInput } from "@/lib/time";
 
 const RANGES = [7, 30, 90, 365] as const;
-const dayFmt = new Intl.DateTimeFormat("ar-MA", { dateStyle: "medium", timeZone: TIME_ZONE });
 const shortFmt = new Intl.DateTimeFormat("fr-MA", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: TIME_ZONE });
-const mad = (v: number) => formatMAD(v, "ar");
+/** The page's language helpers, handed to the small components below. */
+type L = { tr: Tr; lang: AdminLang; mad: (v: number) => string };
 
 // Same light look as the rest of the admin: warm off-white cards with a hairline on the white page.
 const card = "rounded-3xl bg-warm-50 p-4 ring-1 ring-warm-200 md:p-5";
@@ -82,14 +84,15 @@ function Change({ pct }: { pct: number | null }) {
 type Stage = { label: string; value: number; hint: string; pill: string; pct?: number | null };
 
 /** Where the money sits right now, read left to right like a parcel's path, with the sum set apart. */
-function ValueStrip({ stages, total }: { stages: Stage[]; total: number }) {
+function ValueStrip({ stages, total, l }: { stages: Stage[]; total: number; l: L }) {
+  const { tr, mad } = l;
   const amount = (v: number) => <span className={`text-lg font-extrabold md:text-xl ${v < 0 ? "text-danger" : ""}`}>{mad(v)}</span>;
   return (
     <section className={card} aria-labelledby="value-title">
       <div className="mb-5 flex items-center justify-between gap-3">
-        <h2 id="value-title" className="text-xs font-bold tracking-wide text-warm-600">فين كاينة القيمة ديالك دابا</h2>
+        <h2 id="value-title" className="text-xs font-bold tracking-wide text-warm-600">{tr("فين كاينة القيمة ديالك دابا", "Where your value sits now")}</h2>
         <a href="#details" className="text-sm font-bold text-yellow-800 hover:underline">
-          التفاصيل ←
+          {tr("التفاصيل ←", "Details →")}
         </a>
       </div>
       <div className="grid grid-cols-2 gap-x-3 gap-y-5 md:flex md:items-start">
@@ -111,15 +114,16 @@ function ValueStrip({ stages, total }: { stages: Stage[]; total: number }) {
         </div>
         <div className="flex flex-col items-center text-center md:ms-6 md:w-52 md:shrink-0 md:border-s md:border-warm-200 md:ps-6">
           <span className="flex min-h-14 w-full max-w-44 items-center justify-center rounded-full border-2 border-ink bg-ink px-4 text-yellow-500">{amount(total)}</span>
-          <span className="mt-2 text-sm font-semibold text-ink">المجموع</span>
-          <span className="mt-0.5 text-xs text-warm-600">السلعة + الربح الصافي</span>
+          <span className="mt-2 text-sm font-semibold text-ink">{tr("المجموع", "Total")}</span>
+          <span className="mt-0.5 text-xs text-warm-600">{tr("السلعة + الربح الصافي", "Goods + net profit")}</span>
         </div>
       </div>
     </section>
   );
 }
 
-function Line({ label, value, minus, total, hint }: { label: string; value: number; minus?: boolean; total?: boolean; hint?: string }) {
+function Line({ l, label, value, minus, total, hint }: { l: L; label: string; value: number; minus?: boolean; total?: boolean; hint?: string }) {
+  const { mad } = l;
   return (
     <div className={`flex items-baseline justify-between gap-3 ${total ? "my-2 rounded-xl border-s-4 border-yellow-500 bg-yellow-50 px-4 py-3 text-base font-extrabold" : "border-t border-warm-200 py-2.5"}`}>
       <dt className={total ? "text-ink" : "text-warm-600"}>
@@ -155,15 +159,16 @@ function DeleteButton({ action, id, label }: { action: (fd: FormData) => Promise
 }
 
 /** Revenue share of each channel the buyers came from, as a ring. */
-function SourcesRing({ sources }: { sources: { channel: string; revenue: number; orders: number }[] }) {
+function SourcesRing({ sources, l }: { sources: { channel: string; revenue: number; orders: number }[]; l: L }) {
+  const { tr, lang } = l;
   const total = sources.reduce((s, x) => s + x.revenue, 0);
-  if (!total) return <p className="py-10 text-center text-sm text-warm-600">ما تسلم حتى طلب فهاد الفترة.</p>;
+  if (!total) return <p className="py-10 text-center text-sm text-warm-600">{tr("ما تسلم حتى طلب فهاد الفترة.", "No order was delivered in this period.")}</p>;
   const R = 52;
   const C = 2 * Math.PI * R;
   // Five slices at most: the rest is grouped.
   const rest = sources.slice(4);
   const shown = rest.length > 1 ? [...sources.slice(0, 4), { channel: "REST", revenue: rest.reduce((s, x) => s + x.revenue, 0), orders: rest.reduce((s, x) => s + x.orders, 0) }] : sources;
-  const name = (c: string) => (c === "REST" ? "الباقي" : channelLabel(c || null));
+  const name = (c: string) => (c === "REST" ? tr("الباقي", "Rest") : channelLabel(c || null, lang));
   const lens = shown.map((s) => (s.revenue / total) * C);
   const starts = lens.map((_, i) => lens.slice(0, i).reduce((a, b) => a + b, 0));
   const pct = (v: number) => Math.round((v / total) * 100);
@@ -194,15 +199,18 @@ function SourcesRing({ sources }: { sources: { channel: string; revenue: number;
         ))}
       </ul>
       <Link href="/admin/settings#tracking" className="mt-4 inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-ink underline-offset-4 hover:underline">
-        روابط التتبع لإنستغرام وتيك توك
-        <ChevronLeft className="size-4" aria-hidden="true" />
+        {tr("روابط التتبع لإنستغرام وتيك توك", "Tracking links for Instagram and TikTok")}
+        <ChevronLeft className="size-4 ltr:rotate-180" aria-hidden="true" />
       </Link>
     </div>
   );
 }
 
 export default async function FinancePage({ searchParams }: PageProps<"/admin/finance">) {
-  await requireAdmin();
+  const [, { tr, lang }] = await Promise.all([requireAdmin(), adminTr()]);
+  const mad = (v: number) => formatMAD(v, lang);
+  const l: L = { tr, lang, mad };
+  const dayFmt = new Intl.DateTimeFormat(adminLocale(lang), { dateStyle: "medium", timeZone: TIME_ZONE });
   const raw = Number((await searchParams).days);
   const days = (RANGES as readonly number[]).includes(raw) ? raw : 30;
 
@@ -227,18 +235,18 @@ export default async function FinancePage({ searchParams }: PageProps<"/admin/fi
 
   const today = toMoroccanInput(new Date(), 10);
   const gaps = [
-    p.gaps.unitsWithoutCost ? `${p.gaps.unitsWithoutCost} قطعة مبيوعة بلا ثمن شراء: الربح الحقيقي أقل من الرقم اللي هنا. زيد ثمن الشراء فصفحة المنتج.` : null,
-    p.gaps.deliveredWithoutFee ? `${p.gaps.deliveredWithoutFee} طلب مسلَّم بلا رسوم توصيل. حدد ثمن التوصيل ديال المدينة فـ«المدن والتوصيل» ولا الرسوم فالطلب.` : null,
-    c.gaps.unitsWithoutCost ? `${c.gaps.unitsWithoutCost} قطعة فالمخزون بلا ثمن شراء: قيمة المخزون ناقصة.` : null,
-    c.gaps.movesWithoutCost ? `${c.gaps.movesWithoutCost} قطعة دخلات للمخزون بلا ثمن شراء: الكاش ورأس المال ما كيحسبوش ثمنها.` : null,
-    c.hiddenUnits ? `${c.hiddenUnits} قطعة ديال منتجات مخبية من المتجر ما داخلاش فالحساب. إلا كان شي منتج مخبي وشريتيه بصح، ظهّرو باش يتحسب.` : null,
+    p.gaps.unitsWithoutCost ? tr(`${p.gaps.unitsWithoutCost} قطعة مبيوعة بلا ثمن شراء: الربح الحقيقي أقل من الرقم اللي هنا. زيد ثمن الشراء فصفحة المنتج.`, `${p.gaps.unitsWithoutCost} sold units have no purchase price: the real profit is lower than shown. Add the purchase price on the product page.`) : null,
+    p.gaps.deliveredWithoutFee ? tr(`${p.gaps.deliveredWithoutFee} طلب مسلَّم بلا رسوم توصيل. حدد ثمن التوصيل ديال المدينة فـ«المدن والتوصيل» ولا الرسوم فالطلب.`, `${p.gaps.deliveredWithoutFee} delivered orders have no delivery fee. Set the city's delivery price in “Cities & delivery” or the fee on the order.`) : null,
+    c.gaps.unitsWithoutCost ? tr(`${c.gaps.unitsWithoutCost} قطعة فالمخزون بلا ثمن شراء: قيمة المخزون ناقصة.`, `${c.gaps.unitsWithoutCost} units in stock have no purchase price: the stock value is short.`) : null,
+    c.gaps.movesWithoutCost ? tr(`${c.gaps.movesWithoutCost} قطعة دخلات للمخزون بلا ثمن شراء: الكاش ورأس المال ما كيحسبوش ثمنها.`, `${c.gaps.movesWithoutCost} units came into stock without a purchase price: cash and capital leave out their cost.`) : null,
+    c.hiddenUnits ? tr(`${c.hiddenUnits} قطعة ديال منتجات مخبية من المتجر ما داخلاش فالحساب. إلا كان شي منتج مخبي وشريتيه بصح، ظهّرو باش يتحسب.`, `${c.hiddenUnits} units of products hidden from the shop are not counted. If you really bought a hidden product, show it so it counts.`) : null,
   ].filter((g): g is string => Boolean(g));
 
   // Every movement of money, newest first: carrier transfers, expenses, money put in or taken out.
   const moves = [
-    ...received.map((o) => ({ id: `o${o.id}`, in: true, kind: "تحويل التوصيل", amount: o.codReceivedAmount ?? 0, at: o.codReceivedAt!, note: o.number, href: `/admin/orders/${o.id}` })),
-    ...expenses.map((e) => ({ id: `e${e.id}`, in: false, kind: e.scope === "PERSONAL" ? "مصروف شخصي" : "مصروف المشروع", amount: e.amount, at: e.spentOn, note: [categoryLabel(e.scope, e.category), e.note].filter(Boolean).join(" · "), href: undefined })),
-    ...capitalEntries.map((e) => ({ id: `c${e.id}`, in: e.type === "INJECTION", kind: e.type === "INJECTION" ? "دخلت فلوس" : "سحبت فلوس", amount: e.amount, at: e.occurredOn, note: e.note ?? "", href: undefined })),
+    ...received.map((o) => ({ id: `o${o.id}`, in: true, kind: tr("تحويل التوصيل", "Carrier transfer"), amount: o.codReceivedAmount ?? 0, at: o.codReceivedAt!, note: o.number, href: `/admin/orders/${o.id}` })),
+    ...expenses.map((e) => ({ id: `e${e.id}`, in: false, kind: e.scope === "PERSONAL" ? tr("مصروف شخصي", "Personal expense") : tr("مصروف المشروع", "Business expense"), amount: e.amount, at: e.spentOn, note: [categoryLabel(e.scope, e.category, lang), e.note].filter(Boolean).join(" · "), href: undefined })),
+    ...capitalEntries.map((e) => ({ id: `c${e.id}`, in: e.type === "INJECTION", kind: e.type === "INJECTION" ? tr("دخلت فلوس", "Money in") : tr("سحبت فلوس", "Money out"), amount: e.amount, at: e.occurredOn, note: e.note ?? "", href: undefined })),
   ]
     .sort((a, b) => b.at.getTime() - a.at.getTime())
     .slice(0, 6);
@@ -246,21 +254,24 @@ export default async function FinancePage({ searchParams }: PageProps<"/admin/fi
   const revenueChange = changePct(p.revenue, before.revenue);
   const netChange = before.netProfit > 0 ? changePct(p.netProfit, before.netProfit) : null;
   const insight = !p.deliveredCount
-    ? `ما تسلم حتى طلب فآخر ${days} يوم.`
+    ? tr(`ما تسلم حتى طلب فآخر ${days} يوم.`, `No order was delivered in the last ${days} days.`)
     : revenueChange === null
-      ? `المبيعات المسلَّمة فآخر ${days} يوم هي ${mad(p.revenue)}، وما كاين حتى بيع فالفترة اللي قبلها باش نقارنو.`
-      : `المبيعات المسلَّمة فآخر ${days} يوم هي ${mad(p.revenue)}، ${revenueChange >= 0 ? "زايدة" : "ناقصة"} ب ${Math.abs(revenueChange)}% على ${days} يوم اللي قبلها.`;
+      ? tr(`المبيعات المسلَّمة فآخر ${days} يوم هي ${mad(p.revenue)}، وما كاين حتى بيع فالفترة اللي قبلها باش نقارنو.`, `Delivered sales over the last ${days} days are ${mad(p.revenue)}, with no sales in the period before to compare with.`)
+      : tr(
+          `المبيعات المسلَّمة فآخر ${days} يوم هي ${mad(p.revenue)}، ${revenueChange >= 0 ? "زايدة" : "ناقصة"} ب ${Math.abs(revenueChange)}% على ${days} يوم اللي قبلها.`,
+          `Delivered sales over the last ${days} days are ${mad(p.revenue)}, ${revenueChange >= 0 ? "up" : "down"} ${Math.abs(revenueChange)}% on the ${days} days before.`,
+        );
 
   return (
     <div>
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3 px-1">
         <div>
-          <h1 className="text-2xl text-ink md:text-3xl">المالية</h1>
+          <h1 className="text-2xl text-ink md:text-3xl">{tr("المالية", "Finance")}</h1>
           <p className="mt-1 text-sm text-warm-600">
-            الأرباح على آخر {days} يوم، ورأس المال من البداية.
+            {tr(`الأرباح على آخر ${days} يوم، ورأس المال من البداية.`, `Profit over the last ${days} days, and capital since the start.`)}
           </p>
         </div>
-        <nav aria-label="الفترة" className="flex flex-wrap gap-1 rounded-full bg-warm-100 p-1">
+        <nav aria-label={tr("الفترة", "Period")} className="flex flex-wrap gap-1 rounded-full bg-warm-100 p-1">
           {RANGES.map((r) => (
             <Link
               key={r}
@@ -268,7 +279,7 @@ export default async function FinancePage({ searchParams }: PageProps<"/admin/fi
               aria-current={r === days ? "page" : undefined}
               className={`inline-flex min-h-11 items-center rounded-full px-4 text-sm font-semibold transition-colors ${r === days ? "bg-ink text-white" : "text-warm-700 hover:text-ink"}`}
             >
-              {r} يوم
+              {tr(`${r} يوم`, `${r} days`)}
             </Link>
           ))}
         </nav>
@@ -278,7 +289,7 @@ export default async function FinancePage({ searchParams }: PageProps<"/admin/fi
         <details className="mb-5 rounded-2xl bg-warning-soft p-4 text-sm text-warning-text">
           <summary className="flex cursor-pointer items-center gap-2 font-bold">
             <AlertTriangle className="size-5 shrink-0" aria-hidden="true" />
-            {gaps.length} ديال الأرقام ناقصة وكتأثر على الحساب
+            {tr(`${gaps.length} ديال الأرقام ناقصة وكتأثر على الحساب`, `${gaps.length} missing figures affect the numbers`)}
           </summary>
           <ul className="mt-2 list-inside list-disc">
             {gaps.map((g) => (
@@ -289,14 +300,15 @@ export default async function FinancePage({ searchParams }: PageProps<"/admin/fi
       ) : null}
 
       <ValueStrip
+        l={l}
         stages={[
-          { label: "السلعة فالمخزون", value: c.inventoryValue, hint: "رأس مال السلعة بثمن الشراء", pill: "border-ink bg-white" },
-          { label: "السلعة فالطريق", value: c.goodsInTransit, hint: "خرجات وجاري التسليم", pill: "border-yellow-500 bg-yellow-50" },
+          { label: tr("السلعة فالمخزون", "Goods in stock"), value: c.inventoryValue, hint: tr("رأس مال السلعة بثمن الشراء", "Stock capital at purchase price"), pill: "border-ink bg-white" },
+          { label: tr("السلعة فالطريق", "Goods on the way"), value: c.goodsInTransit, hint: tr("خرجات وجاري التسليم", "Shipped, being delivered"), pill: "border-yellow-500 bg-yellow-50" },
           {
-            label: `صافي الربح · ${days} يوم`,
+            label: tr(`صافي الربح · ${days} يوم`, `Net profit · ${days} days`),
             value: p.netProfit,
             pct: netChange,
-            hint: p.margin === null ? "ما كاين حتى بيع" : `الهامش ${p.margin}%`,
+            hint: p.margin === null ? tr("ما كاين حتى بيع", "No sales") : tr(`الهامش ${p.margin}%`, `Margin ${p.margin}%`),
             pill: p.netProfit < 0 ? "border-danger bg-danger-soft" : "border-success bg-success-soft",
           },
         ]}
@@ -306,38 +318,38 @@ export default async function FinancePage({ searchParams }: PageProps<"/admin/fi
       <div className="mt-3 grid gap-3 lg:grid-cols-2">
         <section className={card} aria-labelledby="trend-sales-title">
           <CardTitle icon={ChartColumnBig}>
-            <span id="trend-sales-title">تطور المبيعات المسلَّمة · آخر {days} يوم</span>
+            <span id="trend-sales-title">{tr(`تطور المبيعات المسلَّمة · آخر ${days} يوم`, `Delivered sales · last ${days} days`)}</span>
           </CardTitle>
-          <TrendChart data={trend} metric="revenue" label="المبيعات المسلَّمة" total={p.revenue} />
+          <TrendChart data={trend} metric="revenue" label={tr("المبيعات المسلَّمة", "Delivered sales")} total={p.revenue} />
         </section>
         <section className={card} aria-labelledby="trend-net-title">
           <CardTitle icon={p.netProfit < 0 ? TrendingDown : TrendingUp}>
-            <span id="trend-net-title">تطور صافي الربح · آخر {days} يوم</span>
+            <span id="trend-net-title">{tr(`تطور صافي الربح · آخر ${days} يوم`, `Net profit · last ${days} days`)}</span>
           </CardTitle>
-          <TrendChart data={trend} metric="net" label="صافي الربح" total={p.netProfit} />
+          <TrendChart data={trend} metric="net" label={tr("صافي الربح", "Net profit")} total={p.netProfit} />
         </section>
       </div>
 
       <div className="mt-3 grid gap-3 lg:grid-cols-2">
         <section className={`${card} lg:order-2`} aria-labelledby="sources-title">
           <CardTitle icon={ChartPie}>
-            <span id="sources-title">مصادر المبيعات</span>
+            <span id="sources-title">{tr("مصادر المبيعات", "Sales sources")}</span>
           </CardTitle>
-          <SourcesRing sources={sources} />
+          <SourcesRing sources={sources} l={l} />
         </section>
 
         <section className={`${card} lg:order-1`} aria-labelledby="period-title">
           <CardTitle icon={CalendarRange}>
-            <span id="period-title">أداء الفترة الحالية</span>
+            <span id="period-title">{tr("أداء الفترة الحالية", "This period")}</span>
           </CardTitle>
           <dl className="flex flex-col divide-y divide-warm-200 text-sm">
             {[
-              { icon: ShoppingBag, label: "المبيعات المسلَّمة", value: mad(p.revenue) },
-              { icon: TrendingUp, label: "الربح الخام", value: mad(p.grossProfit) },
-              { icon: Tag, label: "متوسط الصافي لكل طلب", value: p.perOrder === null ? "—" : mad(p.perOrder) },
-              { icon: ListOrdered, label: "الطلبات المسلَّمة", value: String(p.deliveredCount) },
-              { icon: Undo2, label: "الطلبات الراجعة", value: String(p.returnedCount) },
-              { icon: Megaphone, label: "الإعلان لكل طلب مسلَّم", value: p.costPerDelivered === null ? "—" : mad(p.costPerDelivered) },
+              { icon: ShoppingBag, label: tr("المبيعات المسلَّمة", "Delivered sales"), value: mad(p.revenue) },
+              { icon: TrendingUp, label: tr("الربح الخام", "Gross profit"), value: mad(p.grossProfit) },
+              { icon: Tag, label: tr("متوسط الصافي لكل طلب", "Average net per order"), value: p.perOrder === null ? "—" : mad(p.perOrder) },
+              { icon: ListOrdered, label: tr("الطلبات المسلَّمة", "Delivered orders"), value: String(p.deliveredCount) },
+              { icon: Undo2, label: tr("الطلبات الراجعة", "Returned orders"), value: String(p.returnedCount) },
+              { icon: Megaphone, label: tr("الإعلان لكل طلب مسلَّم", "Ad cost per delivered order"), value: p.costPerDelivered === null ? "—" : mad(p.costPerDelivered) },
             ].map((r) => (
               <div key={r.label} className="flex items-center justify-between gap-3 py-2.5">
                 <dt className="flex items-center gap-2 text-warm-700">
@@ -356,29 +368,29 @@ export default async function FinancePage({ searchParams }: PageProps<"/admin/fi
           <div>
             <h2 id="insight-title" className="flex items-center gap-2 text-lg text-ink">
               <Lightbulb className="size-5 text-yellow-800" aria-hidden="true" />
-              معلومة مهمة
+              {tr("معلومة مهمة", "Worth knowing")}
             </h2>
             <p className="mt-3 leading-relaxed text-warm-700">{insight}</p>
           </div>
           <a href="#details" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-yellow-500 px-5 font-extrabold text-ink transition-colors hover:bg-yellow-600 active:bg-yellow-700">
             <ChartColumnBig className="size-4" aria-hidden="true" />
-            عرض التفاصيل الكاملة
+            {tr("عرض التفاصيل الكاملة", "See the full details")}
           </a>
         </section>
 
         <section className={`${card} lg:col-span-2`} aria-labelledby="moves-title">
           <CardTitle icon={Receipt}>
-            <span id="moves-title">أحدث المعاملات</span>
+            <span id="moves-title">{tr("أحدث المعاملات", "Latest transactions")}</span>
           </CardTitle>
           {moves.length ? (
             <div className="overflow-x-auto rounded-2xl ring-1 ring-warm-200">
               <table className="w-full min-w-[34rem]">
                 <thead className="bg-warm-100">
                   <tr>
-                    <th className={th}>النوع</th>
-                    <th className={th}>المبلغ</th>
-                    <th className={th}>التاريخ</th>
-                    <th className={th}>ملاحظات</th>
+                    <th className={th}>{tr("النوع", "Type")}</th>
+                    <th className={th}>{tr("المبلغ", "Amount")}</th>
+                    <th className={th}>{tr("التاريخ", "Date")}</th>
+                    <th className={th}>{tr("ملاحظات", "Notes")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -387,7 +399,7 @@ export default async function FinancePage({ searchParams }: PageProps<"/admin/fi
                       <td className={td}>
                         <span className="flex items-center gap-2">
                           <span className={`grid size-6 shrink-0 place-items-center rounded-full text-white ${m.in ? "bg-success" : "bg-danger"}`}>
-                            {m.in ? <ArrowUp className="size-3.5" aria-label="داخل" /> : <ArrowDown className="size-3.5" aria-label="خارج" />}
+                            {m.in ? <ArrowUp className="size-3.5" aria-label={tr("داخل", "In")} /> : <ArrowDown className="size-3.5" aria-label={tr("خارج", "Out")} />}
                           </span>
                           {m.kind}
                         </span>
@@ -414,70 +426,70 @@ export default async function FinancePage({ searchParams }: PageProps<"/admin/fi
               </table>
             </div>
           ) : (
-            <p className="text-sm text-warm-600">مازال ما كاين حتى معاملة: تحويلات التوصيل، المصاريف وحركات رأس المال كيبانو هنا.</p>
+            <p className="text-sm text-warm-600">{tr("مازال ما كاين حتى معاملة: تحويلات التوصيل، المصاريف وحركات رأس المال كيبانو هنا.", "No transactions yet: carrier transfers, expenses and capital moves show here.")}</p>
           )}
           <a href="#records" className="mt-3 inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-ink underline-offset-4 hover:underline">
-            كل المصاريف وحركات رأس المال
-            <ChevronLeft className="size-4" aria-hidden="true" />
+            {tr("كل المصاريف وحركات رأس المال", "All expenses and capital moves")}
+            <ChevronLeft className="size-4 ltr:rotate-180" aria-hidden="true" />
           </a>
         </section>
       </div>
 
       <div id="details" className="mt-3 grid scroll-mt-28 gap-3 lg:grid-cols-2">
         <section className={card}>
-          <CardTitle icon={TrendingUp}>حساب الربح (آخر {days} يوم)</CardTitle>
+          <CardTitle icon={TrendingUp}>{tr(`حساب الربح (آخر ${days} يوم)`, `Profit (last ${days} days)`)}</CardTitle>
           <dl className="text-sm">
-            <Line label="المبيعات المسلَّمة" value={p.revenue} />
-            <Line label="تكلفة السلعة" value={p.cogs} minus />
-            <Line label="رسوم التوصيل" value={p.deliveryCost} minus hint="ثمن المدينة على الطلبات اللي التوصيل فيها مجاني ولا خلصو الزبون." />
-            <Line label="الربح الخام" value={p.grossProfit} total />
-            <Line label="رسوم الطرود الراجعة" value={p.returnsCost} minus hint="الطرد الراجع ما كتخلص عليه والو، والسلعة كترجع للمخزون. غير إلا كتبتي رسوم فالطلب." />
-            <Line label="مصاريف المشروع" value={p.businessExpenses} minus />
-            <Line label="نقص فالمخزون" value={p.stockLoss} minus hint="التعديلات بالناقص من صفحة المنتج." />
-            <Line label="صافي الربح" value={p.netProfit} total />
-            <Line label="مصاريفك الشخصية" value={p.personalExpenses} minus />
-            <Line label="اللي بقا بعد مصاريفك" value={p.afterPersonal} total />
+            <Line l={l} label={tr("المبيعات المسلَّمة", "Delivered sales")} value={p.revenue} />
+            <Line l={l} label={tr("تكلفة السلعة", "Cost of goods")} value={p.cogs} minus />
+            <Line l={l} label={tr("رسوم التوصيل", "Delivery fees")} value={p.deliveryCost} minus hint={tr("ثمن المدينة على الطلبات اللي التوصيل فيها مجاني ولا خلصو الزبون.", "The city price on orders with free delivery or paid by the customer.")} />
+            <Line l={l} label={tr("الربح الخام", "Gross profit")} value={p.grossProfit} total />
+            <Line l={l} label={tr("رسوم الطرود الراجعة", "Returned parcel fees")} value={p.returnsCost} minus hint={tr("الطرد الراجع ما كتخلص عليه والو، والسلعة كترجع للمخزون. غير إلا كتبتي رسوم فالطلب.", "A returned parcel costs nothing and its goods go back to stock, unless you typed a fee on the order.")} />
+            <Line l={l} label={tr("مصاريف المشروع", "Business expenses")} value={p.businessExpenses} minus />
+            <Line l={l} label={tr("نقص فالمخزون", "Stock loss")} value={p.stockLoss} minus hint={tr("التعديلات بالناقص من صفحة المنتج.", "Downward corrections from the product page.")} />
+            <Line l={l} label={tr("صافي الربح", "Net profit")} value={p.netProfit} total />
+            <Line l={l} label={tr("مصاريفك الشخصية", "Your personal spending")} value={p.personalExpenses} minus />
+            <Line l={l} label={tr("اللي بقا بعد مصاريفك", "Left after your spending")} value={p.afterPersonal} total />
           </dl>
         </section>
 
         <section className={card}>
-          <CardTitle icon={Landmark}>رأس المال: فين كاينين الفلوس (من البداية)</CardTitle>
+          <CardTitle icon={Landmark}>{tr("رأس المال: فين كاينين الفلوس (من البداية)", "Capital: where the money is (since the start)")}</CardTitle>
           <dl className="text-sm">
-            <Line label="الكاش" value={c.cash} hint="اللي دخلتي + تحويلات التوصيل − المشتريات − كل المصاريف" />
-            <Line label="السلعة فالمخزون" value={c.inventoryValue} hint="بثمن الشراء" />
-            <Line label="سلعة فالطريق" value={c.goodsInTransit} hint="طلبات مأكدة ولا فالشحن، مازال ما توصلوش. بثمن الشراء." />
-            <Line label="فلوس عند شركة التوصيل" value={c.owedByCarrier} hint="طلبات تسلمات للزبون، والفلوس مازال ما حولتهاش ليك الشركة. بثمن البيع ناقص الرسوم." />
-            <Line label="المجموع اليوم" value={c.position} total />
-            <Line label="اللي استثمرتي" value={c.invested} hint={`دخلتي ${mad(c.injections)} + سلعة البداية ${mad(c.openingStockValue)} − سحبتي ${mad(c.withdrawals)}`} />
-            <Line label={c.result < 0 ? "الخسارة منذ البداية" : "الربح منذ البداية"} value={c.result} total hint={c.resultPct === null ? undefined : `${c.resultPct}% من اللي استثمرتي، والمصاريف الشخصية محسوبة`} />
+            <Line l={l} label={tr("الكاش", "Cash")} value={c.cash} hint={tr("اللي دخلتي + تحويلات التوصيل − المشتريات − كل المصاريف", "Money put in + carrier transfers − purchases − all expenses")} />
+            <Line l={l} label={tr("السلعة فالمخزون", "Goods in stock")} value={c.inventoryValue} hint={tr("بثمن الشراء", "At purchase price")} />
+            <Line l={l} label={tr("سلعة فالطريق", "Goods on the way")} value={c.goodsInTransit} hint={tr("طلبات مأكدة ولا فالشحن، مازال ما توصلوش. بثمن الشراء.", "Confirmed or shipping orders not delivered yet. At purchase price.")} />
+            <Line l={l} label={tr("فلوس عند شركة التوصيل", "Money held by the carrier")} value={c.owedByCarrier} hint={tr("طلبات تسلمات للزبون، والفلوس مازال ما حولتهاش ليك الشركة. بثمن البيع ناقص الرسوم.", "Orders delivered to the customer that the carrier has not paid you yet. Sale price minus fees.")} />
+            <Line l={l} label={tr("المجموع اليوم", "Total today")} value={c.position} total />
+            <Line l={l} label={tr("اللي استثمرتي", "Invested")} value={c.invested} hint={tr(`دخلتي ${mad(c.injections)} + سلعة البداية ${mad(c.openingStockValue)} − سحبتي ${mad(c.withdrawals)}`, `Put in ${mad(c.injections)} + opening stock ${mad(c.openingStockValue)} − taken out ${mad(c.withdrawals)}`)} />
+            <Line l={l} label={c.result < 0 ? tr("الخسارة منذ البداية", "Loss since the start") : tr("الربح منذ البداية", "Profit since the start")} value={c.result} total hint={c.resultPct === null ? undefined : tr(`${c.resultPct}% من اللي استثمرتي، والمصاريف الشخصية محسوبة`, `${c.resultPct}% of what you invested, personal spending included`)} />
           </dl>
         </section>
       </div>
 
       <section className={`${card} mt-3`} aria-labelledby="cod-title">
         <CardTitle icon={Receipt}>
-          <span id="cod-title">عند شركة التوصيل ({uncollected.length})</span>
+          <span id="cod-title">{tr(`عند شركة التوصيل (${uncollected.length})`, `Held by the carrier (${uncollected.length})`)}</span>
         </CardTitle>
         {uncollected.length ? (
-          <ActionForm action={markCodReceived} submitLabel="توصلت بالطلبات المحددة" className="flex flex-col gap-3">
+          <ActionForm action={markCodReceived} submitLabel={tr("توصلت بالطلبات المحددة", "Mark selected as received")} className="flex flex-col gap-3">
             <div className="overflow-x-auto rounded-2xl ring-1 ring-warm-200">
               <table className="w-full min-w-[36rem]">
                 <thead className="bg-warm-100">
                   <tr>
                     <th className={th}>
-                      <span className="sr-only">اختيار</span>
+                      <span className="sr-only">{tr("اختيار", "Select")}</span>
                     </th>
-                    <th className={th}>الطلب</th>
-                    <th className={th}>الزبون</th>
-                    <th className={th}>تسلّم</th>
-                    <th className={th}>المنتظر</th>
+                    <th className={th}>{tr("الطلب", "Order")}</th>
+                    <th className={th}>{tr("الزبون", "Customer")}</th>
+                    <th className={th}>{tr("تسلّم", "Delivered")}</th>
+                    <th className={th}>{tr("المنتظر", "Expected")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {uncollected.map((o) => (
                     <tr key={o.id} className="border-t border-warm-200 bg-white">
                       <td className={td}>
-                        <input type="checkbox" name="orderId" value={o.id} aria-label={`اختيار ${o.number}`} className="size-5 accent-yellow-500" />
+                        <input type="checkbox" name="orderId" value={o.id} aria-label={tr(`اختيار ${o.number}`, `Select ${o.number}`)} className="size-5 accent-yellow-500" />
                       </td>
                       <td className={td}>
                         <Link href={`/admin/orders/${o.id}`} className="font-mono font-bold text-ink underline-offset-4 hover:underline" dir="ltr">
@@ -492,25 +504,30 @@ export default async function FinancePage({ searchParams }: PageProps<"/admin/fi
                 </tbody>
               </table>
             </div>
-            <p className="text-xs text-warm-600">المنتظر هو المبلغ ناقص رسوم التوصيل. إلا توصلتي بمبلغ آخر، سجلو من صفحة الطلب.</p>
+            <p className="text-xs text-warm-600">{tr("المنتظر هو المبلغ ناقص رسوم التوصيل. إلا توصلتي بمبلغ آخر، سجلو من صفحة الطلب.", "Expected is the amount minus the delivery fee. If you received another amount, record it on the order page.")}</p>
           </ActionForm>
         ) : (
-          <p className="text-sm text-warm-600">ما كاين حتى طلب مسلَّم كيتسنى التحويل.</p>
+          <p className="text-sm text-warm-600">{tr("ما كاين حتى طلب مسلَّم كيتسنى التحويل.", "No delivered order is waiting for a transfer.")}</p>
         )}
       </section>
 
       <div className="mt-3 grid gap-3 lg:grid-cols-3">
         {(
           [
-            { scope: "BUSINESS", title: "مصروف ديال المشروع", categories: BUSINESS_CATEGORIES, note: undefined },
-            { scope: "PERSONAL", title: "مصروف ولا خسارة شخصية", categories: PERSONAL_CATEGORIES, note: "ما كيدخلش فربح المشروع، ولكن كينقص من الكاش ومن نتيجة رأس المال." },
-          ] as const
+            { scope: "BUSINESS", title: tr("مصروف ديال المشروع", "Business expense"), categories: lang === "en" ? BUSINESS_CATEGORIES_EN : BUSINESS_CATEGORIES, note: undefined },
+            {
+              scope: "PERSONAL",
+              title: tr("مصروف ولا خسارة شخصية", "Personal expense or loss"),
+              categories: lang === "en" ? PERSONAL_CATEGORIES_EN : PERSONAL_CATEGORIES,
+              note: tr("ما كيدخلش فربح المشروع، ولكن كينقص من الكاش ومن نتيجة رأس المال.", "Not counted in business profit, but it lowers cash and the capital result."),
+            },
+          ]
         ).map((f) => (
           <section key={f.scope} className={card}>
             <h2 className="mb-3 text-base text-ink">{f.title}</h2>
-            <ActionForm action={addExpense} submitLabel="إضافة">
+            <ActionForm action={addExpense} submitLabel={tr("إضافة", "Add")}>
               <input type="hidden" name="scope" value={f.scope} />
-              <Field label="النوع">
+              <Field label={tr("النوع", "Type")}>
                 <select name="category" className={field}>
                   {Object.entries(f.categories).map(([k, label]) => (
                     <option key={k} value={k}>
@@ -519,13 +536,13 @@ export default async function FinancePage({ searchParams }: PageProps<"/admin/fi
                   ))}
                 </select>
               </Field>
-              <Field label="المبلغ (درهم)">
+              <Field label={tr("المبلغ (درهم)", "Amount (MAD)")}>
                 <input name="amount" type="number" min={1} required className={field} />
               </Field>
-              <Field label="التاريخ">
+              <Field label={tr("التاريخ", "Date")}>
                 <input name="spentOn" type="date" required defaultValue={today} className={field} />
               </Field>
-              <Field label="ملاحظة">
+              <Field label={tr("ملاحظة", "Note")}>
                 <input name="note" maxLength={200} className={field} />
               </Field>
             </ActionForm>
@@ -534,21 +551,21 @@ export default async function FinancePage({ searchParams }: PageProps<"/admin/fi
         ))}
 
         <section className={card}>
-          <h2 className="mb-3 text-base text-ink">حركة رأس المال</h2>
-          <ActionForm action={addCapital} submitLabel="إضافة">
-            <Field label="النوع">
+          <h2 className="mb-3 text-base text-ink">{tr("حركة رأس المال", "Capital move")}</h2>
+          <ActionForm action={addCapital} submitLabel={tr("إضافة", "Add")}>
+            <Field label={tr("النوع", "Type")}>
               <select name="type" className={field}>
-                <option value="INJECTION">دخلت فلوس للمشروع</option>
-                <option value="WITHDRAWAL">سحبت فلوس من المشروع</option>
+                <option value="INJECTION">{tr("دخلت فلوس للمشروع", "Money put into the business")}</option>
+                <option value="WITHDRAWAL">{tr("سحبت فلوس من المشروع", "Money taken out of the business")}</option>
               </select>
             </Field>
-            <Field label="المبلغ (درهم)">
+            <Field label={tr("المبلغ (درهم)", "Amount (MAD)")}>
               <input name="amount" type="number" min={1} required className={field} />
             </Field>
-            <Field label="التاريخ">
+            <Field label={tr("التاريخ", "Date")}>
               <input name="occurredOn" type="date" required defaultValue={today} className={field} />
             </Field>
-            <Field label="ملاحظة">
+            <Field label={tr("ملاحظة", "Note")}>
               <input name="note" maxLength={200} className={field} />
             </Field>
           </ActionForm>
@@ -557,15 +574,15 @@ export default async function FinancePage({ searchParams }: PageProps<"/admin/fi
 
       <div id="records" className="mt-3 grid scroll-mt-28 gap-3 lg:grid-cols-2">
         <section className={card}>
-          <h2 className="mb-3 text-base text-ink">آخر المصاريف</h2>
+          <h2 className="mb-3 text-base text-ink">{tr("آخر المصاريف", "Latest expenses")}</h2>
           {expenses.length ? (
             <ul className="flex flex-col divide-y divide-warm-200 text-sm">
               {expenses.map((e) => (
                 <li key={e.id} className="flex items-center justify-between gap-3 py-1.5">
                   <span className="min-w-0">
                     <span className="font-semibold text-ink">
-                      {categoryLabel(e.scope, e.category)}
-                      <span className="ms-2 rounded-md bg-warm-100 px-1.5 py-0.5 text-xs font-normal text-warm-700">{e.scope === "PERSONAL" ? "شخصي" : "المشروع"}</span>
+                      {categoryLabel(e.scope, e.category, lang)}
+                      <span className="ms-2 rounded-md bg-warm-100 px-1.5 py-0.5 text-xs font-normal text-warm-700">{e.scope === "PERSONAL" ? tr("شخصي", "Personal") : tr("المشروع", "Business")}</span>
                     </span>
                     <span className="block truncate text-xs text-warm-600">
                       {dayFmt.format(e.spentOn)}
@@ -574,24 +591,24 @@ export default async function FinancePage({ searchParams }: PageProps<"/admin/fi
                   </span>
                   <span className="flex shrink-0 items-center gap-1">
                     <b className="text-ink">{mad(e.amount)}</b>
-                    <DeleteButton action={deleteExpense} id={e.id} label="حذف المصروف" />
+                    <DeleteButton action={deleteExpense} id={e.id} label={tr("حذف المصروف", "Delete expense")} />
                   </span>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-warm-600">مازال ما تسجل حتى مصروف.</p>
+            <p className="text-sm text-warm-600">{tr("مازال ما تسجل حتى مصروف.", "No expense recorded yet.")}</p>
           )}
         </section>
 
         <section className={card}>
-          <h2 className="mb-3 text-base text-ink">حركات رأس المال</h2>
+          <h2 className="mb-3 text-base text-ink">{tr("حركات رأس المال", "Capital moves")}</h2>
           {capitalEntries.length ? (
             <ul className="flex flex-col divide-y divide-warm-200 text-sm">
               {capitalEntries.map((e) => (
                 <li key={e.id} className="flex items-center justify-between gap-3 py-1.5">
                   <span className="min-w-0">
-                    <span className="font-semibold text-ink">{e.type === "INJECTION" ? "دخلت فلوس" : "سحبت فلوس"}</span>
+                    <span className="font-semibold text-ink">{e.type === "INJECTION" ? tr("دخلت فلوس", "Money in") : tr("سحبت فلوس", "Money out")}</span>
                     <span className="block truncate text-xs text-warm-600">
                       {dayFmt.format(e.occurredOn)}
                       {e.note ? ` · ${e.note}` : ""}
@@ -602,13 +619,13 @@ export default async function FinancePage({ searchParams }: PageProps<"/admin/fi
                       <span dir="ltr">{e.type === "INJECTION" ? "+" : "−"}</span>
                       {mad(e.amount)}
                     </b>
-                    <DeleteButton action={deleteCapital} id={e.id} label="حذف الحركة" />
+                    <DeleteButton action={deleteCapital} id={e.id} label={tr("حذف الحركة", "Delete move")} />
                   </span>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-warm-600">سجل شحال دخلتي فالمشروع باش يتحسب رأس المال بالصح.</p>
+            <p className="text-sm text-warm-600">{tr("سجل شحال دخلتي فالمشروع باش يتحسب رأس المال بالصح.", "Record how much you put into the business so capital is counted right.")}</p>
           )}
         </section>
       </div>

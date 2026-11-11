@@ -19,7 +19,6 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { setAdminLang } from "@/app/actions/admin-lang";
 import type { Prisma } from "@/generated/prisma/client";
 import { AreaChart } from "@/components/admin/AreaChart";
 import { STATUS_LABEL } from "@/components/admin/ui";
@@ -126,7 +125,6 @@ const T = {
     left: (n: number) => `بقي ${n}`,
     byStatus: "الطلبات حسب الحالة",
     allOrders: "كل الطلبات",
-    langLabel: "لغة اللوحة",
   },
   en: {
     morning: "Good morning",
@@ -196,7 +194,6 @@ const T = {
     left: (n: number) => `${n} left`,
     byStatus: "Orders by status",
     allOrders: "All orders",
-    langLabel: "Dashboard language",
   },
 };
 type Words = (typeof T)["ar"];
@@ -338,20 +335,6 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
               </Link>
             ))}
           </nav>
-          <form action={setAdminLang} aria-label={t.langLabel} className="flex rounded-full bg-warm-100 p-1">
-            {(["ar", "en"] as const).map((l) => (
-              <button
-                key={l}
-                type="submit"
-                name="lang"
-                value={l}
-                aria-pressed={lang === l}
-                className={`inline-flex min-h-9 cursor-pointer items-center rounded-full px-3 text-sm font-bold transition-colors ${lang === l ? "bg-ink text-white" : "text-warm-700 hover:text-ink"}`}
-              >
-                {l === "ar" ? "ع" : "EN"}
-              </button>
-            ))}
-          </form>
           <Link href="/admin/orders/new" className={buttonClass({ className: "rounded-full" })}>
             <Plus className="size-4" aria-hidden="true" />
             {t.newOrder}

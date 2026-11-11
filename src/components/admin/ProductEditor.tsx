@@ -9,6 +9,7 @@ import { colorName } from "@/lib/color-names";
 import { submitKeepingValues } from "@/lib/forms";
 import { slugify, type ProductInput } from "@/lib/product-input";
 import { ActionForm } from "./ActionForm";
+import { useAdminTr } from "./AdminLang";
 import { FILTER_SPECS, KNOWN_SPECS, SpecPicker } from "./SpecPicker";
 import { FormMessage } from "./ui";
 
@@ -71,6 +72,7 @@ export function ProductEditor({
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [state, action, pending] = useActionState<ProductFormState, FormData>(saveProduct, {});
+  const { tr, lang } = useAdminTr();
 
   const set = <K extends keyof ProductInput>(key: K, value: ProductInput[K]) => setP((prev) => ({ ...prev, [key]: value }));
   const setVariant = (i: number, patch: Partial<Variant>) => set("variants", p.variants.map((v, j) => (j === i ? { ...v, ...patch } : v)));
@@ -96,7 +98,7 @@ export function ProductEditor({
         setP((prev) => ({ ...prev, images: [...prev.images, { url: res.secure_url, altAr: prev.nameAr, altEn: prev.nameEn }] }));
       }
     } catch {
-      setUploadError("فشل رفع الصورة. تحقق من إعدادات Cloudinary أو استعمل رابطاً.");
+      setUploadError(tr("فشل رفع الصورة. تحقق من إعدادات Cloudinary أو استعمل رابطاً.", "Image upload failed. Check the Cloudinary settings or use a link."));
     } finally {
       setUploading(false);
     }
@@ -122,13 +124,13 @@ export function ProductEditor({
         ) : null}
 
         <section className="grid gap-4 admin-card p-4 md:grid-cols-2">
-          <h2 className="text-base md:col-span-2">المعلومات الأساسية</h2>
+          <h2 className="text-base md:col-span-2">{tr("المعلومات الأساسية", "Basic information")}</h2>
           <label className={labelCls}>
-            الاسم بالعربية
+            {tr("الاسم بالعربية", "Name in Arabic")}
             <input className={input} value={p.nameAr} onChange={(e) => set("nameAr", e.target.value)} required maxLength={160} />
           </label>
           <label className={labelCls}>
-            الاسم بالإنجليزية
+            {tr("الاسم بالإنجليزية", "Name in English")}
             <input
               className={input}
               dir="ltr"
@@ -142,7 +144,7 @@ export function ProductEditor({
             />
           </label>
           <label className={labelCls}>
-            الرابط (slug)
+            {tr("الرابط (slug)", "Link (slug)")}
             <input
               className={input}
               dir="ltr"
@@ -158,13 +160,13 @@ export function ProductEditor({
             </span>
           </label>
           <label className={labelCls}>
-            الضمان بالأشهر (0 = بلا ضمان)
+            {tr("الضمان بالأشهر (0 = بلا ضمان)", "Warranty in months (0 = none)")}
             <input className={input} type="number" min={0} max={120} value={String(p.warrantyMonths)} onChange={(e) => set("warrantyMonths", e.target.value)} />
           </label>
           <label className={labelCls}>
-            القسم
+            {tr("القسم", "Category")}
             <select className={input} value={p.categoryId} onChange={(e) => set("categoryId", e.target.value)} required>
-              <option value="">اختر…</option>
+              <option value="">{tr("اختر…", "Choose…")}</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.label}
@@ -173,9 +175,9 @@ export function ProductEditor({
             </select>
           </label>
           <label className={labelCls}>
-            الماركة
+            {tr("الماركة", "Brand")}
             <select className={input} value={p.brandId} onChange={(e) => set("brandId", e.target.value)} required>
-              <option value="">اختر…</option>
+              <option value="">{tr("اختر…", "Choose…")}</option>
               {brands.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.label}
@@ -184,20 +186,20 @@ export function ProductEditor({
             </select>
           </label>
           <label className={`${labelCls} md:col-span-2`}>
-            الوصف بالعربية
+            {tr("الوصف بالعربية", "Description in Arabic")}
             <textarea className={`${input} min-h-24 py-2`} value={p.descriptionAr} onChange={(e) => set("descriptionAr", e.target.value)} maxLength={5000} />
           </label>
           <label className={`${labelCls} md:col-span-2`}>
-            الوصف بالإنجليزية
+            {tr("الوصف بالإنجليزية", "Description in English")}
             <textarea className={`${input} min-h-24 py-2`} dir="ltr" value={p.descriptionEn} onChange={(e) => set("descriptionEn", e.target.value)} maxLength={5000} />
           </label>
           <fieldset className="flex flex-wrap gap-4 md:col-span-2">
-            <legend className="sr-only">الظهور</legend>
+            <legend className="sr-only">{tr("الظهور", "Visibility")}</legend>
             {(
               [
-                ["isActive", "ظاهر في المتجر"],
-                ["isFeatured", "منتج مميز (الواجهة)"],
-                ["isBestSeller", "الأكثر مبيعاً"],
+                ["isActive", tr("ظاهر في المتجر", "Visible in the shop")],
+                ["isFeatured", tr("منتج مميز (الواجهة)", "Featured (home page)")],
+                ["isBestSeller", tr("الأكثر مبيعاً", "Best seller")],
               ] as const
             ).map(([k, l]) => (
               <label key={k} className="flex min-h-11 items-center gap-2 text-sm text-warm-800">
@@ -207,30 +209,30 @@ export function ProductEditor({
             ))}
           </fieldset>
           <label className={labelCls}>
-            نهاية العرض المحدود (اختياري)
+            {tr("نهاية العرض المحدود (اختياري)", "Limited deal ends (optional)")}
             <input className={input} type="datetime-local" value={p.dealEndsAt ?? ""} onChange={(e) => set("dealEndsAt", e.target.value)} />
-            <span className="text-xs font-normal text-warm-600">يظهر عداد تنازلي في الصفحة الرئيسية حتى هذا التاريخ.</span>
+            <span className="text-xs font-normal text-warm-600">{tr("يظهر عداد تنازلي في الصفحة الرئيسية حتى هذا التاريخ.", "A countdown shows on the home page until this date.")}</span>
           </label>
         </section>
 
         <section className="admin-card p-4">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-base">الصور</h2>
+            <h2 className="text-base">{tr("الصور", "Images")}</h2>
             <div className="flex flex-wrap gap-2">
               {uploadsEnabled ? (
                 <label className={buttonClass({ variant: "outline", className: "cursor-pointer" })}>
                   {uploading ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <ImagePlus className="size-4" aria-hidden="true" />}
-                  رفع صور
+                  {tr("رفع صور", "Upload images")}
                   <input type="file" accept="image/*" multiple className="sr-only" onChange={(e) => upload(e.target.files)} disabled={uploading} />
                 </label>
               ) : null}
               <button type="button" className={buttonClass({ variant: "ghost" })} onClick={() => set("images", [...p.images, { url: "", altAr: p.nameAr, altEn: p.nameEn }])}>
                 <Plus className="size-4" aria-hidden="true" />
-                إضافة رابط صورة
+                {tr("إضافة رابط صورة", "Add image link")}
               </button>
             </div>
           </div>
-          {!uploadsEnabled ? <p className="mb-3 text-xs text-warm-600">رفع الصور يتفعل عند إضافة مفاتيح Cloudinary في ملف .env. حالياً أضف روابط الصور.</p> : null}
+          {!uploadsEnabled ? <p className="mb-3 text-xs text-warm-600">{tr("رفع الصور يتفعل عند إضافة مفاتيح Cloudinary في ملف .env. حالياً أضف روابط الصور.", "Uploads turn on once the Cloudinary keys are in the .env file. For now, add image links.")}</p> : null}
           {uploadError ? <p className="mb-3 text-sm text-danger">{uploadError}</p> : null}
           <ul className="flex flex-col gap-3">
             {p.images.map((img, i) => (
@@ -241,19 +243,19 @@ export function ProductEditor({
                   ) : null}
                 </div>
                 <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-3">
-                  <input className={`${input} sm:col-span-3`} dir="ltr" placeholder="https://res.cloudinary.com/…" value={img.url} onChange={(e) => setImage(i, { url: e.target.value })} aria-label={`رابط الصورة ${i + 1}`} />
-                  <input className={input} placeholder="وصف بالعربية" value={img.altAr} onChange={(e) => setImage(i, { altAr: e.target.value })} aria-label={`وصف الصورة ${i + 1} بالعربية`} />
-                  <input className={input} dir="ltr" placeholder="Alt text (English)" value={img.altEn} onChange={(e) => setImage(i, { altEn: e.target.value })} aria-label={`وصف الصورة ${i + 1} بالإنجليزية`} />
-                  {i === 0 ? <span className="self-center text-xs font-semibold text-yellow-800">الصورة الرئيسية</span> : null}
+                  <input className={`${input} sm:col-span-3`} dir="ltr" placeholder="https://res.cloudinary.com/…" value={img.url} onChange={(e) => setImage(i, { url: e.target.value })} aria-label={tr(`رابط الصورة ${i + 1}`, `Image ${i + 1} link`)} />
+                  <input className={input} placeholder={tr("وصف بالعربية", "Alt text (Arabic)")} value={img.altAr} onChange={(e) => setImage(i, { altAr: e.target.value })} aria-label={tr(`وصف الصورة ${i + 1} بالعربية`, `Image ${i + 1} alt text in Arabic`)} />
+                  <input className={input} dir="ltr" placeholder="Alt text (English)" value={img.altEn} onChange={(e) => setImage(i, { altEn: e.target.value })} aria-label={tr(`وصف الصورة ${i + 1} بالإنجليزية`, `Image ${i + 1} alt text in English`)} />
+                  {i === 0 ? <span className="self-center text-xs font-semibold text-yellow-800">{tr("الصورة الرئيسية", "Main image")}</span> : null}
                 </div>
                 <div className="flex">
-                  <button type="button" className={iconBtn} disabled={i === 0} onClick={() => set("images", move(p.images, i, -1))} aria-label="تقديم الصورة">
+                  <button type="button" className={iconBtn} disabled={i === 0} onClick={() => set("images", move(p.images, i, -1))} aria-label={tr("تقديم الصورة", "Move image up")}>
                     <ArrowUp className="size-4" aria-hidden="true" />
                   </button>
-                  <button type="button" className={iconBtn} disabled={i === p.images.length - 1} onClick={() => set("images", move(p.images, i, 1))} aria-label="تأخير الصورة">
+                  <button type="button" className={iconBtn} disabled={i === p.images.length - 1} onClick={() => set("images", move(p.images, i, 1))} aria-label={tr("تأخير الصورة", "Move image down")}>
                     <ArrowDown className="size-4" aria-hidden="true" />
                   </button>
-                  <button type="button" className={iconBtn} onClick={() => set("images", p.images.filter((_, j) => j !== i))} aria-label="حذف الصورة">
+                  <button type="button" className={iconBtn} onClick={() => set("images", p.images.filter((_, j) => j !== i))} aria-label={tr("حذف الصورة", "Delete image")}>
                     <Trash2 className="size-4" aria-hidden="true" />
                   </button>
                 </div>
@@ -265,21 +267,21 @@ export function ProductEditor({
         <section className="admin-card p-4">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-base">الألوان والمخزون والأسعار</h2>
+              <h2 className="text-base">{tr("الألوان والمخزون والأسعار", "Colours, stock & prices")}</h2>
               <span className="rounded-full bg-ink px-3 py-1 text-xs font-bold text-white">
-                الكمية الكلية: {p.variants.reduce((s, v) => s + num(v.stock), 0)}
+                {tr("الكمية الكلية", "Total quantity")}: {p.variants.reduce((s, v) => s + num(v.stock), 0)}
               </span>
             </div>
             <button type="button" className={buttonClass({ variant: "ghost" })} onClick={() => set("variants", [...p.variants, emptyVariant(p.variants[0]?.price ?? "")])}>
               <Plus className="size-4" aria-hidden="true" />
-              إضافة لون
+              {tr("إضافة لون", "Add colour")}
             </button>
           </div>
 
           <label className={`${labelCls} mb-4 max-w-xs`}>
-            سعر الشراء (للمنتج)
-            <input className={input} type="number" min={0} inputMode="numeric" placeholder="بالدرهم" value={String(p.costPrice ?? "")} onChange={(e) => set("costPrice", e.target.value)} />
-            <span className="text-xs font-normal text-warm-600">لا يظهر أبداً في المتجر. يمكن تغييره للون معيّن أسفله.</span>
+            {tr("سعر الشراء (للمنتج)", "Purchase price (product)")}
+            <input className={input} type="number" min={0} inputMode="numeric" placeholder={tr("بالدرهم", "In MAD")} value={String(p.costPrice ?? "")} onChange={(e) => set("costPrice", e.target.value)} />
+            <span className="text-xs font-normal text-warm-600">{tr("لا يظهر أبداً في المتجر. يمكن تغييره للون معيّن أسفله.", "Never shown in the shop. Can be changed for one colour below.")}</span>
           </label>
 
           <ul className="flex flex-col gap-3">
@@ -291,21 +293,21 @@ export function ProductEditor({
                   <div className="mb-3 flex items-center justify-between gap-2">
                     <p className="flex items-center gap-2 text-sm font-bold text-ink">
                       <span className="size-5 rounded-full border border-warm-300" style={{ backgroundColor: v.colorHex || "transparent" }} aria-hidden="true" />
-                      {v.colorHex ? colorName(v.colorHex).ar : v.colorAr || (p.variants.length === 1 ? "بدون لون" : `لون ${i + 1}`)}
-                      {i === 0 ? <span className="text-xs font-normal text-warm-600">(الافتراضي)</span> : null}
-                      {low ? <span className="rounded-full bg-warning-soft px-2 py-0.5 text-xs font-semibold text-warning-text">مخزون منخفض</span> : null}
+                      {v.colorHex ? colorName(v.colorHex)[lang] : (lang === "en" ? v.colorEn : v.colorAr) || (p.variants.length === 1 ? tr("بدون لون", "No colour") : tr(`لون ${i + 1}`, `Colour ${i + 1}`))}
+                      {i === 0 ? <span className="text-xs font-normal text-warm-600">{tr("(الافتراضي)", "(default)")}</span> : null}
+                      {low ? <span className="rounded-full bg-warning-soft px-2 py-0.5 text-xs font-semibold text-warning-text">{tr("مخزون منخفض", "Low stock")}</span> : null}
                     </p>
-                    <button type="button" className={iconBtn} disabled={p.variants.length === 1} onClick={() => set("variants", p.variants.filter((_, j) => j !== i))} aria-label={`حذف ${v.colorAr || `اللون ${i + 1}`}`}>
+                    <button type="button" className={iconBtn} disabled={p.variants.length === 1} onClick={() => set("variants", p.variants.filter((_, j) => j !== i))} aria-label={tr(`حذف ${v.colorAr || `اللون ${i + 1}`}`, `Delete ${v.colorEn || `colour ${i + 1}`}`)}>
                       <Trash2 className="size-4" aria-hidden="true" />
                     </button>
                   </div>
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
                     {/* Only the swatch: its name (Arabic and English) is given by the server from the colour. */}
                     <fieldset className="flex flex-col gap-1">
-                      <legend className="mb-1 text-sm font-semibold text-ink">اللون</legend>
+                      <legend className="mb-1 text-sm font-semibold text-ink">{tr("اللون", "Colour")}</legend>
                       <div className="flex flex-wrap items-center gap-2">
-                        <label className="relative size-11 shrink-0 cursor-pointer overflow-hidden rounded-full border border-warm-300 bg-white" title="لون آخر">
-                          <span className="sr-only">اختر اللون</span>
+                        <label className="relative size-11 shrink-0 cursor-pointer overflow-hidden rounded-full border border-warm-300 bg-white" title={tr("لون آخر", "Another colour")}>
+                          <span className="sr-only">{tr("اختر اللون", "Pick the colour")}</span>
                           <input
                             type="color"
                             className="absolute inset-0 size-full cursor-pointer opacity-0"
@@ -319,20 +321,20 @@ export function ProductEditor({
                       <span className="flex items-center gap-2 text-xs text-warm-600">
                         {v.colorHex ? (
                           <>
-                            كيبان للزبون: <b className="text-ink">{colorName(v.colorHex).ar}</b>
+                            {tr("كيبان للزبون:", "Customers see:")} <b className="text-ink">{colorName(v.colorHex)[lang]}</b>
                             <button type="button" className="cursor-pointer text-warm-600 underline hover:text-ink" onClick={() => setVariant(i, { colorHex: "" })}>
-                              بلا لون
+                              {tr("بلا لون", "No colour")}
                             </button>
                           </>
                         ) : v.colorAr ? (
-                          `الاسم القديم: ${v.colorAr}. اختر دائرة باش يتبدل.`
+                          tr(`الاسم القديم: ${v.colorAr}. اختر دائرة باش يتبدل.`, `Old name: ${v.colorEn || v.colorAr}. Pick a swatch to replace it.`)
                         ) : (
-                          "بلا لون"
+                          tr("بلا لون", "No colour")
                         )}
                       </span>
                     </fieldset>
                     <label className={labelCls}>
-                      الكمية
+                      {tr("الكمية", "Quantity")}
                       <input className={input} type="number" min={0} inputMode="numeric" value={String(v.stock)} onChange={(e) => setVariant(i, { stock: e.target.value })} />
                       {changed ? (
                         <span className={`text-xs font-semibold ${changed > 0 ? "text-success" : "text-danger"}`} dir="ltr">
@@ -341,7 +343,7 @@ export function ProductEditor({
                       ) : null}
                     </label>
                     <label className={labelCls}>
-                      تنبيه عند
+                      {tr("تنبيه عند", "Alert at")}
                       <input className={input} type="number" min={0} inputMode="numeric" value={String(v.lowStockAt)} onChange={(e) => setVariant(i, { lowStockAt: e.target.value })} />
                     </label>
                     <label className={labelCls}>
@@ -349,27 +351,27 @@ export function ProductEditor({
                       <input className={input} dir="ltr" value={v.sku} onChange={(e) => setVariant(i, { sku: e.target.value })} />
                     </label>
                     <label className={labelCls}>
-                      سعر البيع
+                      {tr("سعر البيع", "Sale price")}
                       <input className={input} type="number" min={1} inputMode="numeric" value={String(v.price)} onChange={(e) => setVariant(i, { price: e.target.value })} />
                     </label>
                     <label className={labelCls}>
-                      قبل التخفيض
+                      {tr("قبل التخفيض", "Before discount")}
                       <input className={input} type="number" min={0} inputMode="numeric" value={String(v.compareAtPrice ?? "")} onChange={(e) => setVariant(i, { compareAtPrice: e.target.value })} />
                     </label>
                     <label className={labelCls}>
-                      سعر شراء خاص
+                      {tr("سعر شراء خاص", "Own purchase price")}
                       <input
                         className={input}
                         type="number"
                         min={0}
                         inputMode="numeric"
-                        placeholder={p.costPrice !== "" ? `${p.costPrice} (المنتج)` : "—"}
+                        placeholder={p.costPrice !== "" ? tr(`${p.costPrice} (المنتج)`, `${p.costPrice} (product)`) : "—"}
                         value={String(v.costPrice ?? "")}
                         onChange={(e) => setVariant(i, { costPrice: e.target.value })}
                       />
                     </label>
                     <label className={labelCls}>
-                      السعة (اختياري)
+                      {tr("السعة (اختياري)", "Storage (optional)")}
                       <input className={input} dir="ltr" placeholder="128GB" value={v.storage ?? ""} onChange={(e) => setVariant(i, { storage: e.target.value })} />
                     </label>
                   </div>
@@ -378,26 +380,29 @@ export function ProductEditor({
             })}
           </ul>
           <p className="mt-3 text-xs text-warm-600">
-            الكمية الكلية = مجموع كميات الألوان. منتج بدون ألوان: احتفظ بسطر واحد بلا لون. كل تغيير في الكمية يُسجَّل في سجل الحركات. الأسعار بالدرهم.
+            {tr(
+              "الكمية الكلية = مجموع كميات الألوان. منتج بدون ألوان: احتفظ بسطر واحد بلا لون. كل تغيير في الكمية يُسجَّل في سجل الحركات. الأسعار بالدرهم.",
+              "Total quantity = the sum of the colours. A product without colours keeps one line with no colour. Every quantity change is logged in the stock history. Prices in MAD.",
+            )}
           </p>
         </section>
 
         <section className="admin-card p-4">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-base">المواصفات التقنية</h2>
+            <h2 className="text-base">{tr("المواصفات التقنية", "Technical specs")}</h2>
             <button type="button" className={buttonClass({ variant: "ghost" })} onClick={() => set("specs", [...p.specs, { key: "", valueAr: "", valueEn: "", numericValue: "" }])}>
               <Plus className="size-4" aria-hidden="true" />
-              مواصفة جديدة
+              {tr("مواصفة جديدة", "New spec")}
             </button>
           </div>
           {p.specs.length ? (
             <>
               {/* Column names once, above the rows (wide screens; phones read the placeholders). */}
               <div aria-hidden="true" className="mb-1.5 hidden gap-2 px-1 text-xs font-semibold text-warm-600 sm:grid sm:grid-cols-[12rem_1fr_1fr_7rem_2.5rem]">
-                <span>المواصفة</span>
-                <span>القيمة بالعربية</span>
-                <span>القيمة بالإنجليزية</span>
-                <span>رقم الفلتر</span>
+                <span>{tr("المواصفة", "Spec")}</span>
+                <span>{tr("القيمة بالعربية", "Value in Arabic")}</span>
+                <span>{tr("القيمة بالإنجليزية", "Value in English")}</span>
+                <span>{tr("رقم الفلتر", "Filter number")}</span>
               </div>
               <ul className="flex flex-col gap-2">
                 {p.specs.map((s, i) => {
@@ -426,12 +431,12 @@ export function ProductEditor({
                             placeholder="weight"
                             value={s.key}
                             onChange={(e) => setSpec(i, { key: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "") })}
-                            aria-label="اسم المواصفة بالإنجليزية (حروف صغيرة)"
+                            aria-label={tr("اسم المواصفة بالإنجليزية (حروف صغيرة)", "Spec name in English (lower case)")}
                           />
                         ) : null}
                       </div>
-                      <input className={input} placeholder="8 جيجابايت" value={s.valueAr} onChange={(e) => setSpec(i, { valueAr: e.target.value })} aria-label="القيمة بالعربية" />
-                      <input className={input} dir="ltr" placeholder="8 GB" value={s.valueEn} onChange={(e) => setSpec(i, { valueEn: e.target.value })} aria-label="القيمة بالإنجليزية" />
+                      <input className={input} placeholder="8 جيجابايت" value={s.valueAr} onChange={(e) => setSpec(i, { valueAr: e.target.value })} aria-label={tr("القيمة بالعربية", "Value in Arabic")} />
+                      <input className={input} dir="ltr" placeholder="8 GB" value={s.valueEn} onChange={(e) => setSpec(i, { valueEn: e.target.value })} aria-label={tr("القيمة بالإنجليزية", "Value in English")} />
                       {/* Only the filter keys use a number; for the rest the field steps back. */}
                       <input
                         className={`${input} ${filter ? "" : "opacity-50"}`}
@@ -440,7 +445,7 @@ export function ProductEditor({
                         placeholder={filter ? "8" : "—"}
                         value={String(s.numericValue ?? "")}
                         onChange={(e) => setSpec(i, { numericValue: e.target.value })}
-                        aria-label="قيمة رقمية للفلاتر"
+                        aria-label={tr("قيمة رقمية للفلاتر", "Number for the filters")}
                       />
                       <button
                         type="button"
@@ -450,7 +455,7 @@ export function ProductEditor({
                           // Rows after this one move up by one: so do their "other spec" marks.
                           setCustomSpecs((all) => new Set([...all].filter((j) => j !== i).map((j) => (j > i ? j - 1 : j))));
                         }}
-                        aria-label="حذف المواصفة"
+                        aria-label={tr("حذف المواصفة", "Delete spec")}
                       >
                         <Trash2 className="size-4" aria-hidden="true" />
                       </button>
@@ -460,15 +465,15 @@ export function ProductEditor({
               </ul>
             </>
           ) : (
-            <p className="rounded-xl border border-dashed border-warm-300 p-4 text-center text-sm text-warm-600">ما كاين حتى مواصفة. زيد وحدة بالزر فوق.</p>
+            <p className="rounded-xl border border-dashed border-warm-300 p-4 text-center text-sm text-warm-600">{tr("ما كاين حتى مواصفة. زيد وحدة بالزر فوق.", "No specs yet. Add one with the button above.")}</p>
           )}
-          <p className="mt-2 text-xs text-warm-600">الذاكرة والتخزين والشاشة والمعالج كيبانو كفلاتر فصفحات الأقسام: عمّر ليهم رقم الفلتر (8، 256، 6.1…).</p>
+          <p className="mt-2 text-xs text-warm-600">{tr("الذاكرة والتخزين والشاشة والمعالج كيبانو كفلاتر فصفحات الأقسام: عمّر ليهم رقم الفلتر (8، 256، 6.1…).", "RAM, storage, screen and CPU show as filters on category pages: give them a filter number (8, 256, 6.1…).")}</p>
         </section>
 
         <div className="glass-light sticky bottom-24 z-10 flex flex-wrap items-center gap-3 rounded-2xl border p-3 lg:bottom-3">
           <button type="submit" disabled={pending} className={buttonClass({ size: "lg" })}>
             {pending ? <LoaderCircle className="size-5 animate-spin" aria-hidden="true" /> : null}
-            حفظ المنتج
+            {tr("حفظ المنتج", "Save product")}
           </button>
           {!state.errors?.length ? <FormMessage state={state} /> : null}
         </div>
@@ -476,10 +481,10 @@ export function ProductEditor({
 
       {initial.id ? (
         <section className="admin-card p-4 ring-1 ring-danger/60">
-          <h2 className="text-base text-danger">حذف المنتج</h2>
-          <p className="mt-1 text-sm text-warm-600">الطلبات السابقة تحتفظ بنسخة من الاسم والسعر. لإخفائه فقط، ألغِ خيار «ظاهر في المتجر».</p>
+          <h2 className="text-base text-danger">{tr("حذف المنتج", "Delete product")}</h2>
+          <p className="mt-1 text-sm text-warm-600">{tr("الطلبات السابقة تحتفظ بنسخة من الاسم والسعر. لإخفائه فقط، ألغِ خيار «ظاهر في المتجر».", "Past orders keep a copy of the name and price. To only hide it, untick “Visible in the shop”.")}</p>
           <div className="mt-3">
-            <ActionForm action={deleteProduct} submitLabel="حذف نهائياً" variant="outline" confirm="حذف هذا المنتج نهائياً؟ لا يمكن التراجع.">
+            <ActionForm action={deleteProduct} submitLabel={tr("حذف نهائياً", "Delete for good")} variant="outline" confirm={tr("حذف هذا المنتج نهائياً؟ لا يمكن التراجع.", "Delete this product for good? This cannot be undone.")}>
               <input type="hidden" name="id" value={initial.id} />
             </ActionForm>
           </div>
