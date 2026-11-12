@@ -410,6 +410,9 @@ dialog.drawer:not([open])::backdrop {
   height: 100lvh;
   z-index: -1;
   overflow: hidden;
+  /* Decoration only. iPhone Safari does not trim this full-screen layer's touch area to the band's clip-path,
+     so without this it caught swipes meant for the rows above and below (the packs row would not slide). */
+  pointer-events: none;
 }
 .promo[data-visible="false"] .promo-bg {
   visibility: hidden;
