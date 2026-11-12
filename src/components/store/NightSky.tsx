@@ -82,12 +82,15 @@ export function NightSky() {
 
     const sized = new ResizeObserver(resize);
     sized.observe(host);
+    // A sky in a fixed background is always "on screen": watch the block that shows it instead.
+    let watched: Element = host;
+    for (let el: Element | null = host; el; el = el.parentElement) if (getComputedStyle(el).position === "fixed") watched = el.parentElement ?? host;
     const seen = new IntersectionObserver(([entry]) => {
       visible = entry.isIntersecting;
       if (visible) start();
       else stop();
     });
-    seen.observe(host);
+    seen.observe(watched);
     const onVisibility = () => (document.hidden ? stop() : start());
     document.addEventListener("visibilitychange", onVisibility);
 

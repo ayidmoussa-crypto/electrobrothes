@@ -4,6 +4,7 @@ import { Fragment } from "react";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { getPromoProducts } from "@/lib/catalog";
+import { NightSky } from "./NightSky";
 import { discountPercent } from "./PriceView";
 import { PromoScroll } from "./PromoScroll";
 
@@ -30,6 +31,8 @@ export async function PromoBand({ locale }: { locale: Locale }) {
     <PromoScroll labelledBy="promo-title" className="promo relative isolate overflow-hidden bg-ink">
       {/* The still background seen through the band: it stays put while the page moves over it. */}
       <div aria-hidden="true" className="promo-bg">
+        {/* The same starry sky as the hero and the packs, still behind the sliding words. */}
+        <NightSky />
         <p className="promo-ghost promo-ghost-a">{ghost}</p>
         <p className="promo-ghost promo-ghost-b">{ghost}</p>
         <svg viewBox="700 440 560 980" className="promo-bolt">
