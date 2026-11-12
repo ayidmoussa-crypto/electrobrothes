@@ -151,21 +151,7 @@ export async function Listing({
               {Object.entries(Object.fromEntries(new URLSearchParams(listingQuery({ ...params, sort: "featured", page: 1, q }).slice(1)))).map(([k, v]) => (
                 <input key={k} type="hidden" name={k} value={v} />
               ))}
-              <label htmlFor="listing-sort" className="sr-only sm:not-sr-only sm:text-sm sm:text-warm-600">
-                {t("sortLabel")}
-              </label>
-              <SortSelect id="listing-sort" defaultValue={params.sort}>
-                {SORTS.map((s) => (
-                  <option key={s} value={s}>
-                    {t(`sort.${s}`)}
-                  </option>
-                ))}
-              </SortSelect>
-              <noscript>
-                <button type="submit" className={buttonClass({ variant: "outline" })}>
-                  {t("apply")}
-                </button>
-              </noscript>
+              <SortSelect label={t("sortLabel")} value={params.sort} options={SORTS.map((s) => ({ value: s, label: t(`sort.${s}`) }))} />
             </form>
           </div>
         </div>

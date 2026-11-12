@@ -8,7 +8,9 @@ import type { CartBundle } from "@/app/actions/cart";
 import { previewCoupon, submitOrder, type OrderFormState } from "@/app/actions/order";
 import { buttonClass } from "@/components/ui/button";
 import { track } from "@/lib/analytics";
-import { Field, Input, Select, Textarea } from "@/components/ui/Field";
+import { Field, Input, Textarea } from "@/components/ui/Field";
+import { CityPicker } from "./CityPicker";
+import { TotalsList } from "./TotalsList";
 import type { Locale } from "@/i18n/routing";
 import { submitKeepingValues } from "@/lib/forms";
 import { FreeDeliveryRail } from "./FreeDeliveryRail";
@@ -186,14 +188,17 @@ export function OrderForm({
 
       <Field id={`${source}-city`} label={t("city")} required error={fieldError("cityId")}>
         {(p) => (
-          <Select {...p} name="cityId" value={cityId} onChange={(e) => setCityId(e.target.value)} autoComplete="address-level2">
-            <option value="">{t("chooseCity")}</option>
-            {config.cities.map((c) => (
-              <option key={c.id} value={c.id}>
-                {locale === "ar" ? c.nameAr : c.nameEn} — {formatMAD(c.shippingFee, locale)}
-              </option>
-            ))}
-          </Select>
+          <CityPicker
+            {...p}
+            name="cityId"
+            value={cityId}
+            onChange={setCityId}
+            cities={config.cities}
+            locale={locale}
+            placeholder={t("chooseCity")}
+            searchLabel={t("searchCity")}
+            emptyLabel={t("noCity")}
+          />
         )}
       </Field>
 
@@ -234,37 +239,15 @@ export function OrderForm({
             </li>
           ))}
         </ul>
-        <dl className="flex flex-col gap-1">
-          <div className="flex justify-between">
-            <dt className="text-warm-600">{t("subtotal")}</dt>
-            <dd className="font-semibold text-ink">{formatMAD(totals.subtotal, locale)}</dd>
-          </div>
-          {totals.bundleDiscount ? (
-            <div className="flex justify-between gap-3">
-              <dt className="text-warm-600">
-                {t("packDiscount")}
-                <span className="block text-xs">{pack.names.join("، ")}</span>
-              </dt>
-              <dd className="shrink-0 font-semibold text-success">−{formatMAD(totals.bundleDiscount, locale)}</dd>
-            </div>
-          ) : null}
-          {totals.discount - totals.bundleDiscount ? (
-            <div className="flex justify-between">
-              <dt className="text-warm-600">{t("discount")}</dt>
-              <dd className="font-semibold text-success">−{formatMAD(totals.discount - totals.bundleDiscount, locale)}</dd>
-            </div>
-          ) : null}
-          <div className="flex justify-between">
-            <dt className="text-warm-600">{t("shipping")}</dt>
-            <dd className="font-semibold text-ink">
-              {!city ? t("chooseCityForShipping") : totals.shipping === 0 ? t("free") : formatMAD(totals.shipping, locale)}
-            </dd>
-          </div>
-          <div className="mt-2 flex justify-between border-t border-warm-200 pt-2 text-base">
-            <dt className="font-bold text-ink">{t("total")}</dt>
-            <dd className="text-xl font-extrabold text-ink">{formatMAD(totals.total, locale)}</dd>
-          </div>
-        </dl>
+        <TotalsList
+          locale={locale}
+          subtotal={totals.subtotal}
+          packDiscount={totals.bundleDiscount}
+          packNames={pack.names}
+          couponDiscount={totals.discount - totals.bundleDiscount}
+          shipping={city ? totals.shipping : null}
+          total={totals.total}
+        />
         {city ? <p className="mt-1 text-xs text-warm-600">{t("deliveryIn", { days: city.deliveryDays })}</p> : null}
         <FreeDeliveryRail spent={totals.subtotal - totals.discount} threshold={config.freeShippingThreshold} locale={locale} />
       </div>

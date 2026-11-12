@@ -5,7 +5,6 @@ import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { buttonClass } from "@/components/ui/button";
-import { Select } from "@/components/ui/Field";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { StatePanel } from "@/components/ui/States";
 import { Link } from "@/i18n/navigation";
@@ -16,7 +15,9 @@ import { formatMAD } from "@/lib/money";
 import { FreeDeliveryRail } from "./FreeDeliveryRail";
 import { computeTotals } from "@/lib/pricing";
 import type { CheckoutConfig } from "@/lib/store-config";
+import { CityPicker } from "./CityPicker";
 import { QtyStepper } from "./QtyStepper";
+import { TotalsList } from "./TotalsList";
 import { packSaving, useCartLines } from "./useCartLines";
 
 export function CartView({ locale, config }: { locale: Locale; config: CheckoutConfig }) {
@@ -170,40 +171,30 @@ export function CartView({ locale, config }: { locale: Locale; config: CheckoutC
           <label htmlFor="cart-city" className="text-sm font-semibold text-ink">
             {t("shippingEstimate")}
           </label>
-          <Select id="cart-city" value={cityId} onChange={(e) => setCityId(e.target.value)} className="mt-1 bg-white">
-            <option value="">{tc("chooseCity")}</option>
-            {config.cities.map((c) => (
-              <option key={c.id} value={c.id}>
-                {ar ? c.nameAr : c.nameEn} — {formatMAD(c.shippingFee, locale)}
-              </option>
-            ))}
-          </Select>
+          <div className="mt-1">
+            <CityPicker
+              id="cart-city"
+              value={cityId}
+              onChange={setCityId}
+              cities={config.cities}
+              locale={locale}
+              placeholder={tc("chooseCity")}
+              searchLabel={tc("searchCity")}
+              emptyLabel={tc("noCity")}
+              className="bg-white"
+            />
+          </div>
         </div>
-        <dl className="mt-4 flex flex-col gap-1 text-sm">
-          <div className="flex justify-between">
-            <dt className="text-warm-600">{tc("subtotal")}</dt>
-            <dd className="font-semibold text-ink">{formatMAD(totals.subtotal, locale)}</dd>
-          </div>
-          {pack.discount ? (
-            <div className="flex justify-between gap-3">
-              <dt className="text-warm-600">
-                {tc("packDiscount")}
-                <span className="block text-xs">{pack.names.join("، ")}</span>
-              </dt>
-              <dd className="shrink-0 font-semibold text-success">−{formatMAD(pack.discount, locale)}</dd>
-            </div>
-          ) : null}
-          <div className="flex justify-between">
-            <dt className="text-warm-600">{tc("shipping")}</dt>
-            <dd className="font-semibold text-ink">
-              {!city ? tc("chooseCityForShipping") : totals.shipping === 0 ? tc("free") : formatMAD(totals.shipping, locale)}
-            </dd>
-          </div>
-          <div className="mt-2 flex justify-between border-t border-warm-200 pt-2 text-base">
-            <dt className="font-bold text-ink">{tc("total")}</dt>
-            <dd className="text-xl font-extrabold text-ink">{formatMAD(totals.total, locale)}</dd>
-          </div>
-        </dl>
+        <div className="mt-4">
+          <TotalsList
+            locale={locale}
+            subtotal={totals.subtotal}
+            packDiscount={pack.discount}
+            packNames={pack.names}
+            shipping={city ? totals.shipping : null}
+            total={totals.total}
+          />
+        </div>
         <FreeDeliveryRail spent={totals.subtotal - totals.discount} threshold={config.freeShippingThreshold} locale={locale} />
         <Link
           href="/checkout"

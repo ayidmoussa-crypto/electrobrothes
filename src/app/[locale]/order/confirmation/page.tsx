@@ -1,8 +1,8 @@
-import { CircleCheck, MessageCircle, PackageSearch } from "lucide-react";
+import { Banknote, CircleCheck, MessageCircle, PackageSearch, Phone, Truck } from "lucide-react";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { Suspense } from "react";
+import { Suspense, type ReactNode } from "react";
 import { TrackOnce } from "@/components/analytics/TrackOnce";
 import { ClearCartOnce } from "@/components/store/ClearCartOnce";
 import { buttonClass } from "@/components/ui/button";
@@ -44,6 +44,24 @@ async function Confirmation({ locale }: { locale: Locale }) {
   const ar = locale === "ar";
   const whatsapp = config.whatsappNumber.replace(/\D/g, "");
   const waText = encodeURIComponent(t("whatsappMessage", { number: order.number }));
+  const strong = (chunks: ReactNode) => <b className="font-bold text-ink">{chunks}</b>;
+  const steps = [
+    {
+      Icon: Phone,
+      title: t("step1"),
+      // The number reads left to right inside the Arabic sentence, so its groups keep their order.
+      text: t.rich("next1", {
+        phone: formatMoroccanPhone(order.phone),
+        b: (chunks) => (
+          <bdi dir="ltr" className="font-bold whitespace-nowrap text-ink">
+            {chunks}
+          </bdi>
+        ),
+      }),
+    },
+    { Icon: Truck, title: t("step2"), text: t.rich("next2", { days: order.city.deliveryDays, b: strong }) },
+    { Icon: Banknote, title: t("step3"), text: t.rich("next3", { total: formatMAD(order.total, locale), b: strong }) },
+  ];
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -68,26 +86,38 @@ async function Confirmation({ locale }: { locale: Locale }) {
         </p>
       </div>
 
-      <section className="mt-8 rounded-xl border border-warm-200 p-5">
+      <section className="mt-8 rounded-2xl border border-warm-200 bg-white p-5 sm:p-6">
         <h2 className="text-lg">{t("nextTitle")}</h2>
-        <ol className="mt-3 flex list-decimal flex-col gap-2 ps-5 text-warm-800">
-          <li>{t("next1", { phone: formatMoroccanPhone(order.phone) })}</li>
-          <li>{t("next2", { days: order.city.deliveryDays })}</li>
-          <li>{t("next3", { total: formatMAD(order.total, locale) })}</li>
+        {/* A short timeline: what happens, in order, each step with its own icon. */}
+        <ol className="mt-5 flex flex-col">
+          {steps.map(({ Icon, title, text }, i) => (
+            <li key={title} className="relative flex gap-4 pb-6 last:pb-0">
+              {i < steps.length - 1 ? <span aria-hidden="true" className="absolute start-5 top-11 bottom-1 w-px bg-warm-200" /> : null}
+              <span className="grid size-10 shrink-0 place-items-center rounded-full bg-ink text-yellow-500">
+                <Icon className="size-5" aria-hidden="true" />
+              </span>
+              <div className="pt-1">
+                <p className="text-xs font-bold text-warm-600">
+                  {i + 1}. {title}
+                </p>
+                <p className="mt-0.5 text-warm-800">{text}</p>
+              </div>
+            </li>
+          ))}
         </ol>
-        <div className="mt-5 flex flex-wrap gap-3">
+        <div className="mt-6 flex flex-col gap-3 border-t border-warm-200 pt-5 sm:flex-row">
           {whatsapp ? (
             <a
               href={`https://wa.me/${whatsapp}?text=${waText}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-whatsapp px-5 font-semibold text-ink transition-opacity hover:opacity-90"
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-whatsapp px-5 font-bold text-ink transition-opacity hover:opacity-90 sm:flex-1"
             >
               <MessageCircle className="size-5" aria-hidden="true" />
               {t("whatsapp")}
             </a>
           ) : null}
-          <Link href="/track" className={buttonClass({ variant: "outline" })}>
+          <Link href="/track" className={buttonClass({ variant: "outline", className: "min-h-12 sm:flex-1" })}>
             {t("track")}
           </Link>
         </div>
@@ -102,7 +132,7 @@ async function Confirmation({ locale }: { locale: Locale }) {
                 {ar ? i.nameAr : i.nameEn}
                 {i.variantLabel ? <span className="text-warm-600"> · {i.variantLabel}</span> : null} × {i.quantity}
               </span>
-              <span className="font-semibold text-ink">{formatMAD(i.unitPrice * i.quantity, locale)}</span>
+              <span className="shrink-0 font-semibold whitespace-nowrap text-ink">{formatMAD(i.unitPrice * i.quantity, locale)}</span>
             </li>
           ))}
         </ul>
