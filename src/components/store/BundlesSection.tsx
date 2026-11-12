@@ -71,6 +71,7 @@ export async function BundlesSection({ locale }: { locale: Locale }) {
             prevLabel={tl("previous")}
             nextLabel={tl("next")}
             itemClassName="w-[78%] sm:w-[calc((100%-1rem)/2)] lg:w-[calc((100%-2rem)/3)]"
+            onDark
           >
             {bundles.map((b) => (
               <BundleCard key={b.id} bundle={b} locale={locale} />
