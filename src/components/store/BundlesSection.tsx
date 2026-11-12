@@ -28,7 +28,7 @@ export async function BundlesSection({ locale }: { locale: Locale }) {
         {/* The same starry sky as the hero, so the black blocks of the home page belong together. */}
         <NightSky />
 
-        <div className="flex items-center gap-4 lg:flex-col lg:items-start lg:justify-between">
+        <div className="relative z-10 flex items-center gap-4 lg:flex-col lg:items-start lg:justify-between">
           <div className="min-w-0 flex-1 lg:flex-none">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-yellow-500 px-3 py-1 text-sm font-bold text-ink">
               <Package className="size-4" aria-hidden="true" />
@@ -63,7 +63,9 @@ export async function BundlesSection({ locale }: { locale: Locale }) {
           </div>
         </div>
 
-        <div className="mt-6 min-w-0 lg:mt-0">
+        {/* Its own layer above the animated sky: iPhone Safari otherwise loses the row's swipe area and
+            hands sideways swipes to the page. */}
+        <div className="relative z-10 mt-6 min-w-0 lg:mt-0">
           <ProductSlider
             label={t("title")}
             prevLabel={tl("previous")}
