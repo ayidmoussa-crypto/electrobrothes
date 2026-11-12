@@ -10,7 +10,7 @@ import type { Locale } from "@/i18n/routing";
 import { formatMAD } from "@/lib/money";
 import { useSearchToggle } from "./HeaderShell";
 
-const iconButton = "grid size-11 cursor-pointer place-items-center rounded-full transition-colors hover:text-yellow-500";
+const iconButton = "grid size-11 cursor-pointer place-items-center rounded-full transition-colors hover:bg-ink/5";
 
 /** Phone-only search icon: unfolds the search box sideways, inside the header row. */
 export function SearchToggleButton() {

@@ -23,7 +23,7 @@ export async function Header() {
         {/* The smallest phones make room for the open search by folding the logo away. */}
         <Link href="/" aria-label={t("home")} className="flex shrink-0 items-center gap-2 rounded-md max-md:order-3 group-data-[search=open]/header:max-[359px]:hidden">
           {/* Logo only: the link's aria-label carries the brand name for screen readers. */}
-          <Logo className="h-10 w-auto text-white" />
+          <Logo className="h-10 w-auto text-logo-dark" />
         </Link>
 
         <CategoryNav items={navItems} label={t("categoriesNav")} />
@@ -36,7 +36,7 @@ export async function Header() {
           <Link
             href="/"
             locale={otherLocale}
-            className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-semibold text-warm-300 transition-colors hover:text-yellow-500 max-md:hidden"
+            className="inline-flex min-h-11 items-center rounded-full px-3 text-sm font-semibold text-warm-800 transition-colors hover:bg-ink/5 hover:text-ink max-md:hidden"
           >
             {t("switchLanguage")}
           </Link>

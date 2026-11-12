@@ -66,8 +66,8 @@ export function CategoryTabs({ tabs, label }: { tabs: Tab[]; label: string }) {
             aria-hidden="true"
             style={{ transform: `translateX(${thumb.x}px)`, width: thumb.w }}
             // Physical left-0: offsetLeft is measured from the left in both directions.
-            // Frosted glass, like the header's category pill: translucent white, light rim, soft blur.
-            className="absolute inset-y-1 left-0 -z-10 rounded-full border border-white/60 bg-white/35 shadow-[inset_0_1px_0] shadow-white/70 backdrop-blur-md backdrop-saturate-150 transition-[transform,width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
+            // The same frosted glass as the floating header.
+            className="absolute inset-y-1 left-0 -z-10 rounded-full border border-(color:--glass-header-border) bg-(color:--glass-header-bg) shadow-md shadow-ink/10 backdrop-blur-xl backdrop-saturate-150 transition-[transform,width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
           />
           {tabs.map((tab, i) => (
             <button

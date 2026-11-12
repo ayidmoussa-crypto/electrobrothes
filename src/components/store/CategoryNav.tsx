@@ -7,10 +7,9 @@ type Item = { href: string; label: string; image?: string | null };
 type Pos = { x: number; w: number; visible: boolean; animate: boolean };
 
 /**
- * Desktop category strip on the header's surface (phones use the side menu). One frosted pill
- * glides to the hovered (or focused) category and settles back on the current one; being
- * translucent, it takes the colour of whatever is behind the header. The current category also
- * carries a yellow marker (brand "active link"), which shows inside the pill.
+ * Desktop category strip on the header's glass (phones use the side menu). One yellow pill glides to
+ * the hovered (or focused) category and settles back on the current one, which also carries a small
+ * ink marker inside the pill.
  */
 export function CategoryNav({ items, label }: { items: Item[]; label: string }) {
   const pathname = usePathname();
@@ -36,12 +35,12 @@ export function CategoryNav({ items, label }: { items: Item[]; label: string }) 
   }, [rest]);
 
   return (
-    // Transparent: takes the header's surface (solid ink, or glass once scrolled).
+    // Transparent: takes the header's glass.
     // From xl it sits in the bar's one row between the logo and the search; below that it wraps onto a full-width
     // second row under a hairline (the negative margins reach the bar's edges through its padding).
     <nav
       aria-label={label}
-      className="max-md:hidden max-xl:order-last max-xl:-mx-4 max-xl:mt-3 max-xl:-mb-3 max-xl:basis-[calc(100%+2rem)] max-xl:border-t max-xl:border-white/10"
+      className="max-md:hidden max-xl:order-last max-xl:-mx-4 max-xl:mt-3 max-xl:-mb-3 max-xl:basis-[calc(100%+2rem)] max-xl:border-t max-xl:border-ink/10"
     >
       <ul
         onMouseLeave={rest}
@@ -52,7 +51,7 @@ export function CategoryNav({ items, label }: { items: Item[]; label: string }) 
           aria-hidden="true"
           style={{ transform: `translateX(${pos.x}px)`, width: pos.w }}
           // Physical left-0: offsetLeft is measured from the left in both directions.
-          className={`pointer-events-none absolute inset-y-2 left-0 xl:inset-y-0 -z-10 rounded-full border border-(color:--glass-tab-border) bg-(color:--glass-tab-bg) shadow-[inset_0_1px_0] shadow-white/10 backdrop-blur-md backdrop-saturate-150 ${
+          className={`pointer-events-none absolute inset-y-2 left-0 xl:inset-y-0 -z-10 rounded-full bg-yellow-500 shadow-sm shadow-ink/10 ${
             pos.animate ? "transition-[transform,width,opacity] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]" : "transition-opacity duration-200"
           } ${pos.visible ? "opacity-100" : "opacity-0"}`}
         />
@@ -69,12 +68,12 @@ export function CategoryNav({ items, label }: { items: Item[]; label: string }) 
                 aria-current={active ? "page" : undefined}
                 onMouseEnter={() => moveTo(item.href)}
                 onFocus={() => moveTo(item.href)}
-                className={`relative inline-flex min-h-11 items-center justify-center rounded-full px-6 text-sm xl:px-4 font-semibold transition-colors duration-300 hover:text-white focus-visible:text-white ${
-                  active ? "text-white" : "text-warm-300"
+                className={`relative inline-flex min-h-11 items-center justify-center rounded-full px-6 text-sm xl:px-4 font-semibold transition-colors duration-300 hover:text-ink focus-visible:text-ink ${
+                  active ? "text-ink" : "text-warm-600"
                 }`}
               >
                 {item.label}
-                {active ? <span aria-hidden="true" className="absolute bottom-1 h-1 w-5 rounded-full bg-yellow-500" /> : null}
+                {active ? <span aria-hidden="true" className="absolute bottom-1 h-1 w-5 rounded-full bg-ink" /> : null}
               </Link>
             </li>
           );

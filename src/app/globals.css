@@ -84,9 +84,10 @@
   /* Smoked glass (header on scroll, deal card): ink at 80% keeps warm-300 text ≥4.5:1 even over a white page. */
   --glass-dark-bg: rgb(17 17 17 / 0.8);
   --glass-dark-border: rgb(255 255 255 / 0.1);
-  /* Sliding category tab in the header: translucent, so it takes the colour of what is behind. */
-  --glass-tab-bg: rgb(255 255 255 / 0.15);
-  --glass-tab-border: rgb(255 255 255 / 0.2);
+  /* The floating header: pale frosted glass, see-through enough that what passes under it tints it.
+     Over the black hero it reads as mid grey, where ink text still keeps about 5:1. */
+  --glass-header-bg: rgb(228 225 218 / 0.62); /* warm-200 */
+  --glass-header-border: rgb(255 255 255 / 0.7);
   /* Frosted glass over light content (cart drawer, mobile bar): white 78% keeps ink text ≥ 7:1 over anything. */
   --glass-light-bg: rgb(255 255 255 / 0.78);
   --glass-light-border: rgb(255 255 255 / 0.6);

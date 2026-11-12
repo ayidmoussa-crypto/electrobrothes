@@ -44,7 +44,7 @@ export function MobileMenu({ items }: { items: Item[] }) {
         }}
         aria-haspopup="dialog"
         aria-label={t("openMenu")}
-        className="grid size-11 cursor-pointer place-items-center rounded-full transition-colors hover:text-yellow-500 md:hidden"
+        className="grid size-11 cursor-pointer place-items-center rounded-full transition-colors hover:bg-ink/5 md:hidden"
       >
         <Menu className="size-6" aria-hidden="true" />
       </button>

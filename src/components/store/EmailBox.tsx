@@ -8,8 +8,8 @@ import { Link } from "@/i18n/navigation";
 import { submitKeepingValues } from "@/lib/forms";
 
 /**
- * One slim white card sitting on the line where the white page meets the black footer: text on one side,
- * the email field with its button inside on the other. On phones the two stack.
+ * One slim card of frosted glass (the header's) sitting on the line where the page meets the black footer:
+ * text on one side, the email field with its button inside on the other. On phones the two stack.
  */
 export function EmailBox() {
   const t = useTranslations("emailBox");
@@ -21,7 +21,7 @@ export function EmailBox() {
     <section aria-labelledby="email-box-title" className="relative isolate px-4 pt-8">
       {/* The footer's black starts halfway down the card, so the card bridges page and footer. */}
       <div aria-hidden="true" className="absolute inset-x-0 top-1/2 -bottom-px -z-10 bg-ink" />
-      <div className="mx-auto flex max-w-5xl flex-col gap-5 rounded-3xl border border-warm-200 bg-white p-5 shadow-xl shadow-ink/15 sm:p-6 md:flex-row md:items-center md:gap-8">
+      <div className="mx-auto flex max-w-5xl flex-col gap-5 rounded-3xl border border-(color:--glass-header-border) bg-(color:--glass-header-bg) p-5 shadow-xl shadow-ink/15 backdrop-blur-xl backdrop-saturate-150 sm:p-6 md:flex-row md:items-center md:gap-8">
         <div className="flex min-w-0 flex-1 items-center gap-4">
           <span aria-hidden="true" className="grid size-12 shrink-0 place-items-center rounded-2xl bg-ink text-yellow-500">
             <Mail className="size-6" />
@@ -30,7 +30,8 @@ export function EmailBox() {
             <h2 id="email-box-title" className="text-xl md:text-2xl">
               {t("title")}
             </h2>
-            <p className="mt-0.5 text-sm text-warm-600">{t("subtitle")}</p>
+            {/* Darker than usual: half the card sits over the black footer. */}
+            <p className="mt-0.5 text-sm text-warm-800">{t("subtitle")}</p>
           </div>
         </div>
 
@@ -49,7 +50,7 @@ export function EmailBox() {
               {/* Honeypot: out of sight and out of the tab order. */}
               <input type="text" name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" className="absolute -start-[9999px] size-px opacity-0" />
               <div
-                className={`flex items-center gap-1 rounded-full border bg-warm-100 p-1 focus-within:ring-3 focus-within:ring-yellow-300 ${error ? "border-danger" : "border-warm-200"}`}
+                className={`flex items-center gap-1 rounded-full border bg-white/70 p-1 focus-within:ring-3 focus-within:ring-yellow-300 ${error ? "border-danger" : "border-warm-200"}`}
               >
                 <label htmlFor="email-box-input" className="sr-only">
                   {t("label")}
@@ -82,7 +83,7 @@ export function EmailBox() {
                   {error}
                 </p>
               ) : null}
-              <p className="mt-2 px-2 text-xs text-warm-600">
+              <p className="mt-2 px-2 text-xs text-warm-800">
                 {t("privacy")}{" "}
                 <Link href="/privacy" className="font-semibold text-ink underline underline-offset-4">
                   {t("privacyLink")}

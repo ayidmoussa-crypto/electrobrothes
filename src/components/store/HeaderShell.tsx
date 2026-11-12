@@ -8,8 +8,8 @@ const SearchToggle = createContext<{ open: boolean; setOpen: (open: boolean) => 
 export const useSearchToggle = () => useContext(SearchToggle);
 
 /**
- * Sticky header in solid ink. It stays opaque while scrolling (a see-through header flashed the
- * white page through as it came back); once scrolled it only gains a soft shadow.
+ * Sticky floating header in pale frosted glass: the page shows through it, blurred, and tints it as it
+ * scrolls under. Once scrolled it gains a soft shadow.
  */
 export function HeaderShell({ children }: { children: ReactNode }) {
   const [scrolled, setScrolled] = useState(false);
@@ -52,7 +52,7 @@ export function HeaderShell({ children }: { children: ReactNode }) {
         data-scrolled={scrolled}
         data-search={searchOpen ? "open" : "closed"}
         // A floating bar: it never touches the screen edges, at rest or while scrolling.
-        className={`group/header sticky top-3 z-30 mx-3 mt-3 rounded-3xl bg-ink text-white md:mx-4 ${scrolled ? "shadow-lg shadow-ink/25" : ""}`}
+        className={`group/header sticky top-3 z-30 mx-3 mt-3 rounded-3xl border border-(color:--glass-header-border) bg-(color:--glass-header-bg) text-ink backdrop-blur-xl backdrop-saturate-150 md:mx-4 ${scrolled ? "shadow-lg shadow-ink/10" : ""}`}
       >
         {children}
       </header>
