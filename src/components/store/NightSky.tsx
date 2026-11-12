@@ -99,10 +99,12 @@ export function NightSky() {
     };
   }, []);
 
+  // The sky clips itself to the host's corners, so the host needs no overflow-hidden: on iPhone Safari a
+  // rounded overflow-hidden box around this animated canvas stops a sideways row inside it from swiping.
   return (
-    <>
-      <canvas ref={skyRef} aria-hidden="true" className="pointer-events-none absolute inset-0 -z-20 size-full" />
-      <canvas ref={starsRef} aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 size-full" />
-    </>
+    <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden rounded-[inherit]">
+      <canvas ref={skyRef} className="absolute inset-0 size-full" />
+      <canvas ref={starsRef} className="absolute inset-0 size-full" />
+    </div>
   );
 }

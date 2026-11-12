@@ -24,7 +24,7 @@ export async function BundlesSection({ locale }: { locale: Locale }) {
 
   return (
     <section aria-labelledby="packs-title" className="mx-auto max-w-7xl px-4 py-12">
-      <div className="relative isolate overflow-hidden rounded-[2rem] bg-ink p-4 sm:p-6 lg:grid lg:grid-cols-[17rem_1fr] lg:gap-6 lg:p-8">
+      <div className="relative isolate rounded-[2rem] bg-ink p-4 sm:p-6 lg:grid lg:grid-cols-[17rem_1fr] lg:gap-6 lg:p-8">
         {/* The same starry sky as the hero, so the black blocks of the home page belong together. */}
         <NightSky />
 
