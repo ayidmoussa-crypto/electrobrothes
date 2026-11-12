@@ -49,20 +49,37 @@ export function NightSky() {
       draw(0);
     };
 
+    // One glowing dot per colour, drawn once: stamping it each frame is far cheaper than shadowBlur, which made
+    // a row swiping over the sky stutter on iPhone.
+    const GLOW = 7;
+    const sprite = (color: string) => {
+      const c = document.createElement("canvas");
+      c.width = c.height = 64;
+      const g = c.getContext("2d")!;
+      g.fillStyle = color;
+      g.fillRect(0, 0, 64, 64);
+      // Keep the colour, fade it out from a solid core: a mask, so any colour format works.
+      const mask = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+      mask.addColorStop(0, "rgb(0 0 0 / 1)");
+      mask.addColorStop(0.16, "rgb(0 0 0 / 1)");
+      mask.addColorStop(0.3, "rgb(0 0 0 / 0.25)");
+      mask.addColorStop(1, "rgb(0 0 0 / 0)");
+      g.globalCompositeOperation = "destination-in";
+      g.fillStyle = mask;
+      g.fillRect(0, 0, 64, 64);
+      return c;
+    };
+    const dots = [sprite(colors.yellow), sprite(colors.white)];
+
     // Bright stars: a soft glowing dot each, the alpha breathing on its own rhythm.
     const draw = (now: number) => {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, width, height);
       for (let i = 0; i < twinkles.length; i++) {
         const s = twinkles[i];
-        const color = s.tone === 0 ? colors.yellow : colors.white;
+        const r = s.size / 6 + GLOW;
         ctx.globalAlpha = still ? 0.8 : 0.25 + 0.75 * Math.abs(Math.sin(now / 1700 + i * 1.7));
-        ctx.shadowColor = color;
-        ctx.shadowBlur = 8;
-        ctx.fillStyle = color;
-        ctx.beginPath();
-        ctx.arc(s.x, s.y, s.size / 6, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.drawImage(dots[s.tone], s.x - r, s.y - r, r * 2, r * 2);
       }
     };
 
@@ -94,7 +111,23 @@ export function NightSky() {
     const onVisibility = () => (document.hidden ? stop() : start());
     document.addEventListener("visibilitychange", onVisibility);
 
+    // Hold the twinkle while a row inside the block is being swiped, so the phone spends every frame on the swipe.
+    const block = host.parentElement ?? host;
+    let resume = 0;
+    const hold = () => {
+      stop();
+      clearTimeout(resume);
+      resume = window.setTimeout(start, 300);
+    };
+    block.addEventListener("scroll", hold, { capture: true, passive: true });
+    block.addEventListener("touchstart", hold, { passive: true });
+    block.addEventListener("touchmove", hold, { passive: true });
+
     return () => {
+      clearTimeout(resume);
+      block.removeEventListener("scroll", hold, { capture: true });
+      block.removeEventListener("touchstart", hold);
+      block.removeEventListener("touchmove", hold);
       stop();
       sized.disconnect();
       seen.disconnect();

@@ -37,7 +37,10 @@ export function ProductSlider({
     if (!el) return;
     // scrollLeft is negative in RTL; its magnitude is the distance from the start edge.
     const from = Math.abs(el.scrollLeft);
-    setEdges({ start: from <= 2, end: from + el.clientWidth >= el.scrollWidth - 2 });
+    const start = from <= 2;
+    const end = from + el.clientWidth >= el.scrollWidth - 2;
+    // Same object while nothing changed: otherwise every scroll step re-renders all the cards.
+    setEdges((e) => (e.start === start && e.end === end ? e : { start, end }));
   }, []);
 
   // Re-measure on any size change, including a hidden tab panel becoming visible.
