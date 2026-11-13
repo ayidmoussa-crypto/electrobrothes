@@ -116,3 +116,23 @@ export function chartSlots(rows: { day: string; count: number }[], p: Period) {
   }
   return { monthly: true, points: [...months].map(([key, count]) => ({ key, count })) };
 }
+
+/** The same number of slots just before the period, slot for slot with chartSlots: the dashed "before" line. */
+export function previousSlots(rows: { day: string; count: number }[], p: Period) {
+  const { monthly, points } = chartSlots([], p);
+  if (!monthly) {
+    const byDay = new Map(rows.map((r) => [r.day, r.count]));
+    const start = Date.parse(p.firstDay) - p.days * DAY;
+    return points.map((_, i) => byDay.get(iso(start + i * DAY)) ?? 0);
+  }
+  const byMonth = new Map<string, number>();
+  for (const r of rows) byMonth.set(r.day.slice(0, 7), (byMonth.get(r.day.slice(0, 7)) ?? 0) + r.count);
+  // Months between the start of the period before and this one's start: 12 for a year.
+  const a = p.prevFrom;
+  const b = p.from;
+  const shift = (b.getUTCFullYear() - a.getUTCFullYear()) * 12 + b.getUTCMonth() - a.getUTCMonth();
+  return points.map(({ key }) => {
+    const d = new Date(key);
+    return byMonth.get(iso(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - shift, 1)).slice(0, 7)) ?? 0;
+  });
+}

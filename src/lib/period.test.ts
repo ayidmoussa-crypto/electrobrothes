@@ -1,6 +1,29 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { chartSlots, periodLabel, resolvePeriod } from "./period";
+import { chartSlots, periodLabel, previousSlots, resolvePeriod } from "./period";
+import { smoothPath } from "./chart-path";
+
+test("the line before lines up slot for slot with the chosen period", () => {
+  const rows = [
+    { day: "2026-11-06", count: 4 }, // last day before a 7-day period starting 11-07
+    { day: "2026-10-31", count: 2 }, // first day before it
+    { day: "2026-11-07", count: 9 }, // inside the period: not "before"
+  ];
+  assert.deepEqual(previousSlots(rows, resolvePeriod({ p: "7d" }, now)), [2, 0, 0, 0, 0, 0, 4]);
+  // A year shows months: each one faces the same month a year earlier.
+  const year = resolvePeriod({ p: "365d" }, now);
+  const before = previousSlots([{ day: "2024-11-20", count: 3 }, { day: "2025-11-02", count: 5 }], year);
+  assert.equal(before.length, chartSlots([], year).points.length);
+  assert.equal(before[0], 3); // Nov 2025 faces Nov 2024
+  assert.equal(before.at(-1), 5); // Nov 2026 faces Nov 2025
+});
+
+test("the smooth line never dips below a flat stretch of zeros", () => {
+  const d = smoothPath([[0, 100], [25, 100], [50, 10], [75, 100], [100, 100]]);
+  const ys = [...d.matchAll(/-?\d+(?:\.\d+)?,(-?\d+(?:\.\d+)?)/g)].map((m) => Number(m[1]));
+  assert.ok(ys.every((y) => y <= 100 && y >= 10));
+  assert.equal(smoothPath([[0, 5]]), "M0,5");
+});
 
 const now = new Date("2026-11-13T10:00:00Z");
 

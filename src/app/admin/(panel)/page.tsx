@@ -303,6 +303,22 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
   const counts = Object.fromEntries(byStatus.map((s) => [s.status, s._count])) as Partial<Record<OrderStatus, number>>;
   const rates = codRates(counts);
   const series = chartSlots(perDay, period);
+  // The same days in the period before: one number per day/month slot.
+  const perDayBefore = await db.$queryRaw<{ day: string; count: number }[]>`
+    SELECT to_char(("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE ${TZ}, 'YYYY-MM-DD') AS day, count(*)::int AS count
+    FROM "Order" WHERE "createdAt" >= ${period.prevFrom} AND "createdAt" < ${period.from} GROUP BY 1`;
+  const previousData = series.monthly
+    ? // Months: each slot faces the same month a year earlier.
+      Array.from({ length: series.points.length }, (_, i) => {
+        const slot = series.points[i];
+        const slotDate = new Date(slot.key);
+        const prev = new Date(slotDate);
+        prev.setUTCFullYear(prev.getUTCFullYear() - 1);
+        const prevKey = `${String(prev.getUTCFullYear()).padStart(4, "0")}-${String(prev.getUTCMonth() + 1).padStart(2, "0")}-01`;
+        return perDayBefore.filter((d) => d.day.startsWith(prevKey.slice(0, 7))).reduce((s, d) => s + d.count, 0);
+      })
+    : // Days: simple slot-by-slot.
+      Array.from({ length: series.points.length }, (_, i) => perDayBefore.find((d) => d.day === series.points[i].key)?.count ?? 0);
   const change = changePct(rates.total, before);
 
   const now = new Date();
@@ -337,7 +353,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
       </header>
 
       {/* KPI strip: one number per column, a chip with its context. */}
-      <section className="border-b border-warm-200 pb-5">
+      <section className="glass-card rounded-[2rem] p-5 md:p-6 mb-6">
         <dl className="grid grid-cols-2 gap-x-5 gap-y-5 sm:grid-cols-3 lg:grid-cols-6">
           <Kpi label={t.today} value={String(todayTotal)} foot={t.todayFoot} />
           <Kpi
@@ -391,15 +407,16 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
 
       <div className={`grid grid-cols-[minmax(0,1fr)] gap-6 ${lowStock.length ? "lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]" : ""}`}>
         <AreaChart
-          className={`${CARD} bg-warm-50! shadow-none! backdrop-blur-none!`}
+          className="glass-card rounded-[2rem]"
           title={series.monthly ? t.monthly : t.daily}
           unit={t.unit}
           lang={lang}
+          previous={previousData}
           data={series.points.map((d) => ({ key: d.key, label: (series.monthly ? monthLabel : dayLabel).format(new Date(`${d.key}T00:00:00Z`)), value: d.count }))}
         />
 
         {lowStock.length ? (
-          <section className={`${CARD} p-4 md:p-5`}>
+          <section className="glass-card rounded-[2rem] p-4 md:p-5">
             <div>
               <h2 className="flex items-center gap-2 text-base text-warning-text">
                 <PackageX className="size-5" aria-hidden="true" />
@@ -427,7 +444,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
         ) : null}
       </div>
 
-      <section className={`${CARD} p-4 md:p-5`}>
+      <section className="glass-card rounded-[2rem] p-4 md:p-5">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-base">{t.byStatus}</h2>
           <Link href="/admin/orders" className="inline-flex items-center gap-1 text-sm font-semibold text-ink hover:underline">
@@ -536,7 +553,7 @@ function Today({
   });
 
   return (
-    <section aria-labelledby="today" className={`${CARD} flex flex-col gap-6 p-5 md:p-6`}>
+    <section aria-labelledby="today" className="glass-card rounded-[2rem] flex flex-col gap-6 p-5 md:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
           <h2 id="today" className="inline-flex items-center gap-2 rounded-full bg-ink py-1 ps-1 pe-3.5 text-sm font-bold text-white">
@@ -703,7 +720,7 @@ type ProductRow = {
 function TopCities({ t, lang, cities, total, span }: { t: Words; lang: AdminLang; cities: { id: string; nameAr: string; nameEn: string; count: number }[]; total: number; span: string }) {
   const max = Math.max(1, ...cities.map((c) => c.count));
   return (
-    <section aria-labelledby="cities" className={`${CARD} flex flex-col p-5 md:p-6`}>
+    <section aria-labelledby="cities" className="glass-card rounded-[2rem] flex flex-col p-5 md:p-6">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 id="cities" className="flex items-center gap-2 text-base">
@@ -747,7 +764,7 @@ function TopProducts({ t, lang, rows, before, span }: { t: Words; lang: AdminLan
   const th = "px-2.5 py-3 text-start text-xs font-semibold whitespace-nowrap text-warm-600 first:ps-5 last:pe-5";
   const td = "px-2.5 py-3 whitespace-nowrap tabular-nums first:ps-5 last:pe-5";
   return (
-    <section aria-labelledby="products" className={`${CARD} overflow-hidden`}>
+    <section aria-labelledby="products" className="glass-card rounded-[2rem] overflow-hidden">
       <div className="flex flex-wrap items-start justify-between gap-3 p-5 pb-2 md:px-6 md:pt-6">
         <div>
           <h2 id="products" className="text-base">
