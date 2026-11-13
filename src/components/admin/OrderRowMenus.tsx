@@ -12,7 +12,7 @@ import type { Tr } from "@/lib/admin-tr";
 import { agentMayMove } from "@/lib/staff-rules";
 
 // Same soft background + strong text pairs as the badges (all ≥4.5:1); the dot repeats it in the menu.
-const STATUS_STYLE: Record<OrderStatus, { tone: string; dot: string }> = {
+export const STATUS_STYLE: Record<OrderStatus, { tone: string; dot: string }> = {
   NEW: { tone: "bg-yellow-100 text-yellow-900", dot: "bg-yellow-500" },
   CONFIRMED: { tone: "bg-warm-100 text-warm-800", dot: "bg-warm-600" },
   CANCELLED: { tone: "bg-danger-soft text-danger", dot: "bg-danger" },
@@ -51,11 +51,49 @@ function Message({ state }: { state: ActionState }) {
   ) : null;
 }
 
-/** Change the status right from the list; cancelling or a return asks first. */
-export function StatusMenu({ orderId, status, number, waiting = false, agent = false }: { orderId: string; status: OrderStatus; number: string; waiting?: boolean; agent?: boolean }) {
+/**
+ * Moves an order to another status, asking first (with what will happen) when it undoes a sale or leaves the
+ * usual path. Shared by the status menu and the board's drag and drop.
+ */
+export function useStatusMove() {
   const [state, action, pending] = useActionState<ActionState, FormData>(setOrderStatus, {});
   const [, start] = useTransition();
   const [confirm, dialog] = useConfirm();
+  const { tr } = useAdminTr();
+  const move = async (order: { orderId: string; number: string; status: OrderStatus }, to: OrderStatus) => {
+    const { orderId, number, status } = order;
+    if (to === status) return;
+    if (ASK_FIRST.includes(to) || !allowedNext(status).includes(to)) {
+      const effects = changeEffects(status, to, tr);
+      const ok = await confirm({
+        title: tr(`${statusLabel(status)} ← ${statusLabel(to)}`, `${statusLabel(status, "en")} → ${statusLabel(to, "en")}`),
+        yes: tr(`نعم، ${statusLabel(to)}`, `Yes, ${statusLabel(to, "en")}`),
+        detail: (
+          <>
+            <p>{tr(`الطلب ${number}.`, `Order ${number}.`)}</p>
+            {effects.length ? (
+              <ul className="mt-2 list-disc ps-5">
+                {effects.map((e) => (
+                  <li key={e}>{e}</li>
+                ))}
+              </ul>
+            ) : null}
+          </>
+        ),
+      });
+      if (!ok) return;
+    }
+    const fd = new FormData();
+    fd.set("orderId", orderId);
+    fd.set("to", to);
+    start(() => action(fd));
+  };
+  return { move, dialog, state, pending };
+}
+
+/** Change the status right from the list; cancelling or a return asks first. */
+export function StatusMenu({ orderId, status, number, waiting = false, agent = false }: { orderId: string; status: OrderStatus; number: string; waiting?: boolean; agent?: boolean }) {
+  const { move, dialog, state, pending } = useStatusMove();
   const { tr, lang } = useAdminTr();
   const label = waiting && status === "NEW" ? { ...WAITING, label: tr(...WAITING.label) } : { label: statusLabel(status, lang), ...STATUS_STYLE[status] };
   // An agent answers new orders only; past that the status is just shown.
@@ -86,34 +124,7 @@ export function StatusMenu({ orderId, status, number, waiting = false, agent = f
         className="w-28 justify-between"
         options={options}
         pending={pending}
-        onPick={async (to) => {
-          const s = to as OrderStatus;
-          // Off the usual path (or undoing a sale): asked first, with what will happen.
-          if (ASK_FIRST.includes(s) || !allowedNext(status).includes(s)) {
-            const effects = changeEffects(status, s, tr);
-            const ok = await confirm({
-              title: tr(`${statusLabel(status)} ← ${statusLabel(s)}`, `${statusLabel(status, "en")} → ${statusLabel(s, "en")}`),
-              yes: tr(`نعم، ${statusLabel(s)}`, `Yes, ${statusLabel(s, "en")}`),
-              detail: (
-                <>
-                  <p>{tr(`الطلب ${number}.`, `Order ${number}.`)}</p>
-                  {effects.length ? (
-                    <ul className="mt-2 list-disc ps-5">
-                      {effects.map((e) => (
-                        <li key={e}>{e}</li>
-                      ))}
-                    </ul>
-                  ) : null}
-                </>
-              ),
-            });
-            if (!ok) return;
-          }
-          const fd = new FormData();
-          fd.set("orderId", orderId);
-          fd.set("to", to);
-          start(() => action(fd));
-        }}
+        onPick={(to) => move({ orderId, number, status }, to as OrderStatus)}
       />
       {dialog}
       <Message state={state} />

@@ -12,6 +12,8 @@ import { adminTr } from "@/lib/admin-lang";
 import { adminLocale } from "@/lib/admin-tr";
 import { Badge } from "@/components/ui/Badge";
 import { requireStaff } from "@/lib/admin";
+import { DeleteOrders } from "@/components/admin/DeleteOrders";
+import { deleteBlock } from "@/lib/order-rules";
 import { agentMayMove } from "@/lib/staff-rules";
 import { trackingLink } from "@/lib/carrier/webhook";
 import { CARRIER_LABEL, CARRIER_STATUSES, isCarrierStatus } from "@/lib/carrier/status";
@@ -80,6 +82,8 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
           <div className="flex flex-wrap items-start gap-2">
             {agent ? null : <PaymentMenu orderId={order.id} number={order.number} status={order.status} prepaid={prepaid} collected={order.codReceivedAt !== null} />}
             <StatusMenu orderId={order.id} number={order.number} status={order.status} waiting={order.confirmSentAt !== null} agent={agent} />
+            {/* Shown only when it can go (new, confirmed without a parcel, cancelled; no review): the server checks again. */}
+            {!agent && !deleteBlock(order.status, order.trackingNumber, reviewed) ? <DeleteOrders ids={[order.id]} label={order.number} variant="button" /> : null}
           </div>
         }
       />

@@ -10,7 +10,7 @@ import { fireOrderEvent } from "./automations";
 import { manualTotals, type ManualOrderInput } from "./manual-order";
 import { bundleDiscount } from "./bundles";
 import { bundleRulesFor } from "./bundles-data";
-import { assessRisk, cashToCollect, deliveredByHand, newOrderNumber, transitionPlan, undoesDelivery, type OrderStatus } from "./order-rules";
+import { assessRisk, cashToCollect, deleteBlock, deliveredByHand, newOrderNumber, transitionPlan, undoesDelivery, type OrderStatus } from "./order-rules";
 import { normalizeMoroccanPhone } from "./phone";
 import { computeTotals } from "./pricing";
 import { agentMayMove, handledUpdate } from "./staff-rules";
@@ -341,4 +341,36 @@ export async function changeOrderStatus(orderId: string, to: OrderStatus, actor:
   if (stockMoved) revalidateTag("products", "max");
   const trigger = TRIGGER_OF_STATUS[to];
   if (trigger) await fireOrderEvent(orderId, trigger);
+}
+
+/**
+ * Deletes an order for good (a duplicate, a test, a prank), when deleteBlock allows it. Stock it was holding goes
+ * back with a ledger line, its coupon use is given back, and its waiting WhatsApp messages are dropped. Lines,
+ * history and parcel events go with it (cascade); the stock ledger keeps its number. Row-locked like a status change.
+ */
+export async function deleteOrder(orderId: string, actor: string): Promise<"ok" | "not_found" | NonNullable<ReturnType<typeof deleteBlock>>> {
+  const result = await db.$transaction(async (tx) => {
+    const [order] = await tx.$queryRaw<{ status: OrderStatus; stockDeducted: boolean; number: string; trackingNumber: string | null; couponCode: string | null }[]>`
+      SELECT "status", "stockDeducted", "number", "trackingNumber", "couponCode" FROM "Order" WHERE "id" = ${orderId} FOR UPDATE`;
+    if (!order) return "not_found" as const;
+    const reviews = await tx.review.count({ where: { orderItem: { orderId } } });
+    const block = deleteBlock(order.status, order.trackingNumber, reviews);
+    if (block) return block;
+
+    if (order.stockDeducted) {
+      const items = await tx.orderItem.findMany({ where: { orderId, variantId: { not: null } } });
+      for (const item of items) {
+        await moveStock(tx, { variantId: item.variantId!, delta: item.quantity, reason: "ORDER_CANCELLED", actor, note: "حذف الطلب", order: { id: orderId, number: order.number } });
+      }
+    }
+    if (order.couponCode) await tx.coupon.updateMany({ where: { code: order.couponCode, usedCount: { gt: 0 } }, data: { usedCount: { decrement: 1 } } });
+    await tx.automationJob.deleteMany({ where: { orderId } });
+    await tx.order.delete({ where: { id: orderId } });
+    return order.stockDeducted ? ("ok-stock" as const) : ("ok" as const);
+  });
+  if (result === "ok-stock") {
+    revalidateTag("products", "max");
+    return "ok";
+  }
+  return result;
 }

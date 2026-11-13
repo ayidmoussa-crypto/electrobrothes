@@ -62,6 +62,18 @@ export function shipBlock(status: OrderStatus, trackingNumber: string | null): "
 }
 
 /**
+ * Why an order cannot be deleted, or null when it can. Only orders that never left the shop go: new, confirmed
+ * (no parcel number yet) or cancelled. A parcel that went out, was delivered or came back is part of the money and
+ * the carrier's records; and a customer's review hangs on its order (without it the shop would hide the review).
+ */
+export function deleteBlock(status: OrderStatus, trackingNumber: string | null, reviews: number): "shipped" | "has_reviews" | null {
+  if (status !== "NEW" && status !== "CONFIRMED" && status !== "CANCELLED") return "shipped";
+  if (trackingNumber) return "shipped";
+  if (reviews) return "has_reviews";
+  return null;
+}
+
+/**
  * What a status change does to inventory. Stock is taken when the order is confirmed
  * and given back when it is cancelled, returned or sent back to NEW.
  * `manual`: the owner picked it by hand and may jump anywhere (he sometimes delivers an order himself);

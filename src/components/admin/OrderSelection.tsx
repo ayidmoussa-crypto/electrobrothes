@@ -7,6 +7,7 @@ import { buttonClass } from "@/components/ui/button";
 import { shipBlock, type OrderStatus } from "@/lib/order-rules";
 import { useAdminTr } from "./AdminLang";
 import { CarrierLogo } from "./CarrierLogo";
+import { DeleteOrders } from "./DeleteOrders";
 
 export type SelectableOrder = { id: string; number: string; customerName: string; cityName: string; status: OrderStatus; trackingNumber: string | null };
 export type CarrierChoice = { id: string; name: string; logoUrl: string | null; isDefault: boolean };
@@ -48,7 +49,7 @@ export function AllCheck() {
   return <input ref={ref} type="checkbox" checked={all} onChange={() => setAll(!all)} aria-label={tr("اختيار كل الطلبات فهاد الصفحة", "Select every order on this page")} className={box} disabled={!ids.length} />;
 }
 
-/** Appears once an order is ticked: hand them to a delivery company, or download their CSV. */
+/** Appears once an order is ticked: hand them to a delivery company, download their CSV, or delete them. */
 export function SelectionBar({ orders, carriers }: { orders: SelectableOrder[]; carriers: CarrierChoice[] }) {
   const { picked, clear } = useSelection();
   const { tr } = useAdminTr();
@@ -73,6 +74,7 @@ export function SelectionBar({ orders, carriers }: { orders: SelectableOrder[]; 
           <Download className="size-4" aria-hidden="true" />
           CSV
         </a>
+        <DeleteOrders ids={[...picked]} label={chosen.map((o) => o.number).join(", ")} variant="bar" onDone={clear} />
         <button type="button" onClick={clear} aria-label={tr("إلغاء الاختيار", "Clear selection")} className="grid size-11 place-items-center rounded-xl text-warm-300 hover:bg-warm-900 hover:text-white focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-yellow-300">
           <X className="size-5" aria-hidden="true" />
         </button>

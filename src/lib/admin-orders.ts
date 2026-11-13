@@ -3,7 +3,8 @@ import { ORDER_STATUSES, type OrderStatus } from "./order-rules";
 import { normalizeMoroccanPhone } from "./phone";
 import { moroccanDate } from "./time";
 
-export type OrderFilters = { status?: OrderStatus; q?: string; risky?: boolean; from?: string; to?: string; page: number };
+/** `view: "board"` shows the orders as columns by status (desktop) instead of the table. */
+export type OrderFilters = { status?: OrderStatus; q?: string; risky?: boolean; from?: string; to?: string; page: number; view?: "board" };
 
 type Raw = Record<string, string | string[] | undefined>;
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v)?.trim() || undefined;
@@ -18,6 +19,7 @@ export function parseOrderFilters(raw: Raw): OrderFilters {
     from: isoDate(one(raw.from)),
     to: isoDate(one(raw.to)),
     page: Math.max(1, Number(one(raw.page)) || 1),
+    view: one(raw.view) === "board" ? "board" : undefined,
   };
 }
 
@@ -48,6 +50,16 @@ export function orderWhere(f: OrderFilters): Prisma.OrderWhereInput {
   };
 }
 
+/** "منذ 6 ساعات" on a board card: minutes, hours, days, then the date after a week. */
+export function ageLabel(d: Date, now: Date, locale: string, timeZone: string) {
+  const ago = new Intl.RelativeTimeFormat(locale, { numeric: "auto", style: "short" });
+  const minutes = Math.round((now.getTime() - d.getTime()) / 60_000);
+  if (minutes < 60) return ago.format(-Math.max(1, minutes), "minute");
+  if (minutes < 24 * 60) return ago.format(-Math.round(minutes / 60), "hour");
+  if (minutes < 7 * 24 * 60) return ago.format(-Math.round(minutes / 1440), "day");
+  return new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", timeZone }).format(d);
+}
+
 export function filterQuery(f: Partial<OrderFilters>) {
   const s = new URLSearchParams();
   if (f.status) s.set("status", f.status);
@@ -56,6 +68,7 @@ export function filterQuery(f: Partial<OrderFilters>) {
   if (f.from) s.set("from", f.from);
   if (f.to) s.set("to", f.to);
   if (f.page && f.page > 1) s.set("page", String(f.page));
+  if (f.view) s.set("view", f.view);
   const qs = s.toString();
   return qs ? `?${qs}` : "";
 }

@@ -11,7 +11,7 @@ import { CARRIER_STATUSES } from "@/lib/carrier/status";
 import { db } from "@/lib/db";
 import { manualError, manualOrderInput } from "@/lib/manual-order";
 import { canSetPrepaid, ORDER_STATUSES, shipBlock } from "@/lib/order-rules";
-import { changeOrderStatus, createManualOrder, OrderTransitionError } from "@/lib/orders";
+import { changeOrderStatus, createManualOrder, deleteOrder, OrderTransitionError } from "@/lib/orders";
 import { normalizeMoroccanPhone } from "@/lib/phone";
 import { recordShipmentEvent } from "@/lib/shipments";
 
@@ -53,7 +53,35 @@ export async function setOrderStatus(_prev: ActionState, formData: FormData): Pr
   return { ok: true, message: tr("تم تحديث حالة الطلب.", "Order status updated.") };
 }
 
-export type CarrierAssignResult = { ok: boolean; message?: string; results: { id: string; ok: boolean; reason?: string }[] };
+export type DeleteResult = { ok: boolean; message: string; deleted: string[] };
+
+/** Owner only. Each order is checked on its own (lib/orders deleteOrder); the ones that cannot go are named. */
+export async function deleteOrders(orderIds: string[]): Promise<DeleteResult> {
+  const user = await requireAdmin();
+  const { tr } = await adminTr();
+  const ids = z.array(z.string().min(1).max(40)).min(1).max(200).safeParse(orderIds);
+  if (!ids.success) return { ok: false, message: tr("طلب غير صالح.", "Invalid request."), deleted: [] };
+  const why = {
+    not_found: tr("ما بقاش موجود", "no longer exists"),
+    shipped: tr("خرج مع شركة التوصيل ولا تسلّم: بدّل الحالة بلاصة الحذف", "went out with the carrier or was delivered: change its status instead"),
+    has_reviews: tr("عندو تقييم ديال الزبون", "has a customer review"),
+  };
+  const deleted: string[] = [];
+  const refused: string[] = [];
+  for (const id of ids.data) {
+    const r = await deleteOrder(id, user.email);
+    if (r === "ok") deleted.push(id);
+    else refused.push(why[r]);
+  }
+  revalidatePath("/admin/orders");
+  revalidatePath("/admin");
+  const done = tr(`تحذف ${deleted.length} طلب.`, `${deleted.length} orders deleted.`);
+  if (!refused.length) return { ok: true, message: done, deleted };
+  const counts = [...new Set(refused)].map((w) => `${refused.filter((x) => x === w).length} ${w}`).join(tr("، ", ", "));
+  return { ok: deleted.length > 0, message: `${deleted.length ? `${done} ` : ""}${tr("ما تحذفوش:", "Not deleted:")} ${counts}.`, deleted };
+}
+
+export type CarrierAssignResult ={ ok: boolean; message?: string; results: { id: string; ok: boolean; reason?: string }[] };
 
 /**
  * Hands the selected orders to one delivery company: each confirmed order without a parcel number gets the

@@ -1,4 +1,4 @@
-import { Download, Plus, ShieldAlert } from "lucide-react";
+import { Columns3, Download, Plus, Rows3, ShieldAlert } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { CarrierLogo } from "@/components/admin/CarrierLogo";
@@ -9,18 +9,62 @@ import { PageHeader, tdClass, thClass } from "@/components/admin/ui";
 import { buttonClass } from "@/components/ui/button";
 import { Badge } from "@/components/ui/Badge";
 import { requireStaff } from "@/lib/admin";
-import { filterQuery, orderWhere, parseOrderFilters } from "@/lib/admin-orders";
+import { ageLabel, filterQuery, orderWhere, parseOrderFilters, type OrderFilters } from "@/lib/admin-orders";
+import { OrderBoard, type BoardColumn } from "@/components/admin/OrderBoard";
+import type { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { sourceLabel } from "@/lib/manual-order";
 import { adminTr } from "@/lib/admin-lang";
 import { adminLocale } from "@/lib/admin-tr";
 import { formatMAD } from "@/lib/money";
-import { ORDER_STATUSES } from "@/lib/order-rules";
+import { deleteBlock, ORDER_STATUSES, type OrderStatus } from "@/lib/order-rules";
 import { formatMoroccanPhone } from "@/lib/phone";
 import { statusLabel } from "@/components/admin/ui";
 import { TIME_ZONE } from "@/lib/time";
 
 const PAGE = 30;
+/** Columns of the board, in the order an order travels; cancelled last. */
+const BOARD_ORDER: OrderStatus[] = ["NEW", "CONFIRMED", "SHIPPING", "DELIVERED", "RETURNING", "RETURNED", "CANCELLED"];
+/** Cards per column; the rest are one click away in the list. */
+const BOARD_CARDS = 40;
+
+const orderCard = {
+  id: true,
+  number: true,
+  createdAt: true,
+  customerName: true,
+  phone: true,
+  cityName: true,
+  address: true,
+  total: true,
+  status: true,
+  riskScore: true,
+  source: true,
+  trackingNumber: true,
+  carrier: true,
+  codReceivedAt: true,
+  prepaidAt: true,
+  confirmSentAt: true,
+  _count: { select: { items: true } },
+  // Every line's colour, so the order can be packed straight from the list.
+  items: {
+    select: {
+      nameAr: true,
+      variantLabel: true,
+      quantity: true,
+      variant: { select: { colorHex: true, product: { select: { images: { orderBy: { sortOrder: "asc" }, take: 1, select: { url: true } } } } } },
+    },
+  },
+} satisfies Prisma.OrderSelect;
+
+async function loadBoard(f: OrderFilters) {
+  const where = orderWhere(f);
+  const [sums, ...lists] = await Promise.all([
+    db.order.groupBy({ by: ["status"], where, _count: true, _sum: { total: true } }),
+    ...BOARD_ORDER.map((status) => db.order.findMany({ where: { ...where, status }, orderBy: { createdAt: "desc" }, take: BOARD_CARDS, select: orderCard })),
+  ]);
+  return { sums, lists };
+}
 
 export default async function OrdersPage({ searchParams }: PageProps<"/admin/orders">) {
   const [user, { tr, lang }] = await Promise.all([requireStaff(), adminTr()]);
@@ -35,41 +79,59 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
       orderBy: { createdAt: "desc" },
       skip: (f.page - 1) * PAGE,
       take: PAGE,
-      select: {
-        id: true,
-        number: true,
-        createdAt: true,
-        customerName: true,
-        phone: true,
-        cityName: true,
-        address: true,
-        total: true,
-        status: true,
-        riskScore: true,
-        source: true,
-        trackingNumber: true,
-        carrier: true,
-        codReceivedAt: true,
-        prepaidAt: true,
-        confirmSentAt: true,
-        _count: { select: { items: true } },
-        // Every line's colour, so the order can be packed straight from the list.
-        items: {
-          select: {
-            nameAr: true,
-            variantLabel: true,
-            quantity: true,
-            variant: { select: { colorHex: true, product: { select: { images: { orderBy: { sortOrder: "asc" }, take: 1, select: { url: true } } } } } },
-          },
-        },
-      },
+      select: orderCard,
     }),
     db.order.count({ where }),
     // All of them, to show the logo of a company even after it was switched off.
     db.carrier.findMany({ orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }], select: { id: true, name: true, logoUrl: true, isDefault: true, isActive: true, trackingUrl: true } }),
   ]);
   const carrierById = new Map(carriers.map((c) => [c.id, c]));
-  const trackingLink = (url: string | null, tracking: string | null) => (url && tracking ? url.replace("{tracking}", encodeURIComponent(tracking)) : null);
+
+  // Board (desktop, ?view=board): the latest orders of each status, with every column's count and money.
+  // The same filters apply, except the status, which is the column.
+  const board = f.view === "board" ? await loadBoard({ ...f, status: undefined }) : null;
+  const now = new Date();
+  const when = (d: Date) => ageLabel(d, now, adminLocale(lang), TIME_ZONE);
+  const columns: BoardColumn[] | null = board
+    ? BOARD_ORDER.map((status, i) => {
+        const sum = board.sums.find((s) => s.status === status);
+        return {
+          status,
+          count: sum?._count ?? 0,
+          total: sum?._sum.total ?? 0,
+          listHref: `/admin/orders${filterQuery({ ...f, status, view: undefined, page: 1 })}`,
+          orders: board.lists[i].map((o) => {
+            const first = o.items[0];
+            const c = o.carrier ? carrierById.get(o.carrier) : undefined;
+            return {
+              id: o.id,
+              number: o.number,
+              status: o.status,
+              total: o.total,
+              customerName: o.customerName,
+              cityName: o.cityName,
+              phone: o.phone,
+              when: when(o.createdAt),
+              image: first?.variant?.product.images[0]?.url ?? null,
+              name: first?.nameAr ?? null,
+              variantLabel: first?.variantLabel ?? null,
+              colorHex: first?.variant?.colorHex ?? null,
+              more: Math.max(0, o._count.items - 1),
+              waiting: o.confirmSentAt !== null,
+              risky: o.riskScore >= 30 ? o.riskScore : null,
+              source: o.source !== "WEBSITE" ? sourceLabel(o.source, lang) : null,
+              waHref: whatsappLink(o.phone, confirmationText({ ...o, prepaid: o.prepaidAt !== null })),
+              carrier: c ? { name: c.name, logoUrl: c.logoUrl } : null,
+              // Reviews only come after delivery, which deleteBlock refuses already; the server checks them again.
+              canDelete: !deleteBlock(o.status, o.trackingNumber, 0),
+            };
+          }),
+        };
+      })
+    : null;
+  // Every order on screen that can be ticked: the board's cards (desktop) and the list's rows (phones).
+  const shown = board ? [...new Map([...board.lists.flat(), ...orders].map((o) => [o.id, o])).values()] : orders;
+  const trackingLink =(url: string | null, tracking: string | null) => (url && tracking ? url.replace("{tracking}", encodeURIComponent(tracking)) : null);
   const pages = Math.max(1, Math.ceil(total / PAGE));
   const input = "min-h-11 admin-field rounded-lg px-3 text-sm text-warm-800";
 
@@ -80,6 +142,23 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
         description={tr(`${total} طلب`, `${total} orders`)}
         actions={
           <>
+            {/* List or board: the board is for wide screens, so phones keep the list. */}
+            <nav aria-label={tr("طريقة العرض", "View")} className="hidden rounded-full bg-warm-100 p-1 lg:flex">
+              {[
+                { view: undefined, label: tr("قائمة", "List"), icon: Rows3 },
+                { view: "board" as const, label: tr("لوحة", "Board"), icon: Columns3 },
+              ].map(({ view, label, icon: Icon }) => (
+                <Link
+                  key={label}
+                  href={`/admin/orders${filterQuery({ ...f, view, page: 1 })}`}
+                  aria-current={f.view === view ? "page" : undefined}
+                  className={`inline-flex min-h-9 items-center gap-1.5 rounded-full px-3.5 text-sm font-semibold transition-colors ${f.view === view ? "bg-ink text-white" : "text-warm-700 hover:bg-white hover:text-ink"}`}
+                >
+                  <Icon className="size-4" aria-hidden="true" />
+                  {label}
+                </Link>
+              ))}
+            </nav>
             <Link href="/admin/orders/new" className={buttonClass()}>
               <Plus className="size-4" aria-hidden="true" />
               {tr("إضافة طلب", "New order")}
@@ -93,11 +172,13 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
       />
 
       <form method="get" className="mb-4 flex flex-wrap items-end gap-2 admin-card p-3">
+        {f.view ? <input type="hidden" name="view" value={f.view} /> : null}
         <label className="flex flex-col gap-1 text-xs text-warm-600">
           {tr("بحث", "Search")}
           <input name="q" defaultValue={f.q} placeholder={tr("رقم الطلب، التتبع، الاسم أو الهاتف", "Order number, tracking, name or phone")} className={`${input} w-56`} />
         </label>
-        <label className="flex flex-col gap-1 text-xs text-warm-600">
+        {/* On the board each status is a column already. */}
+        <label className={`flex flex-col gap-1 text-xs text-warm-600 ${board ? "lg:hidden" : ""}`}>
           {tr("الحالة", "Status")}
           <select name="status" defaultValue={f.status ?? ""} className={input}>
             <option value="">{tr("الكل", "All")}</option>
@@ -123,13 +204,18 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
         <button type="submit" className={buttonClass()}>
           {tr("تصفية", "Filter")}
         </button>
-        <Link href="/admin/orders" className={buttonClass({ variant: "ghost" })}>
+        <Link href={`/admin/orders${filterQuery({ page: 1, view: f.view })}`} className={buttonClass({ variant: "ghost" })}>
           {tr("مسح", "Clear")}
         </Link>
       </form>
 
-      <OrderSelectionProvider ids={orders.map((o) => o.id)}>
-      <div className="overflow-x-auto admin-card">
+      <OrderSelectionProvider ids={shown.map((o) => o.id)}>
+      {columns ? (
+        <div className="hidden lg:block">
+          <OrderBoard columns={columns} agent={agent} />
+        </div>
+      ) : null}
+      <div className={`overflow-x-auto admin-card ${columns ? "lg:hidden" : ""}`}>
         <table className="w-full min-w-[72rem]">
           <thead className="border-b border-white/70 bg-white/45">
             <tr>
@@ -275,14 +361,14 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
       </div>
       {agent ? null : (
         <SelectionBar
-          orders={orders.map((o) => ({ id: o.id, number: o.number, customerName: o.customerName, cityName: o.cityName, status: o.status, trackingNumber: o.trackingNumber }))}
+          orders={shown.map((o) => ({ id: o.id, number: o.number, customerName: o.customerName, cityName: o.cityName, status: o.status, trackingNumber: o.trackingNumber }))}
           carriers={carriers.filter((c) => c.isActive).map(({ id, name, logoUrl, isDefault }) => ({ id, name, logoUrl, isDefault }))}
         />
       )}
       </OrderSelectionProvider>
 
       {pages > 1 ? (
-        <nav aria-label={tr("الصفحات", "Pages")} className="mt-4 flex flex-wrap gap-1">
+        <nav aria-label={tr("الصفحات", "Pages")} className={`mt-4 flex flex-wrap gap-1 ${board ? "lg:hidden" : ""}`}>
           {Array.from({ length: pages }, (_, i) => i + 1).map((n) => (
             <Link
               key={n}

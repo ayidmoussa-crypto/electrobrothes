@@ -1,7 +1,30 @@
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
+import { ageLabel, filterQuery, parseOrderFilters } from "./admin-orders";
 import { test } from "node:test";
-import { assessRisk, canSetPrepaid, deliveredByHand, undoesDelivery, cashToCollect, newOrderNumber, ORDER_NUMBER, paymentState, shipBlock, transitionPlan } from "./order-rules";
+import { assessRisk, canSetPrepaid, deleteBlock, deliveredByHand, undoesDelivery, cashToCollect, newOrderNumber, ORDER_NUMBER, paymentState, shipBlock, transitionPlan } from "./order-rules";
+
+test("board cards: age in minutes, hours, days, then the date; the view stays in links", () => {
+  const now = new Date("2026-11-13T12:00:00Z");
+  const at = (h: number) => new Date(now.getTime() - h * 3600_000);
+  // Abbreviations vary between ICU versions: only the unit and number are checked.
+  assert.match(ageLabel(at(0), now, "en-GB", "UTC"), /^1 min\.? ago$/);
+  assert.match(ageLabel(at(6), now, "en-GB", "UTC"), /^6 hr\.? ago$/);
+  assert.equal(ageLabel(at(24), now, "en-GB", "UTC"), "yesterday");
+  assert.equal(ageLabel(at(24 * 14), now, "en-GB", "UTC"), "30 Oct");
+  assert.equal(filterQuery({ status: "NEW", view: "board", page: 1 }), "?status=NEW&view=board");
+  assert.equal(parseOrderFilters({ view: "board" }).view, "board");
+  assert.equal(parseOrderFilters({ view: "x" }).view, undefined);
+});
+
+test("only orders that never left the shop can be deleted, and never one with a review", () => {
+  assert.equal(deleteBlock("NEW", null, 0), null);
+  assert.equal(deleteBlock("CONFIRMED", null, 0), null);
+  assert.equal(deleteBlock("CANCELLED", null, 0), null);
+  assert.equal(deleteBlock("CONFIRMED", "EGW1058", 0), "shipped");
+  for (const s of ["SHIPPING", "DELIVERED", "RETURNING", "RETURNED"] as const) assert.equal(deleteBlock(s, null, 0), "shipped");
+  assert.equal(deleteBlock("CANCELLED", null, 1), "has_reviews");
+});
 
 test("only a confirmed order without a parcel number can go to the delivery company", () => {
   assert.equal(shipBlock("CONFIRMED", null), null);
