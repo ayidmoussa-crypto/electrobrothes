@@ -21,7 +21,7 @@ export function EmailBox() {
     <section aria-labelledby="email-box-title" className="relative isolate px-4 pt-8">
       {/* The footer's black starts halfway down the card, so the card bridges page and footer. */}
       <div aria-hidden="true" className="absolute inset-x-0 top-1/2 -bottom-px -z-10 bg-ink" />
-      <div className="mx-auto flex max-w-5xl flex-col gap-5 rounded-3xl border border-(color:--glass-header-border) bg-(color:--glass-header-bg) p-5 shadow-xl shadow-ink/15 backdrop-blur-xl backdrop-saturate-150 sm:p-6 md:flex-row md:items-center md:gap-8">
+      <div className="mx-auto flex max-w-5xl flex-col gap-5 glass-frost rounded-3xl border p-5 shadow-xl shadow-ink/15 sm:p-6 md:flex-row md:items-center md:gap-8">
         <div className="flex min-w-0 flex-1 items-center gap-4">
           <span aria-hidden="true" className="grid size-12 shrink-0 place-items-center rounded-2xl bg-ink text-yellow-500">
             <Mail className="size-6" />

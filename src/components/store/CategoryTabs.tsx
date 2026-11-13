@@ -67,7 +67,7 @@ export function CategoryTabs({ tabs, label }: { tabs: Tab[]; label: string }) {
             style={{ transform: `translateX(${thumb.x}px)`, width: thumb.w }}
             // Physical left-0: offsetLeft is measured from the left in both directions.
             // The same frosted glass as the floating header.
-            className="absolute inset-y-1 left-0 -z-10 rounded-full border border-(color:--glass-header-border) bg-(color:--glass-header-bg) shadow-md shadow-ink/10 backdrop-blur-xl backdrop-saturate-150 transition-[transform,width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
+            className="absolute inset-y-1 left-0 -z-10 glass-frost rounded-full border shadow-md shadow-ink/10 transition-[transform,width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
           />
           {tabs.map((tab, i) => (
             <button

@@ -13,7 +13,7 @@ import { Logo } from "@/components/brand/Logo";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { requireStaff } from "@/lib/admin";
 
-const iconLink = "grid size-10 cursor-pointer place-items-center rounded-full text-warm-300 transition-colors hover:bg-white/10 hover:text-white";
+const iconLink = "grid size-10 cursor-pointer place-items-center rounded-full text-warm-800 transition-colors hover:bg-ink/5 hover:text-ink";
 
 async function Shell({ children }: { children: ReactNode }) {
   const [admin, { lang, ar, tr }] = await Promise.all([requireStaff(), adminTr()]);
@@ -25,21 +25,24 @@ async function Shell({ children }: { children: ReactNode }) {
       <AdminLangProvider lang={lang}>
         <AdminBackdrop />
 
-        {/* Smoked-glass header. Desktop: brand + account row, then the sections row. Phones: brand row only. */}
-        <header className="glass-dark sticky top-0 z-30 rounded-b-3xl border-b text-white">
+        {/* The shop's floating frosted-glass bar, clear of the screen edges. Desktop: brand + account row, then
+            the sections row. Phones: brand row only. */}
+        <header className="sticky top-3 z-30 mx-3 mt-3 rounded-3xl text-ink lg:mx-4">
+          {/* The glass sits on its own layer: a blur on the header itself would stop its menus from blurring the page. */}
+          <div aria-hidden="true" className="glass-frost absolute inset-0 -z-10 rounded-[inherit] border shadow-lg shadow-ink/10" />
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-2.5 lg:px-6">
             <Link href={agent ? "/admin/me" : "/admin"} className="flex items-center gap-2.5 rounded-md">
-              <Logo className="h-8 w-auto" />
+              <Logo className="h-8 w-auto text-logo-dark" />
               <span className="leading-tight">
                 <span className="block font-extrabold" dir="ltr">
                   ElectroBrothers
                 </span>
-                <span className="block text-xs text-warm-300">{agent ? tr("فريق التأكيد", "Confirmation team") : tr("لوحة التحكم", "Dashboard")}</span>
+                <span className="block text-xs text-warm-600">{agent ? tr("فريق التأكيد", "Confirmation team") : tr("لوحة التحكم", "Dashboard")}</span>
               </span>
             </Link>
             <div className="flex items-center gap-1">
               {/* Panel language, in the header so every admin page has it. */}
-              <form action={setAdminLang} aria-label={tr("لغة اللوحة", "Panel language")} className="me-1 flex rounded-full bg-white/10 p-1">
+              <form action={setAdminLang} aria-label={tr("لغة اللوحة", "Panel language")} className="me-1 flex rounded-full bg-ink/5 p-1">
                 {(["ar", "en"] as const).map((l) => (
                   <button
                     key={l}
@@ -47,13 +50,13 @@ async function Shell({ children }: { children: ReactNode }) {
                     name="lang"
                     value={l}
                     aria-pressed={lang === l}
-                    className={`inline-flex min-h-8 min-w-9 cursor-pointer items-center justify-center rounded-full px-2.5 text-sm font-bold transition-colors ${lang === l ? "bg-yellow-500 text-ink" : "text-warm-300 hover:text-white"}`}
+                    className={`inline-flex min-h-8 min-w-9 cursor-pointer items-center justify-center rounded-full px-2.5 text-sm font-bold transition-colors ${lang === l ? "bg-yellow-500 text-ink" : "text-warm-600 hover:text-ink"}`}
                   >
                     {l === "ar" ? "ع" : "EN"}
                   </button>
                 ))}
               </form>
-              <p className="me-2 hidden max-w-56 truncate text-sm text-warm-300 lg:block" dir="ltr" title={admin.email}>
+              <p className="me-2 hidden max-w-56 truncate text-sm text-warm-600 lg:block" dir="ltr" title={admin.email}>
                 {admin.email}
               </p>
               <Link href="/" target="_blank" className={iconLink} aria-label={tr("عرض المتجر", "View shop")} title={tr("عرض المتجر", "View shop")}>
@@ -66,7 +69,7 @@ async function Shell({ children }: { children: ReactNode }) {
               </form>
             </div>
           </div>
-          <nav aria-label={tr("أقسام لوحة التحكم", "Dashboard sections")} className="hidden border-t border-white/10 lg:block">
+          <nav aria-label={tr("أقسام لوحة التحكم", "Dashboard sections")} className="hidden border-t border-ink/10 lg:block">
             <div className="mx-auto max-w-7xl px-4 py-2 lg:px-6">
               <AdminTopNav role={admin.role} />
             </div>

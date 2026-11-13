@@ -144,6 +144,13 @@
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
 }
+/* Pale frosted glass shared by every floating bar and menu (shop header, dashboard bars, menus, email card). */
+@utility glass-frost {
+  background: var(--glass-header-bg);
+  border-color: var(--glass-header-border);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  backdrop-filter: blur(24px) saturate(150%);
+}
 @utility glass-light {
   background: var(--glass-light-bg);
   border-color: var(--glass-light-border);
@@ -164,14 +171,21 @@
   .admin-card {
     background: var(--color-white);
   }
+  .glass-frost {
+    background: var(--color-warm-100);
+  }
 }
 @media (prefers-reduced-transparency: reduce) {
   .glass,
   .glass-dark,
   .glass-light,
+  .glass-frost,
   .admin-card {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
+  }
+  .glass-frost {
+    background: var(--color-warm-100);
   }
   .admin-card {
     background: var(--color-white);

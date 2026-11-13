@@ -163,7 +163,7 @@ function NavGroup({ item, children, pathname }: { item: Item; children: Item[]; 
         }
       }}
     >
-      <div className={`relative isolate flex items-center rounded-full text-sm font-semibold transition-colors ${current ? "text-ink" : "text-warm-300 hover:bg-white/10 hover:text-white"}`}>
+      <div className={`relative isolate flex items-center rounded-full text-sm font-semibold transition-colors ${current ? "text-ink" : "text-warm-800 hover:bg-ink/5 hover:text-ink"}`}>
         {current ? <motion.span layoutId="admin-top-pill" transition={spring} aria-hidden="true" className="absolute inset-0 -z-10 rounded-full bg-yellow-500 shadow-md shadow-yellow-500/25" /> : null}
         <Link href={item.href} aria-current={current?.href === item.href ? "page" : current ? "true" : undefined} className="flex min-h-10 items-center gap-2 rounded-s-full ps-3.5 pe-1">
           <Icon className="size-4.5" aria-hidden="true" />
@@ -184,7 +184,8 @@ function NavGroup({ item, children, pathname }: { item: Item; children: Item[]; 
       {open ? (
         // The top padding is part of the panel, so the pointer never leaves it on the way down.
         <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.15 }} className="absolute start-0 top-full z-40 w-56 pt-2">
-          <ul className="rounded-2xl border border-warm-700 bg-warm-900 p-1.5 shadow-lg shadow-ink/30">
+          <ul className="glass-frost rounded-2xl border p-1.5 shadow-lg shadow-ink/15">
+
             {children.map(({ href, label, icon: ChildIcon }) => {
               const active = current?.href === href;
               return (
@@ -194,7 +195,7 @@ function NavGroup({ item, children, pathname }: { item: Item; children: Item[]; 
                     onClick={() => setOpen(false)}
                     aria-current={active ? "page" : undefined}
                     className={`flex min-h-10 items-center gap-2.5 rounded-xl px-3 text-sm font-semibold transition-colors ${
-                      active ? "bg-yellow-500 text-ink" : "text-warm-300 hover:bg-white/10 hover:text-white"
+                      active ? "bg-yellow-500 text-ink" : "text-warm-800 hover:bg-ink/5 hover:text-ink"
                     }`}
                   >
                     <ChildIcon className="size-4.5" aria-hidden="true" />
@@ -228,7 +229,7 @@ export function AdminTopNav({ role }: { role: Role }) {
                   href={href}
                   aria-current={active ? "page" : undefined}
                   className={`relative isolate flex min-h-10 items-center gap-2 rounded-full px-3.5 text-sm font-semibold transition-colors ${
-                    active ? "text-ink" : "text-warm-300 hover:bg-white/10 hover:text-white"
+                    active ? "text-ink" : "text-warm-800 hover:bg-ink/5 hover:text-ink"
                   }`}
                 >
                   {active ? (
@@ -273,7 +274,7 @@ export function AdminBottomNav({ email, role }: { email: string; role: Role }) {
               href={href}
               aria-current={active ? "page" : undefined}
               className={`flex min-h-20 flex-col items-center justify-center gap-2 rounded-2xl px-2 text-center text-xs font-semibold transition-colors ${
-                active ? "bg-yellow-500 text-ink" : "bg-white/5 text-warm-300 hover:bg-white/10 hover:text-white"
+                active ? "bg-yellow-500 text-ink" : "bg-white/50 text-warm-800 hover:bg-white/80 hover:text-ink"
               }`}
             >
               <Icon className="size-5" aria-hidden="true" />
@@ -294,7 +295,7 @@ export function AdminBottomNav({ email, role }: { email: string; role: Role }) {
 
   const tab = (active: boolean) =>
     `relative isolate flex min-h-14 flex-1 flex-col items-center justify-center gap-1 rounded-2xl text-[0.6875rem] font-semibold transition-colors ${
-      active ? "text-ink" : "text-warm-300"
+      active ? "text-ink" : "text-warm-800"
     }`;
   const pill = <motion.span layoutId="admin-bottom-pill" transition={spring} aria-hidden="true" className="absolute inset-1 -z-10 rounded-xl bg-yellow-500" />;
 
@@ -321,13 +322,13 @@ export function AdminBottomNav({ email, role }: { email: string; role: Role }) {
               animate={{ y: 0 }}
               exit={{ y: "110%" }}
               transition={{ type: "spring", stiffness: 380, damping: 38 }}
-              className="glass-dark fixed inset-x-3 bottom-3 z-50 max-h-[calc(100dvh-1.5rem)] overflow-y-auto rounded-3xl border p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] text-white lg:hidden"
+              className="glass-frost fixed inset-x-3 bottom-3 z-50 max-h-[calc(100dvh-1.5rem)] overflow-y-auto rounded-3xl border p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] text-ink shadow-xl shadow-ink/20 lg:hidden"
             >
               <div className="mb-2 flex items-center justify-between gap-3 px-2">
-                <p className="truncate text-sm text-warm-300" dir="ltr" title={email}>
+                <p className="truncate text-sm text-warm-600" dir="ltr" title={email}>
                   {email}
                 </p>
-                <button type="button" onClick={close} aria-label={tr("إغلاق", "Close")} className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-full hover:bg-white/10">
+                <button type="button" onClick={close} aria-label={tr("إغلاق", "Close")} className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-full hover:bg-ink/5">
                   <X className="size-5" aria-hidden="true" />
                 </button>
               </div>
@@ -336,24 +337,24 @@ export function AdminBottomNav({ email, role }: { email: string; role: Role }) {
                 const pages = children.filter((c) => !PRIMARY.includes(c.href) && !c.href.endsWith("/new"));
                 return pages.length ? (
                   <div key={href} className="mb-3">
-                    <p className="mb-2 px-2 text-xs font-bold text-warm-300">{tr(...label)}</p>
+                    <p className="mb-2 px-2 text-xs font-bold text-warm-600">{tr(...label)}</p>
                     {sheetGrid(pages)}
                   </div>
                 ) : null;
               })}
               {more.some((i) => !i.children) ? (
                 <>
-                  <p className="mb-2 px-2 text-xs font-bold text-warm-300">{tr("باقي الأقسام", "Other sections")}</p>
+                  <p className="mb-2 px-2 text-xs font-bold text-warm-600">{tr("باقي الأقسام", "Other sections")}</p>
                   {sheetGrid(more.filter((i) => !i.children))}
                 </>
               ) : null}
-              <div className="mt-3 grid grid-cols-2 gap-2 border-t border-white/10 pt-3 text-sm">
-                <Link href="/" target="_blank" className="flex min-h-11 items-center justify-center gap-2 rounded-xl text-warm-300 hover:bg-white/10 hover:text-white">
+              <div className="mt-3 grid grid-cols-2 gap-2 border-t border-ink/10 pt-3 text-sm">
+                <Link href="/" target="_blank" className="flex min-h-11 items-center justify-center gap-2 rounded-xl text-warm-800 hover:bg-ink/5 hover:text-ink">
                   <ExternalLink className="size-4.5" aria-hidden="true" />
                   {tr("عرض المتجر", "View shop")}
                 </Link>
                 <form action={logout}>
-                  <button type="submit" className="flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl text-warm-300 hover:bg-white/10 hover:text-white">
+                  <button type="submit" className="flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl text-warm-800 hover:bg-ink/5 hover:text-ink">
                     <LogOut className="size-4.5" aria-hidden="true" />
                     {tr("تسجيل الخروج", "Log out")}
                   </button>
@@ -364,7 +365,7 @@ export function AdminBottomNav({ email, role }: { email: string; role: Role }) {
         ) : null}
       </AnimatePresence>
 
-      <nav aria-label={tr("أقسام لوحة التحكم", "Dashboard sections")} className="glass-dark fixed inset-x-3 bottom-3 z-30 rounded-3xl border p-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] lg:hidden">
+      <nav aria-label={tr("أقسام لوحة التحكم", "Dashboard sections")} className="glass-frost fixed inset-x-3 bottom-3 z-30 rounded-3xl border p-1.5 shadow-lg shadow-ink/15 pb-[max(0.375rem,env(safe-area-inset-bottom))] lg:hidden">
         <LayoutGroup id="admin-bottom">
           <ul className="isolate flex items-stretch gap-1">
             {primary.map((item) => {
