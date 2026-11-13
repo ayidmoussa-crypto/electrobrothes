@@ -327,7 +327,8 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
           <p className="mt-1 text-sm text-warm-600">{t.intro}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <PeriodPicker basePath="/admin" period={period} lang={lang} label={t.period} />
+          {/* Keyed by the period, so its panel starts closed after every choice. */}
+          <PeriodPicker key={period.query} basePath="/admin" preset={period.preset} firstDay={period.firstDay} lastDay={period.lastDay} today={now.toISOString().slice(0, 10)} lang={lang} label={t.period} />
           <Link href="/admin/orders/new" className={buttonClass({ className: "rounded-full" })}>
             <Plus className="size-4" aria-hidden="true" />
             {t.newOrder}

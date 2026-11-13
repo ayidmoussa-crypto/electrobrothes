@@ -272,7 +272,8 @@ export default async function FinancePage({ searchParams }: PageProps<"/admin/fi
             {tr(`الأرباح على ${span}، ورأس المال من البداية.`, `Profit over ${span}, and capital since the start.`)}
           </p>
         </div>
-        <PeriodPicker basePath="/admin/finance" period={period} lang={lang} label={tr("الفترة", "Period")} />
+        {/* Keyed by the period, so its panel starts closed after every choice. */}
+        <PeriodPicker key={period.query} basePath="/admin/finance" preset={period.preset} firstDay={period.firstDay} lastDay={period.lastDay} today={today} lang={lang} label={tr("الفترة", "Period")} />
       </div>
 
       {gaps.length ? (
