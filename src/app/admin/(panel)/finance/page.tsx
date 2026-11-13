@@ -23,6 +23,7 @@ import Link from "next/link";
 import { Fragment, type ReactNode } from "react";
 import { addCapital, addExpense, deleteCapital, deleteExpense, markCodReceived } from "@/app/actions/admin-finance";
 import { ActionForm } from "@/components/admin/ActionForm";
+import { PeriodPicker } from "@/components/admin/PeriodPicker";
 import { TrendChart } from "@/components/admin/finance/TrendChart";
 import { requireAdmin } from "@/lib/admin";
 import { db } from "@/lib/db";
@@ -30,11 +31,11 @@ import { BUSINESS_CATEGORIES, BUSINESS_CATEGORIES_EN, categoryLabel, changePct, 
 import { feeFields, loadCapital, loadPeriod, toFeeOrder } from "@/lib/finance-data";
 import { channelLabel } from "@/lib/attribution";
 import { formatMAD } from "@/lib/money";
+import { periodLabel, resolvePeriod } from "@/lib/period";
 import { adminTr, type AdminLang, type Tr } from "@/lib/admin-lang";
 import { adminLocale } from "@/lib/admin-tr";
 import { TIME_ZONE, toMoroccanInput } from "@/lib/time";
 
-const RANGES = [7, 30, 90, 365] as const;
 const shortFmt = new Intl.DateTimeFormat("fr-MA", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: TIME_ZONE });
 /** The page's language helpers, handed to the small components below. */
 type L = { tr: Tr; lang: AdminLang; mad: (v: number) => string };
@@ -211,11 +212,11 @@ export default async function FinancePage({ searchParams }: PageProps<"/admin/fi
   const mad = (v: number) => formatMAD(v, lang);
   const l: L = { tr, lang, mad };
   const dayFmt = new Intl.DateTimeFormat(adminLocale(lang), { dateStyle: "medium", timeZone: TIME_ZONE });
-  const raw = Number((await searchParams).days);
-  const days = (RANGES as readonly number[]).includes(raw) ? raw : 30;
+  const period = resolvePeriod(await searchParams);
+  const span = periodLabel(period, lang);
 
   const [{ profit: p, trend, sources, before }, c, uncollected, expenses, capitalEntries, received] = await Promise.all([
-    loadPeriod(days),
+    loadPeriod(period),
     loadCapital(),
     db.order.findMany({
       where: { status: "DELIVERED", codReceivedAt: null },
@@ -254,12 +255,12 @@ export default async function FinancePage({ searchParams }: PageProps<"/admin/fi
   const revenueChange = changePct(p.revenue, before.revenue);
   const netChange = before.netProfit > 0 ? changePct(p.netProfit, before.netProfit) : null;
   const insight = !p.deliveredCount
-    ? tr(`ما تسلم حتى طلب فآخر ${days} يوم.`, `No order was delivered in the last ${days} days.`)
+    ? tr(`ما تسلم حتى طلب فـ ${span}.`, `No order was delivered in ${span}.`)
     : revenueChange === null
-      ? tr(`المبيعات المسلَّمة فآخر ${days} يوم هي ${mad(p.revenue)}، وما كاين حتى بيع فالفترة اللي قبلها باش نقارنو.`, `Delivered sales over the last ${days} days are ${mad(p.revenue)}, with no sales in the period before to compare with.`)
+      ? tr(`المبيعات المسلَّمة فـ ${span} هي ${mad(p.revenue)}، وما كاين حتى بيع فالفترة اللي قبلها باش نقارنو.`, `Delivered sales in ${span} are ${mad(p.revenue)}, with no sales in the period before to compare with.`)
       : tr(
-          `المبيعات المسلَّمة فآخر ${days} يوم هي ${mad(p.revenue)}، ${revenueChange >= 0 ? "زايدة" : "ناقصة"} ب ${Math.abs(revenueChange)}% على ${days} يوم اللي قبلها.`,
-          `Delivered sales over the last ${days} days are ${mad(p.revenue)}, ${revenueChange >= 0 ? "up" : "down"} ${Math.abs(revenueChange)}% on the ${days} days before.`,
+          `المبيعات المسلَّمة فـ ${span} هي ${mad(p.revenue)}، ${revenueChange >= 0 ? "زايدة" : "ناقصة"} ب ${Math.abs(revenueChange)}% على نفس المدة اللي قبلها.`,
+          `Delivered sales in ${span} are ${mad(p.revenue)}, ${revenueChange >= 0 ? "up" : "down"} ${Math.abs(revenueChange)}% on the same length of time before.`,
         );
 
   return (
@@ -268,21 +269,10 @@ export default async function FinancePage({ searchParams }: PageProps<"/admin/fi
         <div>
           <h1 className="text-2xl text-ink md:text-3xl">{tr("المالية", "Finance")}</h1>
           <p className="mt-1 text-sm text-warm-600">
-            {tr(`الأرباح على آخر ${days} يوم، ورأس المال من البداية.`, `Profit over the last ${days} days, and capital since the start.`)}
+            {tr(`الأرباح على ${span}، ورأس المال من البداية.`, `Profit over ${span}, and capital since the start.`)}
           </p>
         </div>
-        <nav aria-label={tr("الفترة", "Period")} className="flex flex-wrap gap-1 rounded-full bg-warm-100 p-1">
-          {RANGES.map((r) => (
-            <Link
-              key={r}
-              href={`/admin/finance?days=${r}`}
-              aria-current={r === days ? "page" : undefined}
-              className={`inline-flex min-h-11 items-center rounded-full px-4 text-sm font-semibold transition-colors ${r === days ? "bg-ink text-white" : "text-warm-700 hover:text-ink"}`}
-            >
-              {tr(`${r} يوم`, `${r} days`)}
-            </Link>
-          ))}
-        </nav>
+        <PeriodPicker basePath="/admin/finance" period={period} lang={lang} label={tr("الفترة", "Period")} />
       </div>
 
       {gaps.length ? (
@@ -305,7 +295,7 @@ export default async function FinancePage({ searchParams }: PageProps<"/admin/fi
           { label: tr("السلعة فالمخزون", "Goods in stock"), value: c.inventoryValue, hint: tr("رأس مال السلعة بثمن الشراء", "Stock capital at purchase price"), pill: "border-ink bg-white" },
           { label: tr("السلعة فالطريق", "Goods on the way"), value: c.goodsInTransit, hint: tr("خرجات وجاري التسليم", "Shipped, being delivered"), pill: "border-yellow-500 bg-yellow-50" },
           {
-            label: tr(`صافي الربح · ${days} يوم`, `Net profit · ${days} days`),
+            label: tr(`صافي الربح · ${span}`, `Net profit · ${span}`),
             value: p.netProfit,
             pct: netChange,
             hint: p.margin === null ? tr("ما كاين حتى بيع", "No sales") : tr(`الهامش ${p.margin}%`, `Margin ${p.margin}%`),
@@ -318,13 +308,13 @@ export default async function FinancePage({ searchParams }: PageProps<"/admin/fi
       <div className="mt-3 grid gap-3 lg:grid-cols-2">
         <section className={card} aria-labelledby="trend-sales-title">
           <CardTitle icon={ChartColumnBig}>
-            <span id="trend-sales-title">{tr(`تطور المبيعات المسلَّمة · آخر ${days} يوم`, `Delivered sales · last ${days} days`)}</span>
+            <span id="trend-sales-title">{tr(`تطور المبيعات المسلَّمة · ${span}`, `Delivered sales · ${span}`)}</span>
           </CardTitle>
           <TrendChart data={trend} metric="revenue" label={tr("المبيعات المسلَّمة", "Delivered sales")} total={p.revenue} />
         </section>
         <section className={card} aria-labelledby="trend-net-title">
           <CardTitle icon={p.netProfit < 0 ? TrendingDown : TrendingUp}>
-            <span id="trend-net-title">{tr(`تطور صافي الربح · آخر ${days} يوم`, `Net profit · last ${days} days`)}</span>
+            <span id="trend-net-title">{tr(`تطور صافي الربح · ${span}`, `Net profit · ${span}`)}</span>
           </CardTitle>
           <TrendChart data={trend} metric="net" label={tr("صافي الربح", "Net profit")} total={p.netProfit} />
         </section>
@@ -437,7 +427,7 @@ export default async function FinancePage({ searchParams }: PageProps<"/admin/fi
 
       <div id="details" className="mt-3 grid scroll-mt-28 gap-3 lg:grid-cols-2">
         <section className={card}>
-          <CardTitle icon={TrendingUp}>{tr(`حساب الربح (آخر ${days} يوم)`, `Profit (last ${days} days)`)}</CardTitle>
+          <CardTitle icon={TrendingUp}>{tr(`حساب الربح (${span})`, `Profit (${span})`)}</CardTitle>
           <dl className="text-sm">
             <Line l={l} label={tr("المبيعات المسلَّمة", "Delivered sales")} value={p.revenue} />
             <Line l={l} label={tr("تكلفة السلعة", "Cost of goods")} value={p.cogs} minus />

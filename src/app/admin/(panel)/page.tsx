@@ -30,10 +30,11 @@ import { changePct } from "@/lib/finance";
 import { loadProfit } from "@/lib/finance-data";
 import { formatMAD } from "@/lib/money";
 import { ORDER_STATUSES, type OrderStatus } from "@/lib/order-rules";
-import { codRates, daysAgo, fillDays } from "@/lib/stats";
+import { chartSlots, periodLabel, resolvePeriod } from "@/lib/period";
+import { codRates } from "@/lib/stats";
+import { PeriodPicker } from "@/components/admin/PeriodPicker";
 import { TIME_ZONE } from "@/lib/time";
 
-const RANGES = [7, 30, 90] as const;
 const TZ = TIME_ZONE;
 
 const STATUS_EN: Record<OrderStatus, string> = {
@@ -61,7 +62,7 @@ const T = {
     morning: "صباح الخير",
     evening: "مساء الخير",
     intro: "هذا اللي خاصو انتباهك اليوم فالمتجر.",
-    days: (n: number) => `${n} يوم`,
+    period: "الفترة",
     newOrder: "طلب جديد",
     today: "طلبات اليوم",
     todayFoot: "من منتصف الليل",
@@ -101,12 +102,13 @@ const T = {
     items: (n: number) => `${n} ${n === 1 ? "منتج" : "منتجات"}`,
     todoCall: (n: number) => `عيّط على ${n} ${n === 1 ? "طلب" : "طلبات"}`,
     citiesTitle: "أكثر المدن طلباً",
-    citiesSub: (d: number, n: number) => `آخر ${d} يوم · ${n} طلب`,
+    citiesSub: (span: string, n: number) => `${span} · ${n} طلب`,
     noCities: "ما كاين حتى طلب فهاد الفترة.",
     daily: "الطلبات اليومية",
+    monthly: "الطلبات الشهرية",
     unit: "طلب",
     top: "أكثر المنتجات مبيعاً",
-    topSub: (n: number) => `آخر ${n} يوم · مرتبة بالقطع المسلَّمة`,
+    topSub: (span: string) => `${span} · مرتبة بالقطع المسلَّمة`,
     allProducts: "كل المنتجات",
     colProduct: "المنتج",
     colPrice: "الثمن",
@@ -130,7 +132,7 @@ const T = {
     morning: "Good morning",
     evening: "Good evening",
     intro: "Here is what needs your attention in the shop today.",
-    days: (n: number) => `${n} days`,
+    period: "Period",
     newOrder: "New order",
     today: "Orders today",
     todayFoot: "since midnight",
@@ -170,12 +172,13 @@ const T = {
     items: (n: number) => `${n} ${n === 1 ? "item" : "items"}`,
     todoCall: (n: number) => `Call ${n} ${n === 1 ? "order" : "orders"}`,
     citiesTitle: "Top cities",
-    citiesSub: (d: number, n: number) => `last ${d} days · ${n} orders`,
+    citiesSub: (span: string, n: number) => `${span} · ${n} orders`,
     noCities: "No orders in this period.",
     daily: "Daily orders",
+    monthly: "Monthly orders",
     unit: "orders",
     top: "Top products",
-    topSub: (n: number) => `last ${n} days · ranked by units delivered`,
+    topSub: (span: string) => `${span} · ranked by units delivered`,
     allProducts: "All products",
     colProduct: "Product",
     colPrice: "Price",
@@ -217,16 +220,17 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
   const lang = await adminLang();
   const t = T[lang];
   const ar = lang === "ar";
-  const raw = Number((await searchParams).days);
-  const days = (RANGES as readonly number[]).includes(raw) ? raw : 30;
-  const since = daysAgo(days);
+  const period = resolvePeriod(await searchParams);
+  const span = periodLabel(period, lang);
+  const { from: since, until, prevFrom } = period;
+  const inPeriod = { gte: since, lte: until };
 
-  const [profit, byStatus, perDay, products, cities, todayByStatus, todayRow, lowStock, before, confirmedIds] = await Promise.all([
-    loadProfit(since),
-    db.order.groupBy({ by: ["status"], where: { createdAt: { gte: since } }, _count: true }),
+  const [profit, byStatus, perDay, products, cities, todayByStatus, lowStock, before, confirmedIds] = await Promise.all([
+    loadProfit(since, until),
+    db.order.groupBy({ by: ["status"], where: { createdAt: inPeriod }, _count: true }),
     db.$queryRaw<{ day: string; count: number }[]>`
       SELECT to_char(("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE ${TZ}, 'YYYY-MM-DD') AS day, count(*)::int AS count
-      FROM "Order" WHERE "createdAt" >= ${since} GROUP BY 1`,
+      FROM "Order" WHERE "createdAt" >= ${since} AND "createdAt" <= ${until} GROUP BY 1`,
     // Best products of the period: units delivered and sent back, money in, purchase cost of what was delivered.
     db.$queryRaw<ProductRow[]>`
       SELECT p."id", p."nameAr", p."nameEn",
@@ -241,7 +245,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
       JOIN "Order" o ON o."id" = oi."orderId"
       JOIN "Variant" v ON v."id" = oi."variantId"
       JOIN "Product" p ON p."id" = v."productId"
-      WHERE o."createdAt" >= ${since} AND o."status" IN ('DELIVERED', 'RETURNING', 'RETURNED')
+      WHERE o."createdAt" >= ${since} AND o."createdAt" <= ${until} AND o."status" IN ('DELIVERED', 'RETURNING', 'RETURNED')
       GROUP BY p."id"
       ORDER BY delivered DESC, revenue DESC
       LIMIT 5`,
@@ -249,7 +253,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
     db.$queryRaw<{ id: string; nameAr: string; nameEn: string; count: number }[]>`
       SELECT c."id", c."nameAr", c."nameEn", count(*)::int AS count
       FROM "Order" o JOIN "City" c ON c."id" = o."cityId"
-      WHERE o."createdAt" >= ${since}
+      WHERE o."createdAt" >= ${since} AND o."createdAt" <= ${until}
       GROUP BY c."id"
       ORDER BY count DESC
       LIMIT 8`,
@@ -258,7 +262,6 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
       SELECT "status", count(*)::int AS count FROM "Order"
       WHERE (("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE ${TZ})::date = (now() AT TIME ZONE ${TZ})::date
       GROUP BY 1`,
-    db.$queryRaw<{ today: string }[]>`SELECT to_char(now() AT TIME ZONE ${TZ}, 'YYYY-MM-DD') AS today`,
     // Colours at or below their own alert level, emptiest first (products shown in the shop only).
     db.variant.findMany({
       where: { stock: { lte: db.variant.fields.lowStockAt }, product: { isActive: true } },
@@ -267,7 +270,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
       take: 12,
     }),
     // The same length of time just before, for the change badge.
-    db.order.count({ where: { createdAt: { gte: daysAgo(days * 2), lt: since } } }),
+    db.order.count({ where: { createdAt: { gte: prevFrom, lt: since } } }),
     // Confirmed today, whenever the order came in (a call today can confirm yesterday's order).
     db.$queryRaw<{ id: string }[]>`
       SELECT DISTINCT "orderId" AS id FROM "OrderStatusLog"
@@ -292,14 +295,14 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
     ? await db.$queryRaw<{ id: string; delivered: number }[]>`
         SELECT v."productId" AS id, sum(oi."quantity")::int AS delivered
         FROM "OrderItem" oi JOIN "Order" o ON o."id" = oi."orderId" JOIN "Variant" v ON v."id" = oi."variantId"
-        WHERE o."status" = 'DELIVERED' AND o."createdAt" >= ${daysAgo(days * 2)} AND o."createdAt" < ${since} AND v."productId" = ANY(${products.map((p) => p.id)})
+        WHERE o."status" = 'DELIVERED' AND o."createdAt" >= ${prevFrom} AND o."createdAt" < ${since} AND v."productId" = ANY(${products.map((p) => p.id)})
         GROUP BY 1`
     : [];
   const deliveredBefore = new Map(earlier.map((r) => [r.id, r.delivered]));
 
   const counts = Object.fromEntries(byStatus.map((s) => [s.status, s._count])) as Partial<Record<OrderStatus, number>>;
   const rates = codRates(counts);
-  const series = fillDays(perDay, todayRow[0].today, days);
+  const series = chartSlots(perDay, period);
   const change = changePct(rates.total, before);
 
   const now = new Date();
@@ -307,6 +310,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
   const firstName = admin.name.split(" ")[0];
   const dateLine = new Intl.DateTimeFormat(ar ? "ar-MA" : "en-GB", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: TZ }).format(now);
   const dayLabel = new Intl.DateTimeFormat(ar ? "ar-MA" : "en-GB", { day: "numeric", month: "long", timeZone: "UTC" });
+  const monthLabel = new Intl.DateTimeFormat(ar ? "ar-MA" : "en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
   const money = (v: number) => formatMAD(v, lang);
   const pct = (v: number | null) => (v === null ? t.noData : `${v}%`);
 
@@ -323,18 +327,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
           <p className="mt-1 text-sm text-warm-600">{t.intro}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <nav aria-label={t.orders} className="flex rounded-full bg-warm-100 p-1">
-            {RANGES.map((r) => (
-              <Link
-                key={r}
-                href={`/admin?days=${r}`}
-                aria-current={r === days ? "page" : undefined}
-                className={`inline-flex min-h-9 items-center rounded-full px-3.5 text-sm font-semibold transition-colors ${r === days ? "bg-ink text-white" : "text-warm-700 hover:text-ink"}`}
-              >
-                {t.days(r)}
-              </Link>
-            ))}
-          </nav>
+          <PeriodPicker basePath="/admin" period={period} lang={lang} label={t.period} />
           <Link href="/admin/orders/new" className={buttonClass({ className: "rounded-full" })}>
             <Plus className="size-4" aria-hidden="true" />
             {t.newOrder}
@@ -391,17 +384,17 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
 
       {/* Side by side, so both lists can grow downwards as data comes in. minmax(0,…) keeps long names from widening the page. */}
       <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
-        <TopProducts t={t} lang={lang} rows={products} before={deliveredBefore} days={days} />
-        <TopCities t={t} lang={lang} cities={cities} total={rates.total} days={days} />
+        <TopProducts t={t} lang={lang} rows={products} before={deliveredBefore} span={span} />
+        <TopCities t={t} lang={lang} cities={cities} total={rates.total} span={span} />
       </div>
 
       <div className={`grid grid-cols-[minmax(0,1fr)] gap-6 ${lowStock.length ? "lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]" : ""}`}>
         <AreaChart
           className={`${CARD} bg-warm-50! shadow-none! backdrop-blur-none!`}
-          title={t.daily}
+          title={series.monthly ? t.monthly : t.daily}
           unit={t.unit}
           lang={lang}
-          data={series.map((d) => ({ key: d.day, label: dayLabel.format(new Date(`${d.day}T00:00:00Z`)), value: d.count }))}
+          data={series.points.map((d) => ({ key: d.key, label: (series.monthly ? monthLabel : dayLabel).format(new Date(`${d.key}T00:00:00Z`)), value: d.count }))}
         />
 
         {lowStock.length ? (
@@ -706,7 +699,7 @@ type ProductRow = {
 };
 
 /** Where the period's orders go: one bar per city, the leader in brand yellow. */
-function TopCities({ t, lang, cities, total, days }: { t: Words; lang: AdminLang; cities: { id: string; nameAr: string; nameEn: string; count: number }[]; total: number; days: number }) {
+function TopCities({ t, lang, cities, total, span }: { t: Words; lang: AdminLang; cities: { id: string; nameAr: string; nameEn: string; count: number }[]; total: number; span: string }) {
   const max = Math.max(1, ...cities.map((c) => c.count));
   return (
     <section aria-labelledby="cities" className={`${CARD} flex flex-col p-5 md:p-6`}>
@@ -716,7 +709,7 @@ function TopCities({ t, lang, cities, total, days }: { t: Words; lang: AdminLang
             <MapPin className="size-4.5 text-warm-600" aria-hidden="true" />
             {t.citiesTitle}
           </h2>
-          <p className="mt-0.5 text-xs text-warm-600">{t.citiesSub(days, total)}</p>
+          <p className="mt-0.5 text-xs text-warm-600">{t.citiesSub(span, total)}</p>
         </div>
       </div>
       {cities.length ? (
@@ -746,7 +739,7 @@ function TopCities({ t, lang, cities, total, days }: { t: Words; lang: AdminLang
 }
 
 /** The period's best products: price, units delivered and returned, money in, purchase cost and profit. */
-function TopProducts({ t, lang, rows, before, days }: { t: Words; lang: AdminLang; rows: ProductRow[]; before: Map<string, number>; days: number }) {
+function TopProducts({ t, lang, rows, before, span }: { t: Words; lang: AdminLang; rows: ProductRow[]; before: Map<string, number>; span: string }) {
   const ar = lang === "ar";
   const money = (v: number) => formatMAD(v, lang);
   // Tight columns: the table shares its row with the cities.
@@ -759,7 +752,7 @@ function TopProducts({ t, lang, rows, before, days }: { t: Words; lang: AdminLan
           <h2 id="products" className="text-base">
             {t.top}
           </h2>
-          <p className="mt-0.5 text-xs text-warm-600">{t.topSub(days)}</p>
+          <p className="mt-0.5 text-xs text-warm-600">{t.topSub(span)}</p>
         </div>
         <Link href="/admin/products" className="inline-flex min-h-10 items-center gap-1 rounded-full px-3 text-sm font-semibold text-ink transition-colors hover:bg-warm-100">
           {t.allProducts}

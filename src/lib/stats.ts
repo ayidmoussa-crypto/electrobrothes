@@ -24,17 +24,3 @@ export function codRates(c: StatusCounts) {
     returns: pct(refused, outcome),
   };
 }
-
-export const daysAgo = (days: number, now = Date.now()) => new Date(now - days * 24 * 3600 * 1000);
-
-/** Fills missing days with 0 so the chart has one bar per day. Dates are YYYY-MM-DD. */
-export function fillDays(rows: { day: string; count: number }[], lastDay: string, days: number) {
-  const byDay = new Map(rows.map((r) => [r.day, r.count]));
-  const end = new Date(`${lastDay}T00:00:00Z`);
-  return Array.from({ length: days }, (_, i) => {
-    const d = new Date(end);
-    d.setUTCDate(end.getUTCDate() - (days - 1 - i));
-    const day = d.toISOString().slice(0, 10);
-    return { day, count: byDay.get(day) ?? 0 };
-  });
-}

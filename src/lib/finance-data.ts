@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "./db";
 import { computeCapital, computeProfit, expectedFromCarrier, profitTrend, trendBuckets } from "./finance";
+import type { Period } from "./period";
 import { effectiveCost } from "./stock";
 
 /** The order fields lib/finance needs to know the carrier's cut. */
@@ -35,8 +36,7 @@ export async function loadProfit(since: Date, until = new Date()) {
  * Everything the finance page shows about one period: the profit, how it moved slot by slot, where the
  * sales came from, and the same profit for the period just before, to compare with.
  */
-export async function loadPeriod(days: number, now = new Date()) {
-  const since = new Date(now.getTime() - days * 24 * 3600 * 1000);
+export async function loadPeriod({ from: since, until: now, days, prevFrom }: Pick<Period, "from" | "until" | "days" | "prevFrom">) {
   const range = { gte: since, lte: now };
   const dated = { ...orderFields, channel: true, deliveredAt: true, returnedAt: true } as const;
   const [delivered, returned, expenses, adjustments, before] = await Promise.all([
@@ -44,7 +44,7 @@ export async function loadPeriod(days: number, now = new Date()) {
     db.order.findMany({ where: { status: "RETURNED", returnedAt: range }, select: dated }),
     db.expense.findMany({ where: { spentOn: range }, select: { scope: true, category: true, amount: true, spentOn: true } }),
     db.stockMovement.findMany({ where: { reason: "ADJUSTMENT", createdAt: range }, select: { delta: true, unitCost: true, createdAt: true } }),
-    loadProfit(new Date(since.getTime() - days * 24 * 3600 * 1000), since),
+    loadProfit(prevFrom, new Date(since.getTime() - 1)),
   ]);
   const d = delivered.map((o) => ({ ...toFeeOrder(o), at: o.deliveredAt ?? now }));
   const r = returned.map((o) => ({ ...toFeeOrder(o), at: o.returnedAt ?? now }));
