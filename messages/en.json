@@ -59,6 +59,7 @@
     "homeTitle": "Buy the pack, save more",
     "subtitle": "Products that go together, for less than buying them one by one.",
     "viewAll": "All packs",
+    "discoverMore": "Discover more packs",
     "save": "Save {amount}",
     "separately": "{amount} bought separately",
     "pieces": "{count, plural, one {1 product} other {# products}}",

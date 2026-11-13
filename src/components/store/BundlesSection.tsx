@@ -9,6 +9,9 @@ import { BundleCard } from "./BundleCard";
 import { NightSky } from "./NightSky";
 import { ProductSlider } from "./ProductSlider";
 
+/** Packs shown on a phone before the "discover more" button. */
+const PHONE_PACKS = 2;
+
 /**
  * Home page packs: one black frame. The start side holds the title and a picture of a pack (its own photo,
  * or three of its products stacked like a gift box); the wider side is a row of pack cards to swipe.
@@ -63,9 +66,28 @@ export async function BundlesSection({ locale }: { locale: Locale }) {
           </div>
         </div>
 
-        {/* Its own layer above the animated sky: iPhone Safari otherwise loses the row's swipe area and
-            hands sideways swipes to the page. */}
-        <div className="relative z-10 mt-6 min-w-0 lg:mt-0">
+        {/* Phones: no sideways row (iPhone kept handing the swipe to the page). Two packs one under the other,
+            then a button to all of them. */}
+        <div className="relative z-10 mt-6 sm:hidden">
+          <ul className="flex flex-col gap-4">
+            {bundles.slice(0, PHONE_PACKS).map((b) => (
+              <li key={b.id}>
+                <BundleCard bundle={b} locale={locale} />
+              </li>
+            ))}
+          </ul>
+          <Link
+            href="/bundles"
+            className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-yellow-500 px-5 font-extrabold text-ink transition-colors hover:bg-yellow-600 active:bg-yellow-700"
+          >
+            {bundles.length > PHONE_PACKS ? t("discoverMore") : t("viewAll")}
+            <Arrow className="size-4.5" aria-hidden="true" />
+          </Link>
+        </div>
+
+        {/* Tablets and up: the row to swipe. Its own layer above the animated sky: iPhone Safari otherwise loses
+            the row's swipe area and hands sideways swipes to the page. */}
+        <div className="relative z-10 mt-6 min-w-0 max-sm:hidden lg:mt-0">
           <ProductSlider
             label={t("title")}
             prevLabel={tl("previous")}

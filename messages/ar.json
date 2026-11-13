@@ -59,6 +59,7 @@
     "homeTitle": "اشترِ الباك ووفّر أكثر",
     "subtitle": "منتجات تكمّل بعضها، بثمن أقل مما لو اشتريتها واحدة واحدة.",
     "viewAll": "كل الباكات",
+    "discoverMore": "اكتشف باكات أخرى",
     "save": "وفّر {amount}",
     "separately": "{amount} إذا اشتريتها منفصلة",
     "pieces": "{count, plural, one {منتج واحد} two {منتجان} few {# منتجات} other {# منتجاً}}",
