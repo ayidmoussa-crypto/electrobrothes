@@ -29,7 +29,7 @@ export default async function ReviewsPage({ searchParams }: PageProps<"/admin/re
   const when = new Intl.DateTimeFormat(adminLocale(lang), { dateStyle: "medium", timeZone: TIME_ZONE });
   const raw = (await searchParams).tab;
   const tab: Tab = raw === "approved" || raw === "rejected" ? raw : "pending";
-  const [rows, pending, negative, externalApproved, externalPending] = await Promise.all([
+  const [rows, pending, externalApproved, externalPending] = await Promise.all([
     db.review.findMany({
       where: WHERE[tab],
       orderBy: [{ rating: "asc" }, { createdAt: "desc" }],
@@ -53,7 +53,6 @@ export default async function ReviewsPage({ searchParams }: PageProps<"/admin/re
       },
     }),
     db.review.count({ where: WHERE.pending }),
-    db.review.count({ where: { ...WHERE.pending, rating: { lte: 2 } } }),
     db.externalRating.findMany({ where: { status: "APPROVED" }, select: { id: true, source: true, lastCheckedAt: true, productId: true, product: { select: { nameAr: true, nameEn: true } } } }),
     db.externalRating.count({ where: { status: "PENDING" } }),
   ]);
@@ -63,13 +62,7 @@ export default async function ReviewsPage({ searchParams }: PageProps<"/admin/re
     <>
       <PageHeader title={tr("التقييمات", "Reviews")} description={tr("ما كيبان حتى تقييم فالمتجر قبل موافقتك.", "No review shows in the shop before you approve it.")} />
 
-      {negative ? (
-        <p role="alert" className="mb-3 flex items-center gap-2 rounded-xl bg-warning-soft p-3 text-sm font-bold text-warning-text">
-          <TriangleAlert className="size-4 shrink-0" aria-hidden="true" />
-          {tr(`${negative} تقييم سلبي كيتسنى: اتصل بالزبون قبل ما تقرر.`, `${negative} negative reviews waiting: call the customer before you decide.`)}
-        </p>
-      ) : null}
-
+      {/* Negative reviews waiting are in the notifications (the bell); the cards below still flag each one. */}
       {stale.length || externalPending ? (
         <Panel title={tr("تقييمات خارجية", "External ratings")} className="mb-3">
           {externalPending ? <p className="text-sm text-warm-800">{tr(`${externalPending} مصدر كيتسنى تأكيدك فصفحة المنتج.`, `${externalPending} sources wait for your check on the product page.`)}</p> : null}

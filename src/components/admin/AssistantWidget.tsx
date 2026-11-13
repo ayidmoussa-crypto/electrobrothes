@@ -10,6 +10,7 @@ import { buttonClass } from "@/components/ui/button";
 import type { AssistantCard, AssistantChoice, AssistantReply, AssistantUsageView } from "@/lib/assistant/rules";
 import { overBudget } from "@/lib/assistant/rules";
 import { useAdminTr } from "./AdminLang";
+import { announcePanel, PANEL_EVENT, PANEL_PLACE, type Placement } from "./NotificationsButton";
 
 type Message = {
   id: number;
@@ -175,8 +176,10 @@ function ProposalCard({ card, onChange }: { card: AssistantCard; onChange: (stat
   );
 }
 
-export function AssistantWidget() {
+/** The assistant's button sits in the side rail (desktop) or the phone's top bar; its panel opens beside it. */
+export function AssistantWidget({ placement }: { placement: Placement }) {
   const [open, setOpen] = useState(false);
+  const panelId = `assistant-${placement}`;
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
@@ -208,6 +211,13 @@ export function AssistantWidget() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
+
+  // Opening the notifications closes the assistant, and the other way round.
+  useEffect(() => {
+    const other = (e: Event) => (e as CustomEvent<string>).detail !== panelId && setOpen(false);
+    window.addEventListener(PANEL_EVENT, other);
+    return () => window.removeEventListener(PANEL_EVENT, other);
+  }, [panelId]);
 
   useEffect(() => {
     list.current?.scrollTo({ top: list.current.scrollHeight });
@@ -267,20 +277,23 @@ export function AssistantWidget() {
       <button
         ref={trigger}
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => {
+          if (!open) announcePanel(panelId);
+          setOpen(!open);
+        }}
         aria-expanded={open}
         aria-label={open ? tr("سد المساعد الذكي", "Close the assistant") : tr("حل المساعد الذكي", "Open the assistant")}
         title={tr("المساعد الذكي", "Assistant")}
-        className="fixed end-4 bottom-28 z-40 grid size-14 cursor-pointer place-items-center rounded-full bg-yellow-500 text-ink shadow-lg shadow-ink/25 transition-colors hover:bg-yellow-600 active:bg-yellow-700 lg:end-6 lg:bottom-6"
+        className={`grid ${placement === "rail" ? "size-12" : "size-10"} cursor-pointer place-items-center rounded-full bg-yellow-500 text-ink shadow-md shadow-ink/15 transition-colors hover:bg-yellow-600 active:bg-yellow-700`}
       >
-        {open ? <X className="size-6" aria-hidden="true" /> : <Sparkles className="size-6" aria-hidden="true" />}
+        {open ? <X className="size-5" aria-hidden="true" /> : <Sparkles className="size-5" aria-hidden="true" />}
       </button>
 
       {open ? (
         <section
           role="dialog"
           aria-label={tr("المساعد الذكي", "Assistant")}
-          className="fixed end-4 bottom-44 z-40 flex h-[min(38rem,calc(100dvh-12.5rem))] w-[min(26rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-warm-200 bg-warm-50 shadow-2xl shadow-ink/30 lg:end-6 lg:bottom-24 lg:h-[min(38rem,calc(100dvh-8rem))]"
+          className={`${PANEL_PLACE[placement]} flex flex-col overflow-hidden rounded-3xl border border-warm-200 bg-warm-50 shadow-2xl shadow-ink/30 ${placement === "rail" ? "h-[min(40rem,calc(100dvh-3rem))]" : ""}`}
         >
           <header className="bg-ink text-white">
             <div className="flex items-center gap-2 px-4 py-3">

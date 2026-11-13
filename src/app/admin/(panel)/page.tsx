@@ -7,7 +7,6 @@ import {
   MapPin,
   Megaphone,
   Package,
-  PackageX,
   PhoneCall,
   Plus,
   ReceiptText,
@@ -30,7 +29,7 @@ import { changePct } from "@/lib/finance";
 import { loadProfit } from "@/lib/finance-data";
 import { formatMAD } from "@/lib/money";
 import { ORDER_STATUSES, type OrderStatus } from "@/lib/order-rules";
-import { chartSlots, periodLabel, resolvePeriod } from "@/lib/period";
+import { chartSlots, periodLabel, previousSlots, resolvePeriod } from "@/lib/period";
 import { codRates } from "@/lib/stats";
 import { PeriodPicker } from "@/components/admin/PeriodPicker";
 import { TIME_ZONE } from "@/lib/time";
@@ -83,7 +82,6 @@ const T = {
     returnedOrders: (n: number) => `${n} طلب راجع`,
     expenses: "مصاريف المشروع",
     adPerOrder: (v: string) => `الإعلان لكل طلب ${v}`,
-    gaps: "الربح ناقص معلومات: ثمن شراء ولا رسوم توصيل. كمّلهم فالمالية.",
     todayTitle: "نتائج اليوم",
     exportReady: "صدّر لشركة التوصيل",
     seeAll: "شوف الكل",
@@ -122,9 +120,6 @@ const T = {
     missingCost: "ناقص ثمن الشراء ديال شي قطع",
     profitNote: "الربح هنا = مداخيل القطع المسلَّمة ناقص ثمن شرائها، قبل التوصيل والإعلانات. السهم كيقارن مع الفترة اللي قبل.",
     noTop: "ما كاين حتى بيع فهاد الفترة.",
-    low: "قربات تسالي",
-    out: "سالات",
-    left: (n: number) => `بقي ${n}`,
     byStatus: "الطلبات حسب الحالة",
     allOrders: "كل الطلبات",
   },
@@ -153,7 +148,6 @@ const T = {
     returnedOrders: (n: number) => `${n} returned`,
     expenses: "Business expenses",
     adPerOrder: (v: string) => `${v} ads per order`,
-    gaps: "Profit is missing data: a purchase price or delivery fee. Complete it in Finance.",
     todayTitle: "Today's results",
     exportReady: "Export for the carrier",
     seeAll: "See all",
@@ -192,9 +186,6 @@ const T = {
     missingCost: "Some units have no purchase price",
     profitNote: "Profit here = revenue of delivered units minus their purchase price, before delivery and ads. The arrow compares with the period before.",
     noTop: "No sales in this period.",
-    low: "Running low",
-    out: "Out",
-    left: (n: number) => `${n} left`,
     byStatus: "Orders by status",
     allOrders: "All orders",
   },
@@ -225,12 +216,13 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
   const { from: since, until, prevFrom } = period;
   const inPeriod = { gte: since, lte: until };
 
-  const [profit, byStatus, perDay, products, cities, todayByStatus, lowStock, before, confirmedIds] = await Promise.all([
+  // perDay covers the period before too, for the chart's dashed line.
+  const [profit, byStatus, perDay, products, cities, todayByStatus, before, confirmedIds] = await Promise.all([
     loadProfit(since, until),
     db.order.groupBy({ by: ["status"], where: { createdAt: inPeriod }, _count: true }),
     db.$queryRaw<{ day: string; count: number }[]>`
       SELECT to_char(("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE ${TZ}, 'YYYY-MM-DD') AS day, count(*)::int AS count
-      FROM "Order" WHERE "createdAt" >= ${since} AND "createdAt" <= ${until} GROUP BY 1`,
+      FROM "Order" WHERE "createdAt" >= ${prevFrom} AND "createdAt" <= ${until} GROUP BY 1`,
     // Best products of the period: units delivered and sent back, money in, purchase cost of what was delivered.
     db.$queryRaw<ProductRow[]>`
       SELECT p."id", p."nameAr", p."nameEn",
@@ -262,13 +254,6 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
       SELECT "status", count(*)::int AS count FROM "Order"
       WHERE (("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE ${TZ})::date = (now() AT TIME ZONE ${TZ})::date
       GROUP BY 1`,
-    // Colours at or below their own alert level, emptiest first (products shown in the shop only).
-    db.variant.findMany({
-      where: { stock: { lte: db.variant.fields.lowStockAt }, product: { isActive: true } },
-      select: { id: true, colorAr: true, colorEn: true, colorHex: true, storage: true, stock: true, product: { select: { id: true, nameAr: true, nameEn: true } } },
-      orderBy: [{ stock: "asc" }, { product: { nameAr: "asc" } }],
-      take: 12,
-    }),
     // The same length of time just before, for the change badge.
     db.order.count({ where: { createdAt: { gte: prevFrom, lt: since } } }),
     // Confirmed today, whenever the order came in (a call today can confirm yesterday's order).
@@ -303,22 +288,8 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
   const counts = Object.fromEntries(byStatus.map((s) => [s.status, s._count])) as Partial<Record<OrderStatus, number>>;
   const rates = codRates(counts);
   const series = chartSlots(perDay, period);
-  // The same days in the period before: one number per day/month slot.
-  const perDayBefore = await db.$queryRaw<{ day: string; count: number }[]>`
-    SELECT to_char(("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE ${TZ}, 'YYYY-MM-DD') AS day, count(*)::int AS count
-    FROM "Order" WHERE "createdAt" >= ${period.prevFrom} AND "createdAt" < ${period.from} GROUP BY 1`;
-  const previousData = series.monthly
-    ? // Months: each slot faces the same month a year earlier.
-      Array.from({ length: series.points.length }, (_, i) => {
-        const slot = series.points[i];
-        const slotDate = new Date(slot.key);
-        const prev = new Date(slotDate);
-        prev.setUTCFullYear(prev.getUTCFullYear() - 1);
-        const prevKey = `${String(prev.getUTCFullYear()).padStart(4, "0")}-${String(prev.getUTCMonth() + 1).padStart(2, "0")}-01`;
-        return perDayBefore.filter((d) => d.day.startsWith(prevKey.slice(0, 7))).reduce((s, d) => s + d.count, 0);
-      })
-    : // Days: simple slot-by-slot.
-      Array.from({ length: series.points.length }, (_, i) => perDayBefore.find((d) => d.day === series.points[i].key)?.count ?? 0);
+  // The dashed line: the period just before, slot for slot (tested in period.test.ts).
+  const previousData = previousSlots(perDay, period);
   const change = changePct(rates.total, before);
 
   const now = new Date();
@@ -388,12 +359,6 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
             value={money(profit.businessExpenses)}
             note={profit.costPerDelivered === null ? undefined : t.adPerOrder(money(profit.costPerDelivered))}
           />
-          {profit.gaps.unitsWithoutCost || profit.gaps.deliveredWithoutFee ? (
-            <Link href="/admin/finance" className="inline-flex items-center gap-1.5 font-semibold text-warning-text hover:underline">
-              <AlertTriangle className="size-4 shrink-0" aria-hidden="true" />
-              {t.gaps}
-            </Link>
-          ) : null}
         </div>
       </section>
 
@@ -405,8 +370,8 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
         <TopCities t={t} lang={lang} cities={cities} total={rates.total} span={span} />
       </div>
 
-      <div className={`grid grid-cols-[minmax(0,1fr)] gap-6 ${lowStock.length ? "lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]" : ""}`}>
-        <AreaChart
+      {/* Colours running low now sit in the notifications (the bell), with the rest of what needs attention. */}
+      <AreaChart
           className="glass-card rounded-[2rem]"
           title={series.monthly ? t.monthly : t.daily}
           unit={t.unit}
@@ -414,35 +379,6 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
           previous={previousData}
           data={series.points.map((d) => ({ key: d.key, label: (series.monthly ? monthLabel : dayLabel).format(new Date(`${d.key}T00:00:00Z`)), value: d.count }))}
         />
-
-        {lowStock.length ? (
-          <section className="glass-card rounded-[2rem] p-4 md:p-5">
-            <div>
-              <h2 className="flex items-center gap-2 text-base text-warning-text">
-                <PackageX className="size-5" aria-hidden="true" />
-                {t.low}
-              </h2>
-              <ul className="mt-3 flex flex-wrap gap-2">
-                {lowStock.map((v) => {
-                  const color = [ar ? v.colorAr : v.colorEn, v.storage].filter(Boolean).join(" · ");
-                  return (
-                    <li key={v.id}>
-                      <Link href={`/admin/products/${v.product.id}`} className="flex min-h-9 items-center gap-2 rounded-full border border-warm-200 bg-white px-3 text-xs text-warm-800 transition-colors hover:border-warm-300">
-                        {v.colorHex ? <span className="size-3.5 shrink-0 rounded-full border border-warm-300" style={{ backgroundColor: v.colorHex }} aria-hidden="true" /> : null}
-                        <span className="max-w-40 truncate">
-                          {ar ? v.product.nameAr : v.product.nameEn}
-                          {color ? <span className="text-warm-600"> · {color}</span> : null}
-                        </span>
-                        <b className={v.stock === 0 ? "text-danger" : "text-warning-text"}>{v.stock === 0 ? t.out : t.left(v.stock)}</b>
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          </section>
-        ) : null}
-      </div>
 
       <section className="glass-card rounded-[2rem] p-4 md:p-5">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -498,8 +434,6 @@ function Cost({ icon: Icon, label, value, note }: { icon: LucideIcon; label: str
   );
 }
 
-// Cards on the white page: a warm off-white surface with a hairline, flat like the mockup.
-const CARD = "rounded-[1.5rem] border border-warm-200/80 bg-warm-50";
 
 type TodayOrder = Prisma.OrderGetPayload<{ select: typeof orderSelect }>;
 

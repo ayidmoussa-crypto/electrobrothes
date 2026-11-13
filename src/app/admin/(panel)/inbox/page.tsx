@@ -1,4 +1,4 @@
-import { ArrowRight, Check, CheckCheck, CircleAlert, Clock, MessagesSquare, Plus, Unplug } from "lucide-react";
+import { ArrowRight, Check, CheckCheck, CircleAlert, Clock, MessagesSquare, Plus } from "lucide-react";
 import Link from "next/link";
 import { sendReply, sendTemplate } from "@/app/actions/admin-inbox";
 import { ActionForm } from "@/components/admin/ActionForm";
@@ -12,7 +12,6 @@ import { db } from "@/lib/db";
 import { formatMAD } from "@/lib/money";
 import { formatMoroccanPhone, normalizeMoroccanPhone } from "@/lib/phone";
 import { TIME_ZONE } from "@/lib/time";
-import { waConfig } from "@/lib/whatsapp/client";
 import { WINDOW_MS, windowOpen } from "@/lib/whatsapp/rules";
 
 const showPhone = (p: string) => (p.startsWith("+212") ? formatMoroccanPhone(p) : p);
@@ -31,7 +30,6 @@ export default async function InboxPage({ searchParams }: PageProps<"/admin/inbo
   const q = await searchParams;
   const selectedId = typeof q.c === "string" ? q.c : null;
   const phoneParam = typeof q.phone === "string" && /^\+\d{8,15}$/.test(q.phone) ? q.phone : null;
-  const connected = !!waConfig();
 
   const conversations = await db.waConversation.findMany({ orderBy: { lastMessageAt: "desc" }, take: 100 });
   const current = selectedId ? conversations.find((c) => c.id === selectedId) ?? (await db.waConversation.findUnique({ where: { id: selectedId } })) : phoneParam ? await db.waConversation.findUnique({ where: { phone: phoneParam } }) : null;
@@ -53,19 +51,7 @@ export default async function InboxPage({ searchParams }: PageProps<"/admin/inbo
       <AutoRefresh seconds={10} />
       <PageHeader title={tr("المحادثات", "Conversations")} description={tr("رسائل واتساب ديال الزبناء فبلاصة وحدة.", "Customers' WhatsApp messages in one place.")} />
 
-      {!connected ? (
-        <div className="mb-4 flex items-start gap-3 rounded-2xl border border-warning/40 bg-warning-soft/85 p-4 text-sm text-warning-text">
-          <Unplug className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
-          <div>
-            <p className="font-bold">{tr("واتساب مازال ما مربوطش.", "WhatsApp is not connected yet.")}</p>
-            <p className="mt-1">
-              {tr("خاص هادو فـ", "These are needed in")} <span dir="ltr">.env</span>: <span dir="ltr">WHATSAPP_TOKEN, WHATSAPP_PHONE_NUMBER_ID, WHATSAPP_APP_SECRET, WHATSAPP_VERIFY_TOKEN</span>.{" "}
-              {tr("ورابط الـ webhook فـ Meta هو", "The webhook link in Meta is")} <span dir="ltr">/api/webhooks/whatsapp</span> {tr("على الدومين ديال الموقع.", "on the site's domain.")}
-            </p>
-          </div>
-        </div>
-      ) : null}
-
+      {/* "WhatsApp not connected", with what it needs, is in the notifications (the bell). */}
       <div className="grid gap-4 lg:grid-cols-[20rem_1fr]">
         {/* Phones show one side at a time: the list, or the open conversation. */}
         <section aria-label={tr("لائحة المحادثات", "Conversation list")} className={`admin-card overflow-hidden ${inThread ? "max-lg:hidden" : ""}`}>

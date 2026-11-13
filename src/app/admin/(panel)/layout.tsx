@@ -9,6 +9,8 @@ import { AdminBackdrop } from "@/components/admin/AdminBackdrop";
 import { AdminLangProvider } from "@/components/admin/AdminLang";
 import { AdminBottomNav, AdminTopNav } from "@/components/admin/AdminNav";
 import { AssistantWidget } from "@/components/admin/AssistantWidget";
+import { NotificationsButton } from "@/components/admin/NotificationsButton";
+import { loadAlerts } from "@/lib/admin-alerts-data";
 import { Logo } from "@/components/brand/Logo";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { requireStaff } from "@/lib/admin";
@@ -18,6 +20,7 @@ const iconLink = "grid size-10 cursor-pointer place-items-center rounded-full te
 async function Shell({ children }: { children: ReactNode }) {
   const [admin, { lang, ar, tr }] = await Promise.all([requireStaff(), adminTr()]);
   const agent = admin.role === "AGENT";
+  const alerts = await loadAlerts(admin.role, tr, ar);
 
   return (
     // The whole panel follows the chosen language: direction, lang tag and every text below.
@@ -42,7 +45,7 @@ async function Shell({ children }: { children: ReactNode }) {
             </Link>
             <div className="flex items-center gap-1">
               {/* Panel language, in the header so every admin page has it. */}
-              <form action={setAdminLang} aria-label={tr("لغة اللوحة", "Panel language")} className="me-1 flex rounded-full bg-ink/5 p-1">
+              <form action={setAdminLang} aria-label={tr("لغة اللوحة", "Panel language")} className="flex rounded-full bg-ink/5 p-1 lg:me-1">
                 {(["ar", "en"] as const).map((l) => (
                   <button
                     key={l}
@@ -50,7 +53,8 @@ async function Shell({ children }: { children: ReactNode }) {
                     name="lang"
                     value={l}
                     aria-pressed={lang === l}
-                    className={`inline-flex min-h-8 min-w-9 cursor-pointer items-center justify-center rounded-full px-2.5 text-sm font-bold transition-colors ${lang === l ? "bg-yellow-500 text-ink" : "text-warm-600 hover:text-ink"}`}
+                    // Phones show only the other language, to leave room for the bell and the assistant.
+                    className={`inline-flex min-h-8 min-w-9 cursor-pointer items-center justify-center rounded-full px-2.5 text-sm font-bold transition-colors ${lang === l ? "bg-yellow-500 text-ink max-lg:hidden" : "text-warm-600 hover:text-ink"}`}
                   >
                     {l === "ar" ? "ع" : "EN"}
                   </button>
@@ -59,10 +63,15 @@ async function Shell({ children }: { children: ReactNode }) {
               <p className="me-2 hidden max-w-56 truncate text-sm text-warm-600 lg:block" dir="ltr" title={admin.email}>
                 {admin.email}
               </p>
-              <Link href="/" target="_blank" className={iconLink} aria-label={tr("عرض المتجر", "View shop")} title={tr("عرض المتجر", "View shop")}>
+              {/* Phones: the bell and the assistant live here; the shop link and logout are in "المزيد". */}
+              <div className="flex items-center gap-1.5 lg:hidden">
+                <NotificationsButton groups={alerts} placement="bar" />
+                {agent ? null : <AssistantWidget placement="bar" />}
+              </div>
+              <Link href="/" target="_blank" className={`${iconLink} max-lg:hidden`} aria-label={tr("عرض المتجر", "View shop")} title={tr("عرض المتجر", "View shop")}>
                 <ExternalLink className="size-5" aria-hidden="true" />
               </Link>
-              <form action={logout}>
+              <form action={logout} className="max-lg:hidden">
                 <button type="submit" className={iconLink} aria-label={tr("تسجيل الخروج", "Log out")} title={tr("تسجيل الخروج", "Log out")}>
                   <LogOut className="size-5" aria-hidden="true" />
                 </button>
@@ -76,12 +85,18 @@ async function Shell({ children }: { children: ReactNode }) {
           </nav>
         </header>
 
-        {/* Bottom padding on phones clears the floating bottom bar. */}
-        <main className="mx-auto min-w-0 max-w-7xl px-4 pt-6 pb-32 md:pt-8 lg:px-6 lg:pb-12">{children}</main>
+        {/* Desktop: a floating glass rail on the side with the bell and the assistant, always in reach. */}
+        <aside aria-label={tr("الإشعارات والمساعد", "Notifications and assistant")} className="fixed inset-y-0 end-4 z-40 my-auto hidden h-fit flex-col items-center gap-2 rounded-full p-2 lg:flex">
+          <div aria-hidden="true" className="glass-frost absolute inset-0 -z-10 rounded-[inherit] border shadow-lg shadow-ink/10" />
+          <NotificationsButton groups={alerts} placement="rail" />
+          {/* The assistant changes stock and products, and spends the API budget: the owner's alone. */}
+          {agent ? null : <AssistantWidget placement="rail" />}
+        </aside>
+
+        {/* Bottom padding on phones clears the floating bottom bar; on desktop the end padding clears the side rail. */}
+        <main className="mx-auto min-w-0 max-w-7xl px-4 pt-6 pb-32 md:pt-8 lg:px-6 lg:pe-24 lg:pb-12 2xl:pe-6">{children}</main>
 
         <AdminBottomNav email={admin.email} role={admin.role} />
-        {/* The assistant changes stock and products, and spends the API budget: the owner's alone. */}
-        {agent ? null : <AssistantWidget />}
       </AdminLangProvider>
     </div>
   );

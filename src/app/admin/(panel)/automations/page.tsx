@@ -1,4 +1,4 @@
-import { Power, Trash2, Unplug } from "lucide-react";
+import { Power, Trash2 } from "lucide-react";
 import { addRule, deleteRule, toggleRule } from "@/app/actions/admin-automations";
 import { ActionForm } from "@/components/admin/ActionForm";
 import { inputClass, L, PageHeader, Panel, tdClass, thClass } from "@/components/admin/ui";
@@ -10,7 +10,6 @@ import { adminTr, type Tr } from "@/lib/admin-lang";
 import { adminLocale } from "@/lib/admin-tr";
 import { db } from "@/lib/db";
 import { TIME_ZONE } from "@/lib/time";
-import { waConfig } from "@/lib/whatsapp/client";
 
 const JOB: Record<string, { label: [ar: string, en: string]; tone: BadgeTone }> = {
   PENDING: { label: ["فالانتظار", "Waiting"], tone: "neutral" },
@@ -42,13 +41,7 @@ export default async function AutomationsPage() {
     <>
       <PageHeader title={tr("الأتمتة", "Automations")} description={tr("رسائل واتساب كتمشي بوحدها ملي كتبدل حالة الطلب.", "WhatsApp messages that go out on their own when an order's status changes.")} />
 
-      {!waConfig() ? (
-        <p className="mb-4 flex items-center gap-2 rounded-2xl border border-warning/40 bg-warning-soft/85 p-4 text-sm font-semibold text-warning-text">
-          <Unplug className="size-5 shrink-0" aria-hidden="true" />
-          {tr("واتساب مازال ما مربوطش: الرسائل كتبقى فالانتظار وما كيتصيفط والو حتى يتربط.", "WhatsApp is not connected: messages wait and nothing is sent until it is.")}
-        </p>
-      ) : null}
-
+      {/* "WhatsApp not connected" is in the notifications (the bell). */}
       <Panel title={tr("القواعد", "Rules")}>
         {rules.length ? (
           <ul className="flex flex-col divide-y divide-warm-200/60">
