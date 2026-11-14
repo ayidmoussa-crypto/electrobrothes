@@ -1,6 +1,10 @@
 "use client";
 
-import { LoaderCircle, Minus, Plus, Search, Trash2 } from "lucide-react";
+import { LoaderCircle, Minus, Plus, Search, Trash2, UserCheck } from "lucide-react";
+import { searchCustomers } from "@/app/actions/admin-customers";
+import { customerSearchTerms, type PastCustomer } from "@/lib/customer-search";
+import { formatMoroccanPhone } from "@/lib/phone";
+import { CustomerPicker } from "./CustomerPicker";
 import Image from "next/image";
 import { useActionState, useMemo, useState } from "react";
 import { createOrderByHand, type ActionState } from "@/app/actions/admin-orders";
@@ -47,6 +51,29 @@ export function ManualOrderForm({
   const [shippingTyped, setShippingTyped] = useState<number | null>(null);
   const [startAs, setStartAs] = useState<StartAs>("CONFIRMED");
   const inShop = startAs === "DELIVERED";
+  // The customer fields, filled by hand or from a past buyer picked above them.
+  const [name, setName] = useState(defaults.name);
+  const [phone, setPhone] = useState(defaults.phone);
+  const [address, setAddress] = useState("");
+  const [picked, setPicked] = useState<PastCustomer | null>(null);
+  // A phone typed by hand that belongs to a past buyer: offered once, never filled in behind the admin's back.
+  const [known, setKnown] = useState<PastCustomer | null>(null);
+
+  const fillFrom = (c: PastCustomer) => {
+    setPicked(c);
+    setKnown(null);
+    setName(c.name);
+    setPhone(c.phone.startsWith("+212") ? formatMoroccanPhone(c.phone) : c.phone);
+    setAddress(c.address);
+    // Only a city the shop still delivers to; otherwise the admin picks one.
+    if (cities.some((x) => x.id === c.cityId)) setCityId(c.cityId);
+  };
+  const checkPhone = async () => {
+    const { digits } = customerSearchTerms(phone);
+    if (picked || digits.length < 9) return;
+    const found = (await searchCustomers(phone).catch(() => [])).find((c) => customerSearchTerms(c.phone).digits === digits);
+    setKnown(found ?? null);
+  };
 
   const byId = useMemo(() => new Map(variants.map((v) => [v.id, v])), [variants]);
   // One result per product, whatever its colours: the colour is chosen afterwards, on the order line.
@@ -81,6 +108,70 @@ export function ManualOrderForm({
     <form action={action} onSubmit={(e) => submitKeepingValues(e, action)} className="grid gap-6 lg:grid-cols-[3fr_2fr]">
       <input type="hidden" name="items" value={JSON.stringify(lines)} />
       <div className="flex flex-col gap-6">
+        {/* Who first, like a phone call: then what they want. Above the next card so its list of customers shows over it. */}
+        <Panel title={tr("الزبون", "Customer")} className="relative z-20">
+          <CustomerPicker picked={picked} onPick={fillFrom} onClear={() => setPicked(null)} />
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <L label={tr("الاسم", "Name")}>
+              <input name="name" required maxLength={80} value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
+            </L>
+            <L label={tr("الهاتف", "Phone")}>
+              <input
+                name="phone"
+                type="tel"
+                inputMode="tel"
+                required
+                dir="ltr"
+                value={phone}
+                onChange={(e) => {
+                  setPhone(e.target.value);
+                  setKnown(null);
+                }}
+                onBlur={checkPhone}
+                className={`${inputClass} text-start`}
+              />
+            </L>
+            {known ? (
+              <button
+                type="button"
+                onClick={() => fillFrom(known)}
+                className="flex cursor-pointer items-center gap-2 rounded-xl bg-yellow-100 px-3 py-2.5 text-start text-sm text-yellow-900 transition-colors hover:bg-yellow-200 sm:col-span-2"
+              >
+                <UserCheck className="size-4.5 shrink-0" aria-hidden="true" />
+                <span className="min-w-0 flex-1">
+                  {tr(`هاد الرقم ديال ${known.name} (${known.orders} طلب).`, `This number belongs to ${known.name} (${known.orders} orders).`)}{" "}
+                  <b className="underline underline-offset-2">{tr("عمّر المعلومات ديالو", "Use their details")}</b>
+                </span>
+              </button>
+            ) : null}
+            <L label={tr("المدينة", "City")}>
+              <select name="cityId" required value={cityId} onChange={(e) => setCityId(e.target.value)} className={inputClass}>
+                <option value="">{tr("اختر المدينة", "Pick the city")}</option>
+                {cities.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </L>
+            <L label={tr("مصدر الطلب", "Order source")}>
+              <select name="source" defaultValue="WHATSAPP" className={inputClass}>
+                {Object.entries(lang === "en" ? MANUAL_SOURCES_EN : MANUAL_SOURCES).map(([k, label]) => (
+                  <option key={k} value={k}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </L>
+            <L label={inShop ? tr("العنوان (اختياري)", "Address (optional)") : tr("العنوان", "Address")} className="sm:col-span-2">
+              <input name="address" required={!inShop} maxLength={300} value={address} onChange={(e) => setAddress(e.target.value)} placeholder={inShop ? IN_SHOP_ADDRESS : undefined} className={inputClass} />
+            </L>
+            <L label={tr("ملاحظات (اختياري)", "Notes (optional)")} className="sm:col-span-2">
+              <textarea name="notes" rows={2} maxLength={500} className={`${inputClass} py-2`} />
+            </L>
+          </div>
+        </Panel>
+
         {/* Above the next card: glass cards each make their own layer, which would cover the search results. */}
         <Panel title={tr("المنتجات", "Products")} className="relative z-10">
           <div className="relative">
@@ -217,42 +308,6 @@ export function ManualOrderForm({
           ) : (
             <p className="mt-3 text-sm text-warm-600">{tr("ابحث عن منتج وزيدو للطلب.", "Search for a product and add it to the order.")}</p>
           )}
-        </Panel>
-
-        <Panel title={tr("الزبون", "Customer")}>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <L label={tr("الاسم", "Name")}>
-              <input name="name" required maxLength={80} defaultValue={defaults.name} className={inputClass} />
-            </L>
-            <L label={tr("الهاتف", "Phone")}>
-              <input name="phone" type="tel" inputMode="tel" required dir="ltr" defaultValue={defaults.phone} className={`${inputClass} text-start`} />
-            </L>
-            <L label={tr("المدينة", "City")}>
-              <select name="cityId" required value={cityId} onChange={(e) => setCityId(e.target.value)} className={inputClass}>
-                <option value="">{tr("اختر المدينة", "Pick the city")}</option>
-                {cities.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </L>
-            <L label={tr("مصدر الطلب", "Order source")}>
-              <select name="source" defaultValue="WHATSAPP" className={inputClass}>
-                {Object.entries(lang === "en" ? MANUAL_SOURCES_EN : MANUAL_SOURCES).map(([k, label]) => (
-                  <option key={k} value={k}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </L>
-            <L label={inShop ? tr("العنوان (اختياري)", "Address (optional)") : tr("العنوان", "Address")} className="sm:col-span-2">
-              <input name="address" required={!inShop} maxLength={300} placeholder={inShop ? IN_SHOP_ADDRESS : undefined} className={inputClass} />
-            </L>
-            <L label={tr("ملاحظات (اختياري)", "Notes (optional)")} className="sm:col-span-2">
-              <textarea name="notes" rows={2} maxLength={500} className={`${inputClass} py-2`} />
-            </L>
-          </div>
         </Panel>
       </div>
 
