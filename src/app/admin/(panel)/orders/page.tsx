@@ -10,7 +10,8 @@ import { buttonClass } from "@/components/ui/button";
 import { Badge } from "@/components/ui/Badge";
 import { requireStaff } from "@/lib/admin";
 import { ageLabel, filterQuery, orderWhere, parseOrderFilters, type OrderFilters } from "@/lib/admin-orders";
-import { OrderBoard, type BoardColumn } from "@/components/admin/OrderBoard";
+import { OrderBoard, type BoardColumn, type BoardOrder } from "@/components/admin/OrderBoard";
+import { OrderCards } from "@/components/admin/OrderCards";
 import type { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { sourceLabel } from "@/lib/manual-order";
@@ -92,6 +93,33 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
   const board = f.view === "board" ? await loadBoard({ ...f, status: undefined }) : null;
   const now = new Date();
   const when = (d: Date) => ageLabel(d, now, adminLocale(lang), TIME_ZONE);
+  /** One order as a card: the board's columns (desktop) and the list on phones. */
+  const toCard = (o: (typeof orders)[number]): BoardOrder => {
+    const first = o.items[0];
+    const c = o.carrier ? carrierById.get(o.carrier) : undefined;
+    return {
+      id: o.id,
+      number: o.number,
+      status: o.status,
+      total: o.total,
+      customerName: o.customerName,
+      cityName: o.cityName,
+      phone: o.phone,
+      when: when(o.createdAt),
+      image: first?.variant?.product.images[0]?.url ?? null,
+      name: first?.nameAr ?? null,
+      variantLabel: first?.variantLabel ?? null,
+      colorHex: first?.variant?.colorHex ?? null,
+      more: Math.max(0, o._count.items - 1),
+      waiting: o.confirmSentAt !== null,
+      risky: o.riskScore >= 30 ? o.riskScore : null,
+      source: o.source !== "WEBSITE" ? sourceLabel(o.source, lang) : null,
+      waHref: whatsappLink(o.phone, confirmationText({ ...o, prepaid: o.prepaidAt !== null })),
+      carrier: c ? { name: c.name, logoUrl: c.logoUrl } : null,
+      // Reviews only come after delivery, which deleteBlock refuses already; the server checks them again.
+      canDelete: !deleteBlock(o.status, o.trackingNumber, 0),
+    };
+  };
   const columns: BoardColumn[] | null = board
     ? BOARD_ORDER.map((status, i) => {
         const sum = board.sums.find((s) => s.status === status);
@@ -100,37 +128,27 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
           count: sum?._count ?? 0,
           total: sum?._sum.total ?? 0,
           listHref: `/admin/orders${filterQuery({ ...f, status, view: undefined, page: 1 })}`,
-          orders: board.lists[i].map((o) => {
-            const first = o.items[0];
-            const c = o.carrier ? carrierById.get(o.carrier) : undefined;
-            return {
-              id: o.id,
-              number: o.number,
-              status: o.status,
-              total: o.total,
-              customerName: o.customerName,
-              cityName: o.cityName,
-              phone: o.phone,
-              when: when(o.createdAt),
-              image: first?.variant?.product.images[0]?.url ?? null,
-              name: first?.nameAr ?? null,
-              variantLabel: first?.variantLabel ?? null,
-              colorHex: first?.variant?.colorHex ?? null,
-              more: Math.max(0, o._count.items - 1),
-              waiting: o.confirmSentAt !== null,
-              risky: o.riskScore >= 30 ? o.riskScore : null,
-              source: o.source !== "WEBSITE" ? sourceLabel(o.source, lang) : null,
-              waHref: whatsappLink(o.phone, confirmationText({ ...o, prepaid: o.prepaidAt !== null })),
-              carrier: c ? { name: c.name, logoUrl: c.logoUrl } : null,
-              // Reviews only come after delivery, which deleteBlock refuses already; the server checks them again.
-              canDelete: !deleteBlock(o.status, o.trackingNumber, 0),
-            };
-          }),
+          orders: board.lists[i].map(toCard),
         };
       })
     : null;
-  // Every order on screen that can be ticked: the board's cards (desktop) and the list's rows (phones).
-  const shown = board ? [...new Map([...board.lists.flat(), ...orders].map((o) => [o.id, o])).values()] : orders;
+  // Phones: the page's orders as cards, under a heading per day (today, yesterday, then the date).
+  const dayOf = new Intl.DateTimeFormat("en-CA", { timeZone: TIME_ZONE });
+  const dayName = new Intl.DateTimeFormat(adminLocale(lang), { weekday: "long", day: "numeric", month: "long", timeZone: TIME_ZONE });
+  const today = dayOf.format(now);
+  const yesterday = dayOf.format(new Date(now.getTime() - 86_400_000));
+  const days: { key: string; label: string; orders: BoardOrder[] }[] = [];
+  for (const o of orders) {
+    const key = dayOf.format(o.createdAt);
+    let day = days.at(-1);
+    if (day?.key !== key) {
+      day = { key, label: key === today ? tr("اليوم", "Today") : key === yesterday ? tr("البارح", "Yesterday") : dayName.format(o.createdAt), orders: [] };
+      days.push(day);
+    }
+    day.orders.push(toCard(o));
+  }
+  // Every order on screen that can be ticked: the board's cards, or the list's rows (desktop only; phones have no ticks).
+  const shown = board ? board.lists.flat() : orders;
   const trackingLink =(url: string | null, tracking: string | null) => (url && tracking ? url.replace("{tracking}", encodeURIComponent(tracking)) : null);
   const pages = Math.max(1, Math.ceil(total / PAGE));
   const input = "min-h-11 admin-field rounded-lg px-3 text-sm text-warm-800";
@@ -159,7 +177,8 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
                 </Link>
               ))}
             </nav>
-            <Link href="/admin/orders/new" className={buttonClass()}>
+            {/* Phones get the round button over the list instead. */}
+            <Link href="/admin/orders/new" className={buttonClass({ className: "max-lg:hidden" })}>
               <Plus className="size-4" aria-hidden="true" />
               {tr("إضافة طلب", "New order")}
             </Link>
@@ -215,7 +234,12 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
           <OrderBoard columns={columns} agent={agent} />
         </div>
       ) : null}
-      <div className={`overflow-x-auto admin-card ${columns ? "lg:hidden" : ""}`}>
+      {/* Phones: cards by day, each swiped aside to call. */}
+      <div className="lg:hidden">
+        <OrderCards days={days} agent={agent} />
+      </div>
+      {/* Desktop list (the board replaces it when chosen). */}
+      <div className={`overflow-x-auto admin-card max-lg:hidden ${columns ? "lg:hidden" : ""}`}>
         <table className="w-full min-w-[72rem]">
           <thead className="border-b border-white/70 bg-white/45">
             <tr>

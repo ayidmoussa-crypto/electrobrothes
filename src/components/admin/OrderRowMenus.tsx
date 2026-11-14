@@ -99,6 +99,7 @@ export function StatusMenu({
   waiting = false,
   agent = false,
   compact = false,
+  wide = false,
 }: {
   orderId: string;
   status: OrderStatus;
@@ -107,6 +108,8 @@ export function StatusMenu({
   agent?: boolean;
   /** A small round "move to…" button, for a board card whose column already names the status. */
   compact?: boolean;
+  /** Fills the width it is given (a phone card), instead of the list's fixed width. */
+  wide?: boolean;
 }) {
   const { move, dialog, state, pending } = useStatusMove();
   const { tr, lang } = useAdminTr();
@@ -114,7 +117,7 @@ export function StatusMenu({
   // An agent answers new orders only; past that the status is just shown.
   if (agent && status !== "NEW") {
     return compact ? null : (
-      <span className={`inline-flex min-h-8 w-28 items-center gap-1.5 rounded-full px-2.5 text-xs font-bold ${label.tone}`}>
+      <span className={`inline-flex ${wide ? "min-h-10 w-full" : "min-h-8 w-28"} items-center gap-1.5 rounded-full px-2.5 text-xs font-bold ${label.tone}`}>
         <span className={`size-2 shrink-0 rounded-full ${label.dot}`} aria-hidden="true" />
         {label.label}
       </span>
@@ -130,14 +133,14 @@ export function StatusMenu({
   }));
 
   return (
-    <div>
+    <div className={wide ? "min-w-0 flex-1" : undefined}>
       <PillMenu
         label={compact ? tr(`نقل الطلب ${number}`, `Move order ${number}`) : tr(`حالة الطلب ${number}`, `Status of order ${number}`)}
         current={{ value: status, label: label.label, dot: label.dot }}
         tone={compact ? "bg-warm-100 text-warm-800" : label.tone}
         compact={compact}
         // One width for every status, so the WhatsApp buttons next to them line up in the list.
-        className={compact ? "" : "w-28 justify-between"}
+        className={compact ? "" : wide ? "min-h-10! w-full justify-between px-3.5! text-sm!" : "w-28 justify-between"}
         options={options}
         pending={pending}
         onPick={(to) => move({ orderId, number, status }, to as OrderStatus)}
@@ -194,7 +197,20 @@ export function PaymentMenu({ orderId, status, prepaid, collected, number }: { o
  * Opens WhatsApp with the confirmation message ready to send (sending stays by hand). A new order then
  * shows "waiting for the reply" until the owner confirms it.
  */
-export function WhatsAppConfirm({ orderId, href, status, compact = false }: { orderId: string; href: string; status: OrderStatus; compact?: boolean }) {
+export function WhatsAppConfirm({
+  orderId,
+  href,
+  status,
+  compact = false,
+  panel = false,
+}: {
+  orderId: string;
+  href: string;
+  status: OrderStatus;
+  compact?: boolean;
+  /** The big button revealed by swiping a phone card aside. */
+  panel?: boolean;
+}) {
   const [, start] = useTransition();
   const { tr } = useAdminTr();
   return (
@@ -208,13 +224,15 @@ export function WhatsAppConfirm({ orderId, href, status, compact = false }: { or
       aria-label={compact ? tr("رسالة التأكيد فواتساب", "Confirmation message on WhatsApp") : undefined}
       title={compact ? tr("رسالة التأكيد فواتساب", "Confirmation message on WhatsApp") : undefined}
       className={
-        compact
+        panel
+          ? "flex w-28 shrink-0 snap-end flex-col items-center justify-center gap-1.5 rounded-[1.75rem] bg-whatsapp font-bold text-ink"
+          : compact
           ? "grid size-8 shrink-0 place-items-center rounded-full bg-whatsapp text-ink transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-yellow-300"
           : "inline-flex min-h-11 items-center gap-2 rounded-lg bg-whatsapp px-4 font-semibold text-ink hover:opacity-90"
       }
     >
-      <MessageCircle className="size-4" aria-hidden="true" />
-      {compact ? null : tr("تأكيد عبر واتساب", "Confirm on WhatsApp")}
+      <MessageCircle className={panel ? "size-6" : "size-4"} aria-hidden="true" />
+      {panel ? tr("واتساب", "WhatsApp") : compact ? null : tr("تأكيد عبر واتساب", "Confirm on WhatsApp")}
     </a>
   );
 }
