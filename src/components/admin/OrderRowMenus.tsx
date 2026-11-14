@@ -92,13 +92,28 @@ export function useStatusMove() {
 }
 
 /** Change the status right from the list; cancelling or a return asks first. */
-export function StatusMenu({ orderId, status, number, waiting = false, agent = false }: { orderId: string; status: OrderStatus; number: string; waiting?: boolean; agent?: boolean }) {
+export function StatusMenu({
+  orderId,
+  status,
+  number,
+  waiting = false,
+  agent = false,
+  compact = false,
+}: {
+  orderId: string;
+  status: OrderStatus;
+  number: string;
+  waiting?: boolean;
+  agent?: boolean;
+  /** A small round "move to…" button, for a board card whose column already names the status. */
+  compact?: boolean;
+}) {
   const { move, dialog, state, pending } = useStatusMove();
   const { tr, lang } = useAdminTr();
   const label = waiting && status === "NEW" ? { ...WAITING, label: tr(...WAITING.label) } : { label: statusLabel(status, lang), ...STATUS_STYLE[status] };
   // An agent answers new orders only; past that the status is just shown.
   if (agent && status !== "NEW") {
-    return (
+    return compact ? null : (
       <span className={`inline-flex min-h-8 w-28 items-center gap-1.5 rounded-full px-2.5 text-xs font-bold ${label.tone}`}>
         <span className={`size-2 shrink-0 rounded-full ${label.dot}`} aria-hidden="true" />
         {label.label}
@@ -117,11 +132,12 @@ export function StatusMenu({ orderId, status, number, waiting = false, agent = f
   return (
     <div>
       <PillMenu
-        label={tr(`حالة الطلب ${number}`, `Status of order ${number}`)}
+        label={compact ? tr(`نقل الطلب ${number}`, `Move order ${number}`) : tr(`حالة الطلب ${number}`, `Status of order ${number}`)}
         current={{ value: status, label: label.label, dot: label.dot }}
-        tone={label.tone}
+        tone={compact ? "bg-warm-100 text-warm-800" : label.tone}
+        compact={compact}
         // One width for every status, so the WhatsApp buttons next to them line up in the list.
-        className="w-28 justify-between"
+        className={compact ? "" : "w-28 justify-between"}
         options={options}
         pending={pending}
         onPick={(to) => move({ orderId, number, status }, to as OrderStatus)}

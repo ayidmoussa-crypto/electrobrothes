@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronDown, LoaderCircle } from "lucide-react";
+import { ArrowLeftRight, Check, ChevronDown, LoaderCircle } from "lucide-react";
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 
@@ -22,7 +22,10 @@ export function PillMenu({
   pending,
   onPick,
   className = "",
+  compact = false,
 }: {
+  /** A small round button (an icon, no text) where the label is already shown nearby, e.g. a board column. */
+  compact?: boolean;
   /** Extra classes for the pill, e.g. a fixed width so pills in a column line up. */
   className?: string;
   /** Read by screen readers, e.g. "حالة الطلب EB-…". */
@@ -130,12 +133,19 @@ export function PillMenu({
             show();
           }
         }}
-        className={`inline-flex min-h-8 items-center gap-1 rounded-full px-2.5 text-xs font-bold whitespace-nowrap transition-shadow ${tone} ${className} ${
+        title={compact ? label : undefined}
+        className={`${compact ? "grid size-7 shrink-0 place-items-center" : "inline-flex min-h-8 items-center gap-1 px-2.5"} rounded-full text-xs font-bold whitespace-nowrap transition-shadow ${tone} ${className} ${
           disabled ? "cursor-default" : "cursor-pointer hover:shadow-md hover:shadow-ink/10"
         } focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-yellow-300`}
       >
-        {current.label}
-        {pending ? <LoaderCircle className="size-3.5 animate-spin" aria-hidden="true" /> : choices ? <ChevronDown className={`size-3.5 transition-transform ${open ? "rotate-180" : ""}`} aria-hidden="true" /> : null}
+        {compact ? null : current.label}
+        {pending ? (
+          <LoaderCircle className="size-3.5 animate-spin" aria-hidden="true" />
+        ) : compact ? (
+          <ArrowLeftRight className="size-3.5" aria-hidden="true" />
+        ) : choices ? (
+          <ChevronDown className={`size-3.5 transition-transform ${open ? "rotate-180" : ""}`} aria-hidden="true" />
+        ) : null}
       </button>
 
       {/* At the page root: a blurred card around the table would otherwise trap a fixed list and clip it. */}
