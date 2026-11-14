@@ -1,4 +1,4 @@
-import { Columns3, Download, Plus, Rows3, ShieldAlert } from "lucide-react";
+import { Columns3, Download, Plus, Rows3, Search, ShieldAlert, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { CarrierLogo } from "@/components/admin/CarrierLogo";
@@ -182,7 +182,8 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
               <Plus className="size-4" aria-hidden="true" />
               {tr("إضافة طلب", "New order")}
             </Link>
-            {agent ? null : <a href={`/admin/orders/export${filterQuery({ ...f, page: 1 })}`} className={buttonClass({ variant: "dark" })}>
+            {/* The carrier's CSV is a desk job: desktop only. */}
+            {agent ? null : <a href={`/admin/orders/export${filterQuery({ ...f, page: 1 })}`} className={buttonClass({ variant: "dark", className: "max-lg:hidden" })}>
               <Download className="size-4" aria-hidden="true" />
               {tr("تصدير CSV لشركة التوصيل", "Export CSV for the carrier")}
             </a>}
@@ -190,16 +191,17 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
         }
       />
 
-      <form method="get" className="mb-4 flex flex-wrap items-end gap-2 admin-card p-3">
+      {/* Phones: one slim row (search, status, a search button); the dates and "suspicious only" are on desktop. */}
+      <form method="get" className="mb-4 flex items-end gap-2 admin-card p-2 lg:flex-wrap lg:p-3">
         {f.view ? <input type="hidden" name="view" value={f.view} /> : null}
-        <label className="flex flex-col gap-1 text-xs text-warm-600">
-          {tr("بحث", "Search")}
-          <input name="q" defaultValue={f.q} placeholder={tr("رقم الطلب، التتبع، الاسم أو الهاتف", "Order number, tracking, name or phone")} className={`${input} w-56`} />
+        <label className="flex min-w-0 flex-col gap-1 text-xs text-warm-600 max-lg:flex-1">
+          <span className="max-lg:sr-only">{tr("بحث", "Search")}</span>
+          <input name="q" type="search" defaultValue={f.q} placeholder={tr("رقم الطلب، التتبع، الاسم أو الهاتف", "Order number, tracking, name or phone")} className={`${input} w-56 max-lg:w-full`} />
         </label>
         {/* On the board each status is a column already. */}
-        <label className={`flex flex-col gap-1 text-xs text-warm-600 ${board ? "lg:hidden" : ""}`}>
-          {tr("الحالة", "Status")}
-          <select name="status" defaultValue={f.status ?? ""} className={input}>
+        <label className={`flex shrink-0 flex-col gap-1 text-xs text-warm-600 ${board ? "lg:hidden" : ""}`}>
+          <span className="max-lg:sr-only">{tr("الحالة", "Status")}</span>
+          <select name="status" defaultValue={f.status ?? ""} className={`${input} max-lg:max-w-28`}>
             <option value="">{tr("الكل", "All")}</option>
             {ORDER_STATUSES.map((s) => (
               <option key={s} value={s}>
@@ -208,23 +210,31 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
             ))}
           </select>
         </label>
-        <label className="flex flex-col gap-1 text-xs text-warm-600">
+        {/* Hidden on phones, but a date chosen on desktop still travels with the search. */}
+        <label className="flex flex-col gap-1 text-xs text-warm-600 max-lg:hidden">
           {tr("من", "From")}
           <input type="date" name="from" defaultValue={f.from} className={input} />
         </label>
-        <label className="flex flex-col gap-1 text-xs text-warm-600">
+        <label className="flex flex-col gap-1 text-xs text-warm-600 max-lg:hidden">
           {tr("إلى", "To")}
           <input type="date" name="to" defaultValue={f.to} className={input} />
         </label>
-        <label className="flex min-h-11 items-center gap-2 text-sm text-warm-800">
+        <label className="flex min-h-11 items-center gap-2 text-sm text-warm-800 max-lg:hidden">
           <input type="checkbox" name="risky" value="1" defaultChecked={f.risky} className="size-5 accent-ink" />
           {tr("المشبوهة فقط", "Suspicious only")}
         </label>
-        <button type="submit" className={buttonClass()}>
-          {tr("تصفية", "Filter")}
+        <button type="submit" aria-label={tr("تصفية", "Filter")} className={buttonClass({ className: "shrink-0 max-lg:size-11! max-lg:px-0!" })}>
+          <Search className="size-4.5 lg:hidden" aria-hidden="true" />
+          <span className="max-lg:hidden">{tr("تصفية", "Filter")}</span>
         </button>
-        <Link href={`/admin/orders${filterQuery({ page: 1, view: f.view })}`} className={buttonClass({ variant: "ghost" })}>
-          {tr("مسح", "Clear")}
+        {/* Phones show "clear" only when something is filtered. */}
+        <Link
+          href={`/admin/orders${filterQuery({ page: 1, view: f.view })}`}
+          aria-label={tr("مسح", "Clear")}
+          className={buttonClass({ variant: "ghost", className: `shrink-0 max-lg:size-11! max-lg:px-0! ${f.q || f.status || f.from || f.to || f.risky ? "" : "max-lg:hidden"}` })}
+        >
+          <X className="size-4.5 lg:hidden" aria-hidden="true" />
+          <span className="max-lg:hidden">{tr("مسح", "Clear")}</span>
         </Link>
       </form>
 
