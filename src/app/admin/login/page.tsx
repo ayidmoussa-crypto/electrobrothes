@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { CircleAlert, LoaderCircle } from "lucide-react";
 import { useActionState, useSyncExternalStore } from "react";
 import { login, type LoginState } from "@/app/actions/admin-auth";

@@ -1,6 +1,6 @@
 "use client";
 
-import { AnimatePresence, LayoutGroup, motion, MotionConfig } from "framer-motion";
+import { AnimatePresence, LayoutGroup, motion, MotionConfig } from "motion/react";
 import {
   Ban,
   Bot,

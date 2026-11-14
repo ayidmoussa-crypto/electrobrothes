@@ -35,7 +35,9 @@ function curve(points: [number, number][]) {
  * Hover or tap a slot to read it; the latest one shows by default.
  */
 export function TrendChart({ data, metric, label, total }: { data: TrendPoint[]; metric: "revenue" | "net"; label: string; total: number }) {
-  const [active, setActive] = useState(data.length - 1);
+  const [hovered, setActive] = useState(data.length - 1);
+  // Choosing a shorter period keeps this chart mounted with fewer slots: the slot read stays inside them.
+  const active = Math.max(0, Math.min(hovered, data.length - 1));
   const { tr, lang } = useAdminTr();
   const mad = (v: number) => formatMAD(v, lang);
   const n = data.length;
@@ -57,7 +59,8 @@ export function TrendChart({ data, metric, label, total }: { data: TrendPoint[];
   const line = curve(pts);
   const area = `${line} L${x(n - 1)},${zero} L${x(0)},${zero} Z`;
   const every = Math.ceil(n / 6);
-  const a = data[active] ?? data[n - 1];
+  const a = data[active];
+  if (!a) return null;
   const gradient = `trend-fill-${metric}`;
 
   return (
