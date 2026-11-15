@@ -10,7 +10,7 @@ import { SearchBox, SearchToggleButton } from "./SearchBox";
 
 export async function Header() {
   const [t, locale, categories] = await Promise.all([getTranslations("header"), getLocale(), getCategories()]);
-  const navItems = categories.map((c) => ({ href: `/category/${c.slug}`, label: locale === "ar" ? c.nameAr : c.nameEn, image: c.image }));
+  const navItems = categories.map((c) => ({ href: `/category/${c.slug}`, label: locale === "ar" ? c.nameAr : c.nameEn, image: c.image, count: c._count.products }));
   const otherLocale = locale === "ar" ? "en" : "ar";
 
   return (

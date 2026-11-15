@@ -81,7 +81,16 @@ export async function getCategories() {
   cacheLife("hours");
   cacheTag("categories");
   return db.category.findMany({
-    select: { slug: true, nameAr: true, nameEn: true, image: true, descriptionAr: true, descriptionEn: true },
+    select: {
+      slug: true,
+      nameAr: true,
+      nameEn: true,
+      image: true,
+      descriptionAr: true,
+      descriptionEn: true,
+      // Products on sale in each, shown in the phone menu.
+      _count: { select: { products: { where: { isActive: true } } } },
+    },
     orderBy: { sortOrder: "asc" },
   });
 }

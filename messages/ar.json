@@ -23,6 +23,7 @@
     "closeSearch": "إغلاق البحث",
     "openMenu": "فتح القائمة",
     "closeMenu": "إغلاق القائمة",
+    "productCount": "{count, plural, =0 {قريباً} one {منتج واحد} two {منتجان} few {# منتجات} other {# منتجاً}}",
     "menu": "القائمة",
     "track": "تتبع طلبك",
     "help": "المساعدة"

@@ -23,6 +23,7 @@
     "closeSearch": "Close search",
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
+    "productCount": "{count, plural, =0 {Coming soon} one {# product} other {# products}}",
     "menu": "Menu",
     "track": "Track your order",
     "help": "Help"
