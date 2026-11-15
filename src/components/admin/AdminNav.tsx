@@ -183,7 +183,8 @@ function NavGroup({ item, children, pathname }: { item: Item; children: Item[]; 
 
       {open ? (
         // The top padding is part of the panel, so the pointer never leaves it on the way down.
-        <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.15 }} className="absolute start-0 top-full z-40 w-56 pt-2">
+        // Grows out of its tab (the corner under it).
+        <motion.div initial={{ opacity: 0, y: -6, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.18, ease: [0.2, 0.9, 0.3, 1] }} className="absolute start-0 top-full z-40 w-56 pt-2 ltr:origin-top-left rtl:origin-top-right">
           <ul className="glass-frost rounded-2xl border p-1.5 shadow-lg shadow-ink/15">
 
             {children.map(({ href, label, icon: ChildIcon }) => {

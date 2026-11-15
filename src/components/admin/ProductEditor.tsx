@@ -2,6 +2,7 @@
 
 import { ArrowDown, ArrowUp, CircleAlert, ImagePlus, LoaderCircle, Plus, Trash2 } from "lucide-react";
 import Image from "next/image";
+import { Morph, morphName } from "@/components/ui/Morph";
 import { useActionState, useState } from "react";
 import { deleteProduct, saveProduct, type ProductFormState } from "@/app/actions/admin-products";
 import { buttonClass } from "@/components/ui/button";
@@ -235,13 +236,18 @@ export function ProductEditor({
           {!uploadsEnabled ? <p className="mb-3 text-xs text-warm-600">{tr("رفع الصور يتفعل عند إضافة مفاتيح Cloudinary في ملف .env. حالياً أضف روابط الصور.", "Uploads turn on once the Cloudinary keys are in the .env file. For now, add image links.")}</p> : null}
           {uploadError ? <p className="mb-3 text-sm text-danger">{uploadError}</p> : null}
           <ul className="flex flex-col gap-3">
-            {p.images.map((img, i) => (
-              <li key={i} className="flex flex-wrap items-start gap-3 admin-field rounded-xl p-3">
+            {p.images.map((img, i) => {
+              const thumb = (
                 <div className="relative size-20 shrink-0 overflow-hidden rounded-lg bg-warm-50">
                   {img.url.startsWith("https://") || img.url.startsWith("/") ? (
                     <Image src={img.url} alt="" fill sizes="80px" unoptimized className="object-contain p-1" />
                   ) : null}
                 </div>
+              );
+              return (
+              <li key={i} className="flex flex-wrap items-start gap-3 admin-field rounded-xl p-3">
+                {/* The first photo is the one in the products list: it lands here from there. */}
+                {i === 0 && initial.id ? <Morph name={morphName.adminProduct(initial.id)}>{thumb}</Morph> : thumb}
                 <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-3">
                   <input className={`${input} sm:col-span-3`} dir="ltr" placeholder="https://res.cloudinary.com/…" value={img.url} onChange={(e) => setImage(i, { url: e.target.value })} aria-label={tr(`رابط الصورة ${i + 1}`, `Image ${i + 1} link`)} />
                   <input className={input} placeholder={tr("وصف بالعربية", "Alt text (Arabic)")} value={img.altAr} onChange={(e) => setImage(i, { altAr: e.target.value })} aria-label={tr(`وصف الصورة ${i + 1} بالعربية`, `Image ${i + 1} alt text in Arabic`)} />
@@ -260,7 +266,8 @@ export function ProductEditor({
                   </button>
                 </div>
               </li>
-            ))}
+              );
+            })}
           </ul>
         </section>
 

@@ -7,6 +7,7 @@ import { useState, type DragEvent, type ReactNode } from "react";
 import { formatMAD } from "@/lib/money";
 import type { OrderStatus } from "@/lib/order-rules";
 import { agentMayMove } from "@/lib/staff-rules";
+import { Morph, morphName } from "@/components/ui/Morph";
 import { useAdminTr } from "./AdminLang";
 import { CarrierLogo } from "./CarrierLogo";
 import { DeleteOrders } from "./DeleteOrders";
@@ -219,9 +220,11 @@ function Card({ o, agent, dragging, drag }: { o: BoardOrder; agent: boolean; dra
 
       <div className="mt-2 flex items-center gap-2.5">
         <span className="relative size-11 shrink-0">
-          <span className="absolute inset-0 overflow-hidden rounded-xl border border-warm-200 bg-white">
-            {o.image ? <Image src={o.image} alt="" fill sizes="44px" unoptimized className="object-contain p-1" draggable={false} /> : null}
-          </span>
+          <Morph source name={morphName.order(o.id)}>
+            <span className="absolute inset-0 overflow-hidden rounded-xl border border-warm-200 bg-white">
+              {o.image ? <Image src={o.image} alt="" fill sizes="44px" unoptimized className="object-contain p-1" draggable={false} /> : null}
+            </span>
+          </Morph>
           {o.more ? (
             <span className="absolute -end-1.5 -bottom-1.5 rounded-full border-2 border-white bg-ink px-1.5 text-[10px] leading-4 font-bold text-white">+{o.more}</span>
           ) : o.colorHex ? (

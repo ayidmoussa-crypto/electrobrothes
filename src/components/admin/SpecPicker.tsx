@@ -114,7 +114,7 @@ export function SpecPicker({ value, custom, onPick, onOther }: { value: string; 
       </button>
 
       {open ? (
-        <div id={listId} className="absolute inset-x-0 top-full z-30 mt-1.5 min-w-60 overflow-hidden rounded-xl border border-warm-200 bg-white p-1.5 shadow-xl shadow-ink/10">
+        <div id={listId} className="animate-pop absolute inset-x-0 top-full z-30 mt-1.5 origin-top min-w-60 overflow-hidden rounded-xl border border-warm-200 bg-white p-1.5 shadow-xl shadow-ink/10">
           <ul className="flex flex-col gap-0.5">
             {SPEC_GROUPS.map((g, gi) => {
               const expanded = family === gi;

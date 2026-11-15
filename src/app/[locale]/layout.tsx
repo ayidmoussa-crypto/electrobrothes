@@ -2,17 +2,19 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
+import { ViewTransition } from "react";
 import { Pixels } from "@/components/analytics/Pixels";
 import { Footer } from "@/components/store/Footer";
 import { WhatsAppButton } from "@/components/store/WhatsAppButton";
 import { Header } from "@/components/store/Header";
+import { MorphOnClick, RouteMark } from "@/components/ui/MorphOnClick";
 import { dirOf, routing } from "@/i18n/routing";
 import { SITE_NAME, siteUrl } from "@/lib/seo";
 import { fontClasses } from "../fonts";
 import "../globals.css";
 
 // Namespaces used with useTranslations() in client components. Add one here when a client component needs it.
-const CLIENT_NAMESPACES = ["header", "pdp", "product", "cart", "checkout", "order", "track", "states", "countdown", "brands", "reviewForm", "emailBox", "bundles", "giveaway"] as const;
+const CLIENT_NAMESPACES = ["header", "pdp", "product", "cart", "checkout", "trust", "order", "track", "states", "countdown", "brands", "reviewForm", "emailBox", "bundles", "giveaway"] as const;
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
@@ -57,11 +59,16 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
           <p className="relative z-10 bg-deep px-4 py-2 text-center text-xs font-medium text-warm-300">{t("cod")}</p>
           <Header />
           <main id="main" className="flex-1">
-            {children}
+            {/* Gives each page change a view transition: the page cross-fades and named pictures (Morph) fly. */}
+            <ViewTransition>
+              <RouteMark />
+              {children}
+            </ViewTransition>
           </main>
           <Footer locale={locale} />
           <WhatsAppButton locale={locale} />
           <Pixels />
+          <MorphOnClick />
         </NextIntlClientProvider>
       </body>
     </html>

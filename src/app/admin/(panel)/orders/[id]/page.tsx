@@ -1,5 +1,7 @@
-import { ArrowRight, MessageCircle, MessagesSquare, Phone, ShieldAlert, Truck } from "lucide-react";
+import { ArrowRight, MessageCircle, MessagesSquare, Package, Phone, ShieldAlert, Truck } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
+import { Morph, morphName } from "@/components/ui/Morph";
 import { notFound } from "next/navigation";
 import { setCodReceived } from "@/app/actions/admin-finance";
 import { addShipmentEvent, addToBlacklist, saveShipment } from "@/app/actions/admin-orders";
@@ -47,7 +49,9 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
   const { id } = await params;
   const order = await db.order.findUnique({
     where: { id },
-    include: { items: true, logs: { orderBy: { createdAt: "asc" } }, events: { orderBy: { occurredAt: "desc" } }, city: { select: { shippingFee: true } } },
+    include: {
+      items: { include: { variant: { select: { colorHex: true, product: { select: { images: { orderBy: { sortOrder: "asc" }, take: 1, select: { url: true } } } } } } } },
+      logs: { orderBy: { createdAt: "asc" } }, events: { orderBy: { occurredAt: "desc" } }, city: { select: { shippingFee: true } } },
   });
   if (!order) notFound();
   const [blacklisted, otherOrders, reviewed, query, carriers] = await Promise.all([
@@ -155,9 +159,18 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
 
           <Panel title={tr("المنتجات", "Products")}>
             <ul className="flex flex-col gap-2 text-sm">
-              {order.items.map((i) => (
-                <li key={i.id} className="flex justify-between gap-3 border-b border-warm-200 pb-2 last:border-0">
-                  <span>
+              {order.items.map((i, n) => {
+                const src = i.variant?.product.images[0]?.url;
+                const photo = (
+                  <span className="relative size-14 shrink-0 overflow-hidden rounded-xl border border-warm-200 bg-white">
+                    {src ? <Image src={src} alt="" fill sizes="56px" unoptimized className="object-contain p-1" /> : <Package className="absolute inset-0 m-auto size-5 text-warm-400" aria-hidden="true" />}
+                  </span>
+                );
+                return (
+                <li key={i.id} className="flex items-center gap-3 border-b border-warm-200 pb-2 last:border-0">
+                  {/* The first line's photo is the one on the order's card in the list: it lands here from there. */}
+                  {n === 0 ? <Morph name={morphName.order(order.id)}>{photo}</Morph> : photo}
+                  <span className="min-w-0 flex-1">
                     <span className="font-medium text-ink">{i.nameAr}</span>
                     {i.variantLabel ? <span className="text-warm-600"> · {i.variantLabel}</span> : null}
                     <span className="block text-xs text-warm-500" dir="ltr">
@@ -168,7 +181,8 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
                     {i.quantity} × {mad(i.unitPrice)}
                   </span>
                 </li>
-              ))}
+                );
+              })}
             </ul>
             <dl className="mt-3 flex flex-col gap-1 border-t border-warm-200 pt-3 text-sm">
               <div className="flex justify-between">

@@ -2,6 +2,7 @@ import { ShoppingCart } from "lucide-react";
 import Image from "next/image";
 import { getTranslations } from "next-intl/server";
 import { Badge } from "@/components/ui/Badge";
+import { Morph, morphName } from "@/components/ui/Morph";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import type { ProductCardData } from "@/lib/catalog";
@@ -37,9 +38,7 @@ export async function ProductCard({
     .filter(Boolean)
     .slice(0, 2);
 
-  return (
-    // h-full: every card in a row ends on the same line, whatever the length of its name.
-    <article className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-warm-200 bg-white transition-shadow duration-200 hover:shadow-lg hover:shadow-ink/5">
+  const photo = (
       <div className="relative aspect-square bg-warm-50">
         {p.image ? (
           <Image
@@ -54,6 +53,15 @@ export async function ProductCard({
         ) : null}
         {badges.length ? <div className="absolute start-2 top-2 flex flex-col items-start gap-1">{badges}</div> : null}
       </div>
+  );
+
+  return (
+    // h-full: every card in a row ends on the same line, whatever the length of its name.
+    <article className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-warm-200 bg-white transition-shadow duration-200 hover:shadow-lg hover:shadow-ink/5">
+      {/* Once clicked, the photo flies into the product page. */}
+      <Morph source name={morphName.product(p.slug)}>
+        {photo}
+      </Morph>
 
       <div className="flex flex-1 flex-col gap-2 p-3 sm:p-4">
         <p className="text-xs font-medium uppercase tracking-wide text-warm-500" dir="ltr">

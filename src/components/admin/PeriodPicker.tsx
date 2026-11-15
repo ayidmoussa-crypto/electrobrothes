@@ -72,7 +72,7 @@ export function PeriodPicker({
       </button>
       {open ? (
         // Above the assistant's floating button (z-40), which would cover "Show" on phones.
-        <div className="glass-frost absolute inset-x-0 top-full z-50 mt-2 rounded-3xl border p-3 shadow-xl shadow-ink/15 sm:start-auto sm:end-0 sm:w-[22rem]">
+        <div className="glass-frost animate-pop absolute inset-x-0 top-full z-50 mt-2 origin-top ltr:sm:origin-top-right rtl:sm:origin-top-left rounded-3xl border p-3 shadow-xl shadow-ink/15 sm:start-auto sm:end-0 sm:w-[22rem]">
           <p className="px-1 text-xs font-bold text-warm-600">{ar ? "فترات جاهزة" : "Ready spans"}</p>
           <div className="mt-2 flex gap-2">
             {MORE.map((p) => (

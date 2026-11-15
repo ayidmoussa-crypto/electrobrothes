@@ -150,7 +150,7 @@ export function CityPicker({
       </button>
 
       {open ? (
-        <div className="absolute inset-x-0 top-full z-30 mt-2 overflow-hidden rounded-xl border border-warm-200 bg-white shadow-xl shadow-ink/10">
+        <div className="animate-pop absolute inset-x-0 top-full z-30 mt-2 origin-top overflow-hidden rounded-xl border border-warm-200 bg-white shadow-xl shadow-ink/10">
           <div className="relative border-b border-warm-200 p-2">
             <Search className="pointer-events-none absolute start-5 top-1/2 size-4 -translate-y-1/2 text-warm-500" aria-hidden="true" />
             <input

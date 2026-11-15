@@ -22,9 +22,10 @@ export function announcePanel(id: string) {
 
 /** Where the button lives: the desktop side rail, or the phone's top bar. The panel opens beside it. */
 export type Placement = "rail" | "bar";
+// Each panel grows out of the side its button is on: the rail's edge, or the top bar's corner.
 export const PANEL_PLACE: Record<Placement, string> = {
-  rail: "fixed inset-y-6 end-24 z-50 my-auto w-[26rem]",
-  bar: "fixed inset-x-3 top-[5.5rem] bottom-28 z-50",
+  rail: "animate-pop fixed inset-y-6 end-24 z-50 my-auto w-[26rem] ltr:origin-right rtl:origin-left",
+  bar: "animate-pop fixed inset-x-3 top-[5.5rem] bottom-28 z-50 ltr:origin-top-right rtl:origin-top-left",
 };
 
 /**

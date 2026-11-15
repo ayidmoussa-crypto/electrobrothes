@@ -4,6 +4,7 @@ import { Maximize2, X } from "lucide-react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
+import { Morph } from "@/components/ui/Morph";
 
 type Img = { url: string; alt: string };
 
@@ -11,7 +12,7 @@ type Img = { url: string; alt: string };
  * Main image with hover zoom that follows the pointer (desktop), a full-screen view
  * in a native <dialog> (tap on mobile, Esc to close) and thumbnails.
  */
-export function ProductGallery({ images }: { images: Img[] }) {
+export function ProductGallery({ images, morph }: { images: Img[]; morph?: string }) {
   const t = useTranslations("pdp");
   const labels = { zoom: t("zoom"), close: t("close"), imageOf: (n: number) => t("imageOf", { n, total: images.length }) };
   const [index, setIndex] = useState(0);
@@ -21,8 +22,7 @@ export function ProductGallery({ images }: { images: Img[] }) {
   if (!current) return null;
   const svg = (url: string) => url.endsWith(".svg");
 
-  return (
-    <div className="flex flex-col gap-3">
+  const main = (
       <button
         type="button"
         onClick={() => dialogRef.current?.showModal()}
@@ -40,6 +40,12 @@ export function ProductGallery({ images }: { images: Img[] }) {
           <Maximize2 className="size-5" aria-hidden="true" />
         </span>
       </button>
+  );
+
+  return (
+    <div className="flex flex-col gap-3">
+      {/* The first photo is the one on the product's card: it lands here from the card. */}
+      {morph && index === 0 ? <Morph name={morph}>{main}</Morph> : main}
 
       {images.length > 1 ? (
         <ul className="flex gap-2 overflow-x-auto">

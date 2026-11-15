@@ -113,7 +113,7 @@ export function CustomerPicker({ picked, onPick, onClear }: { picked: PastCustom
       {loading ? <LoaderCircle className="absolute end-3.5 top-1/2 size-4.5 -translate-y-1/2 animate-spin text-warm-500" aria-hidden="true" /> : null}
 
       {open ? (
-        <div id="customer-results" role="listbox" aria-label={tr("الزبناء", "Customers")} className="absolute inset-x-0 top-full z-30 mt-2 max-h-[min(26rem,60dvh)] overflow-y-auto rounded-2xl border border-warm-200 bg-white p-1.5 shadow-xl shadow-ink/15">
+        <div id="customer-results" role="listbox" aria-label={tr("الزبناء", "Customers")} className="animate-pop absolute inset-x-0 top-full z-30 mt-2 max-h-[min(26rem,60dvh)] origin-top overflow-y-auto rounded-2xl border border-warm-200 bg-white p-1.5 shadow-xl shadow-ink/15">
           <p className="px-2.5 pt-1.5 pb-1 text-xs font-bold text-warm-600">{query.trim() ? tr("اللي لقينا", "Matches") : tr("آخر الزبناء", "Latest customers")}</p>
           {results.map((c, i) => (
             <button
