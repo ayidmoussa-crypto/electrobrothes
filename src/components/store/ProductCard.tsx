@@ -1,3 +1,4 @@
+import { ShoppingCart } from "lucide-react";
 import Image from "next/image";
 import { getTranslations } from "next-intl/server";
 import { Badge } from "@/components/ui/Badge";
@@ -66,7 +67,20 @@ export async function ProductCard({
         </h3>
         {p.rating !== null ? <Rating value={p.rating} count={p.reviewCount} locale={locale} variant="compact" /> : null}
         <div className="mt-auto flex flex-col gap-2 pt-1">
-          <Price price={p.minPrice} compareAtPrice={p.compareAtPrice} from={p.maxPrice > p.minPrice} locale={locale} />
+          {/* With a mouse, a yellow "buy now" bar slides in over the price when the card is pointed at (the whole card
+              is the link, so it leads to the product). Touch screens keep the plain price. */}
+          <div className="relative -mx-1.5 overflow-hidden rounded-lg px-1.5 py-0.5">
+            <Price price={p.minPrice} compareAtPrice={p.compareAtPrice} from={p.maxPrice > p.minPrice} locale={locale} />
+            {soldOut ? null : (
+              <span
+                aria-hidden="true"
+                className="absolute inset-0 flex items-center justify-center gap-2 rounded-lg bg-yellow-500 font-extrabold text-ink opacity-0 transition-[translate,opacity] duration-300 ease-out ltr:-translate-x-full rtl:translate-x-full group-hover:translate-x-0 group-hover:opacity-100 motion-reduce:transition-none"
+              >
+                <ShoppingCart className="size-4.5" />
+                <span className="text-sm">{t("buyNow")}</span>
+              </span>
+            )}
+          </div>
           {soldOut ? null : <StockStatus stock={p.stock} locale={locale} />}
         </div>
       </div>

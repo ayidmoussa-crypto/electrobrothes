@@ -86,6 +86,7 @@ export async function getCategories() {
       nameAr: true,
       nameEn: true,
       image: true,
+      bannerImages: true,
       descriptionAr: true,
       descriptionEn: true,
       // Products on sale in each, shown in the phone menu.

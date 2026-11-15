@@ -354,7 +354,7 @@
     "title": "Track your order",
     "subtitle": "Enter your order number and the phone number used to order.",
     "number": "Order number",
-    "numberHint": "Example: EB-7KQ4ZP",
+    "numberHint": "Example: EB-1024",
     "phone": "Phone number",
     "submit": "Track",
     "currentStatus": "Current status",
@@ -373,7 +373,9 @@
   },
   "whatsapp": {
     "label": "Chat with us on WhatsApp",
-    "message": "Hello ElectroBrothers, I have a question about a product."
+    "message": "Hello ElectroBrothers, I have a question about a product.",
+    "tab": "Chat with us",
+    "hide": "Hide the WhatsApp button"
   },
   "a11y": {
     "skipToContent": "Skip to content"
@@ -386,6 +388,7 @@
     "outOfStock": "Out of stock",
     "limitedDeal": "Limited deal",
     "bestSeller": "Best seller",
+    "buyNow": "Buy now",
     "ratingLabel": "Rated {value} out of 5, {count, plural, one {1 review} other {# reviews}}",
     "loading": "Loading products…"
   },

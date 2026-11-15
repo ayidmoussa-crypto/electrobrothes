@@ -1,6 +1,7 @@
 "use client";
 
-import { Banknote, CircleAlert, LoaderCircle, Lock } from "lucide-react";
+import { BadgeCheck, Banknote, CircleAlert, LoaderCircle, Lock, ShieldCheck, Truck } from "lucide-react";
+import Image from "next/image";
 import Script from "next/script";
 import { useTranslations } from "next-intl";
 import { useActionState, useEffect, useRef, useState } from "react";
@@ -20,7 +21,15 @@ import { computeTotals } from "@/lib/pricing";
 import type { CheckoutConfig } from "@/lib/store-config";
 import { packSaving } from "./useCartLines";
 
-export type OrderLine = { variantId: string; productId: string; name: string; label: string | null; price: number; qty: number };
+export type OrderLine = { variantId: string; productId: string; name: string; label: string | null; price: number; qty: number; image?: string | null };
+
+/** "Why buy from us", beside the order: the shop's four promises. */
+const WHY = [
+  { icon: ShieldCheck, key: "warranty" },
+  { icon: BadgeCheck, key: "genuine" },
+  { icon: Banknote, key: "cod" },
+  { icon: Truck, key: "delivery" },
+] as const;
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 export const CLEAR_CART_FLAG = "eb_clear_cart";
@@ -47,6 +56,8 @@ export function OrderForm({
   title: string;
 }) {
   const t = useTranslations("checkout");
+  const tt = useTranslations("trust");
+  const tc = useTranslations("cart");
   const [state, action, pending] = useActionState<OrderFormState, FormData>(submitOrder, {});
   const [cityId, setCityId] = useState(state.values?.cityId ?? "");
   const [phoneError, setPhoneError] = useState(false);
@@ -133,10 +144,13 @@ export function OrderForm({
         submitKeepingValues(e, action);
       }}
       onFocus={trackCheckoutStart}
-      className="flex flex-col gap-5"
+      // Wide screens: the details on one side, what is being bought on the other (sticky), the button under the
+      // details. Phones: details, then the summary, then the button.
+      className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,26rem)] lg:gap-x-10"
       noValidate
     >
-      <h2 className="text-xl">{title}</h2>
+      <div className="flex flex-col gap-5 lg:col-start-1 lg:row-start-1">
+        <h2 className="text-xl">{title}</h2>
 
       {topError ? (
         <div ref={summaryRef} tabIndex={-1} role="alert" className="flex gap-2 rounded-lg bg-danger-soft p-3 text-sm font-medium text-danger">
@@ -209,6 +223,27 @@ export function OrderForm({
       <Field id={`${source}-notes`} label={t("notes")} optionalLabel={t("optional")} error={fieldError("notes")}>
         {(p) => <Textarea {...p} name="notes" defaultValue={v.notes} maxLength={500} rows={2} />}
       </Field>
+      </div>
+
+      <aside aria-label={tc("summary")} className="flex flex-col gap-4 rounded-3xl bg-warm-100 p-4 sm:p-5 lg:sticky lg:top-28 lg:col-start-2 lg:row-span-2 lg:row-start-1">
+        <h2 className="text-lg">{tc("summary")}</h2>
+        <ul className="flex flex-col gap-3">
+          {lines.map((l) => (
+            <li key={l.variantId} className="flex items-center gap-3">
+              <span className="relative size-16 shrink-0">
+                <span className="absolute inset-0 overflow-hidden rounded-2xl border border-warm-200 bg-white">
+                  {l.image ? <Image src={l.image} alt="" fill sizes="64px" unoptimized={l.image.endsWith(".svg")} className="object-contain p-1.5" /> : null}
+                </span>
+                <span className="absolute -end-1.5 -top-1.5 grid min-w-6 place-items-center rounded-full bg-ink px-1.5 text-xs leading-6 font-bold text-white tabular-nums">{l.qty}</span>
+              </span>
+              <span className="min-w-0 flex-1 text-sm">
+                <span className="line-clamp-2 font-semibold text-ink">{l.name}</span>
+                {l.label ? <span className="block text-xs text-warm-600">{l.label}</span> : null}
+              </span>
+              <span className="shrink-0 text-sm font-bold text-ink tabular-nums">{formatMAD(l.price * l.qty, locale)}</span>
+            </li>
+          ))}
+        </ul>
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor={`${source}-coupon`} className="text-sm font-semibold text-ink">
@@ -225,20 +260,7 @@ export function OrderForm({
         </p>
       </div>
 
-      {/* Summary */}
-      <div className="rounded-xl border border-warm-200 bg-warm-50 p-4 text-sm">
-        <ul className="mb-3 flex flex-col gap-1 border-b border-warm-200 pb-3">
-          {lines.map((l) => (
-            <li key={l.variantId} className="flex justify-between gap-3">
-              <span className="text-warm-800">
-                {l.name}
-                {l.label ? <span className="text-warm-600"> · {l.label}</span> : null}
-                <span className="text-warm-600"> × {l.qty}</span>
-              </span>
-              <span className="shrink-0 font-semibold text-ink">{formatMAD(l.price * l.qty, locale)}</span>
-            </li>
-          ))}
-        </ul>
+      <div className="border-t border-warm-200 pt-4 text-sm">
         <TotalsList
           locale={locale}
           subtotal={totals.subtotal}
@@ -252,6 +274,22 @@ export function OrderForm({
         <FreeDeliveryRail spent={totals.subtotal - totals.discount} threshold={config.freeShippingThreshold} locale={locale} />
       </div>
 
+        <ul className="flex flex-col gap-2.5 border-t border-warm-200 pt-4">
+          {WHY.map(({ icon: Icon, key }) => (
+            <li key={key} className="flex items-center gap-3 text-sm">
+              <span className="grid size-8 shrink-0 place-items-center rounded-full bg-ink">
+                <Icon className="size-4 text-yellow-500" aria-hidden="true" />
+              </span>
+              <span>
+                <b className="block text-ink">{tt(`${key}Title`)}</b>
+                <span className="text-xs text-warm-600">{tt(`${key}Text`)}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      </aside>
+
+      <div className="flex flex-col gap-5 lg:col-start-1 lg:row-start-2">
       <div className="flex items-start gap-3 rounded-xl bg-ink p-4 text-white">
         <Banknote className="size-6 shrink-0 text-yellow-500" aria-hidden="true" />
         <div>
@@ -283,6 +321,7 @@ export function OrderForm({
         <Lock className="size-3.5" aria-hidden="true" />
         {t("trust")}
       </p>
+      </div>
     </form>
   );
 }

@@ -30,6 +30,7 @@ export function CheckoutView({ locale, config }: { locale: Locale; config: Check
       label: ar ? line!.labelAr : line!.labelEn,
       price: line!.price,
       qty: Math.min(item.qty, line!.stock),
+      image: line!.image,
     }));
 
   // Only while nothing is known yet: adding a product here must not remove the form the shopper is filling in.
@@ -51,7 +52,7 @@ export function CheckoutView({ locale, config }: { locale: Locale; config: Check
   }
 
   return (
-    <div className="flex max-w-xl flex-col gap-5">
+    <div className="flex max-w-6xl flex-col gap-5">
       <TrackOnce event={{ name: "InitiateCheckout", items: lines.map((l) => ({ id: l.variantId, name: l.name, price: l.price, quantity: l.qty })) }} />
       <TopUpProducts spent={lines.reduce((sum, l) => sum + l.price * l.qty, 0) - packSaving(lines, bundles, ar).discount} threshold={config.freeShippingThreshold} locale={locale} />
       <OrderForm source="cart" title={tc("formTitle")} lines={lines} bundles={bundles} config={config} locale={locale} />

@@ -20,6 +20,8 @@ model Category {
   descriptionAr String?
   descriptionEn String?
   image         String?
+  // Pictures on the category page's banner, chosen by the owner (up to 3). Empty: three of its products.
+  bannerImages  String[]  @default([])
   sortOrder     Int       @default(0)
   products      Product[]
 }

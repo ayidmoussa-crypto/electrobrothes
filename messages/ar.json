@@ -354,7 +354,7 @@
     "title": "تتبع طلبك",
     "subtitle": "أدخل رقم الطلب ورقم الهاتف المستعمل عند الطلب.",
     "number": "رقم الطلب",
-    "numberHint": "مثال: EB-7KQ4ZP",
+    "numberHint": "مثال: EB-1024",
     "phone": "رقم الهاتف",
     "submit": "تتبع",
     "currentStatus": "الحالة الحالية",
@@ -373,7 +373,9 @@
   },
   "whatsapp": {
     "label": "تواصل معنا عبر واتساب",
-    "message": "مرحباً ElectroBrothers، لدي سؤال عن منتج."
+    "message": "مرحباً ElectroBrothers، لدي سؤال عن منتج.",
+    "tab": "تواصل معنا",
+    "hide": "إخفاء زر واتساب"
   },
   "a11y": {
     "skipToContent": "انتقل إلى المحتوى"
@@ -386,6 +388,7 @@
     "outOfStock": "نفد المخزون",
     "limitedDeal": "عرض محدود",
     "bestSeller": "الأكثر مبيعاً",
+    "buyNow": "اشترِ الآن",
     "ratingLabel": "التقييم {value} من 5، {count, plural, one {تقييم واحد} two {تقييمان} few {# تقييمات} other {# تقييماً}}",
     "loading": "جارٍ تحميل المنتجات…"
   },

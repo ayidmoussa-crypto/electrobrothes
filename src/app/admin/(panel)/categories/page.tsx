@@ -5,7 +5,7 @@ import { adminTr, type Tr } from "@/lib/admin-lang";
 import { requireAdmin } from "@/lib/admin";
 import { db } from "@/lib/db";
 
-type Cat = { id?: string; nameAr: string; nameEn: string; slug: string; image: string | null; sortOrder: number };
+type Cat = { id?: string; nameAr: string; nameEn: string; slug: string; image: string | null; bannerImages: string[]; sortOrder: number };
 
 function CategoryFields({ c, tr }: { c: Cat; tr: Tr }) {
   return (
@@ -25,6 +25,12 @@ function CategoryFields({ c, tr }: { c: Cat; tr: Tr }) {
       </L>
       <L label={tr("الترتيب", "Order")}>
         <input name="sortOrder" type="number" min={0} defaultValue={c.sortOrder} className={inputClass} />
+      </L>
+      <L
+        label={tr("صور البانر ديال صفحة القسم (رابط فكل سطر، حتى 3. خليه خاوي باش تبان 3 من المنتجات ديالو)", "Category page banner pictures (one link per line, up to 3. Leave empty to show three of its products)")}
+        className="sm:col-span-5"
+      >
+        <textarea name="bannerImages" rows={2} defaultValue={c.bannerImages.join("\n")} dir="ltr" placeholder="https://res.cloudinary.com/…" className={`${inputClass} py-2`} />
       </L>
     </div>
   );
@@ -54,7 +60,7 @@ export default async function CategoriesPage() {
         ))}
         <Panel title={tr("قسم جديد", "New category")}>
           <ActionForm action={saveCategory} submitLabel={tr("إضافة القسم", "Add category")}>
-            <CategoryFields tr={tr} c={{ nameAr: "", nameEn: "", slug: "", image: null, sortOrder: categories.length }} />
+            <CategoryFields tr={tr} c={{ nameAr: "", nameEn: "", slug: "", image: null, bannerImages: [], sortOrder: categories.length }} />
           </ActionForm>
         </Panel>
       </div>

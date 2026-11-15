@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Suspense } from "react";
 import { Breadcrumbs } from "@/components/store/Breadcrumbs";
+import { CategoryHero } from "@/components/store/CategoryHero";
 import { Listing } from "@/components/store/Listing";
 import { ProductGridSkeleton } from "@/components/ui/Skeleton";
 import type { Locale } from "@/i18n/routing";
@@ -15,18 +16,23 @@ export async function generateStaticParams() {
   return (await getCategories()).map((c) => ({ slug: c.slug }));
 }
 
+/** The category's own description, or a sentence built from its name. Shown on the page and given to search engines. */
+function blurb(category: { nameAr: string; nameEn: string; descriptionAr: string | null; descriptionEn: string | null }, ar: boolean) {
+  const name = ar ? category.nameAr : category.nameEn;
+  return (
+    (ar ? category.descriptionAr : category.descriptionEn) ??
+    (ar
+      ? `تسوّق ${name} الأصلية في المغرب بأفضل الأسعار: ضمان رسمي، توصيل سريع والدفع نقداً عند الاستلام.`
+      : `Shop genuine ${name.toLowerCase()} in Morocco at the best prices: official warranty, fast delivery and cash on delivery.`)
+  );
+}
+
 export async function generateMetadata({ params }: PageProps<"/[locale]/category/[slug]">): Promise<Metadata> {
   const { locale, slug } = await params;
   const category = await getCategory(slug);
   if (!category) return {};
   const ar = locale === "ar";
-  const name = ar ? category.nameAr : category.nameEn;
-  const description =
-    (ar ? category.descriptionAr : category.descriptionEn) ??
-    (ar
-      ? `تسوّق ${name} الأصلية في المغرب بأفضل الأسعار: ضمان رسمي، توصيل سريع والدفع نقداً عند الاستلام.`
-      : `Shop genuine ${name.toLowerCase()} in Morocco at the best prices: official warranty, fast delivery and cash on delivery.`);
-  return pageMetadata({ locale: locale as Locale, path: `/category/${slug}`, title: name, description });
+  return pageMetadata({ locale: locale as Locale, path: `/category/${slug}`, title: ar ? category.nameAr : category.nameEn, description: blurb(category, ar) });
 }
 
 async function CategoryListing({
@@ -46,9 +52,17 @@ export default async function CategoryPage({ params, searchParams }: PageProps<"
   const { locale: l, slug } = await params;
   const locale = l as Locale;
   setRequestLocale(locale);
-  const [category, t, tp] = await Promise.all([getCategory(slug), getTranslations("product"), getTranslations("pdp")]);
+  const [category, t, tp, th, cards] = await Promise.all([getCategory(slug), getTranslations("product"), getTranslations("pdp"), getTranslations("header"), getProductCards({ categorySlug: slug })]);
   if (!category) notFound();
   const name = locale === "ar" ? category.nameAr : category.nameEn;
+  // The banner's pictures: the ones chosen in the admin, else three of its products (best sellers first, in stock).
+  const images = category.bannerImages.length
+    ? category.bannerImages
+    : [...cards]
+        .filter((c) => c.image && c.stock > 0)
+        .sort((a, b) => Number(b.isBestSeller) - Number(a.isBestSeller))
+        .slice(0, 3)
+        .map((c) => c.image!.url);
 
   return (
     <div className="mx-auto max-w-7xl px-4 pb-16">
@@ -59,7 +73,7 @@ export default async function CategoryPage({ params, searchParams }: PageProps<"
         ])}
       />
       <Breadcrumbs locale={locale} items={[{ label: name }]} />
-      <h1 className="mb-6 text-3xl md:text-4xl">{name}</h1>
+      <CategoryHero name={name} description={blurb(category, locale === "ar")} count={th("productCount", { count: category._count.products })} images={images} />
       {/* searchParams are request-time: only this part streams, the shell above is static. */}
       <Suspense fallback={<ProductGridSkeleton label={t("loading")} />}>
         <CategoryListing locale={locale} slug={slug} searchParams={searchParams} />

@@ -5,6 +5,7 @@ import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import { requireAdmin } from "@/lib/admin";
 import { adminTr } from "@/lib/admin-lang";
+import { bannerImageList } from "@/lib/category-banner";
 import { db } from "@/lib/db";
 import { whatsappDigits } from "@/lib/phone";
 import { slugify } from "@/lib/product-input";
@@ -41,6 +42,7 @@ const categoryInput = z.object({
   nameEn: z.string().trim().min(2).max(80),
   slug: z.string().trim().max(80).optional(),
   image: z.string().trim().max(500).optional(),
+  bannerImages: z.string().max(3000).optional(),
   sortOrder: z.coerce.number().int().min(0).max(1000).default(0),
 });
 
@@ -48,7 +50,7 @@ export async function saveCategory(_: State, fd: FormData) {
   return run(
     async () => {
       const c = categoryInput.parse(fields(fd));
-      const data = { nameAr: c.nameAr, nameEn: c.nameEn, slug: slugify(c.slug || c.nameEn), image: c.image || null, sortOrder: c.sortOrder };
+      const data = { nameAr: c.nameAr, nameEn: c.nameEn, slug: slugify(c.slug || c.nameEn), image: c.image || null, bannerImages: bannerImageList(c.bannerImages ?? ""), sortOrder: c.sortOrder };
       if (!data.slug) throw new z.ZodError([]);
       if (c.id) await db.category.update({ where: { id: c.id }, data });
       else await db.category.create({ data });

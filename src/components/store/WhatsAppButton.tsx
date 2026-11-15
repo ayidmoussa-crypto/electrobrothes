@@ -1,6 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import type { Locale } from "@/i18n/routing";
 import { getCheckoutConfig } from "@/lib/store-config";
+import { WhatsAppTab } from "./WhatsAppTab";
 
 /** WhatsApp's own glyph (brand mark, not a Lucide icon). */
 function WhatsAppGlyph({ className }: { className?: string }) {
@@ -12,9 +13,8 @@ function WhatsAppGlyph({ className }: { className?: string }) {
 }
 
 /**
- * Floating WhatsApp chat button (the only place #25D366 is used). Hidden until a number is set
- * in the admin settings. Low in the corner, and lifted above the order bar on phones where a page has one. See-through at rest so it
- * does not cover what is under it, solid as soon as the shopper reaches for it.
+ * WhatsApp chat (the only place #25D366 is used), as a tab on the side edge. Hidden until a number is set in the
+ * admin settings.
  */
 export async function WhatsAppButton({ locale }: { locale: Locale }) {
   const [{ whatsappNumber }, t] = await Promise.all([getCheckoutConfig(), getTranslations({ locale, namespace: "whatsapp" })]);
@@ -22,14 +22,12 @@ export async function WhatsAppButton({ locale }: { locale: Locale }) {
   if (!number) return null;
 
   return (
-    <a
+    <WhatsAppTab
       href={`https://wa.me/${number}?text=${encodeURIComponent(t("message"))}`}
-      target="_blank"
-      rel="noopener noreferrer"
-      aria-label={t("label")}
-      className="fixed end-4 bottom-6 z-40 grid max-lg:[html[data-order-bar]_&]:bottom-24 size-14 place-items-center rounded-full bg-whatsapp text-ink opacity-65 shadow-lg shadow-ink/20 transition-[transform,opacity] duration-200 hover:scale-105 hover:opacity-100 focus-visible:opacity-100 active:scale-95 active:opacity-100"
-    >
-      <WhatsAppGlyph className="size-7" />
-    </a>
+      label={t("label")}
+      text={t("tab")}
+      closeLabel={t("hide")}
+      glyph={<WhatsAppGlyph className="size-5" />}
+    />
   );
 }
