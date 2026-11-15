@@ -30,6 +30,8 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     "src/generated/**",
+    // Old code kept for social videos, not part of the app.
+    "archive/**",
   ]),
 ]);
 

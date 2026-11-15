@@ -5,7 +5,6 @@ import { BrandStrip } from "@/components/store/BrandStrip";
 import { BundlesSection } from "@/components/store/BundlesSection";
 import { CategoryIcon } from "@/components/store/CategoryIcon";
 import { CategoryTabs } from "@/components/store/CategoryTabs";
-import { HeroParticles } from "@/components/store/HeroParticles";
 import { EmailBox } from "@/components/store/EmailBox";
 import { GiveawaySection } from "@/components/store/GiveawayCard";
 import { Countdown } from "@/components/store/Countdown";
@@ -33,10 +32,7 @@ async function Hero({ locale }: { locale: Locale }) {
     // Slides 1.5rem up under the header so its rounded bottom corners sit on the dark hero, not on white.
     // Runs up behind the floating header (its margin plus its height), so the bar sits on the photo.
     <section className="relative isolate -mt-20 overflow-hidden bg-linear-to-b from-deep to-ink pt-20 md:-mt-[141px] md:pt-[141px] xl:-mt-20 xl:pt-20">
-      {/* Night sky with glowing dots gathering into products: above the text on phones, opposite it from md. */}
-      <HeroParticles />
-
-      <div className="mx-auto flex min-h-[42rem] max-w-7xl items-end px-4 pt-56 pb-10 md:min-h-[34rem] md:items-center md:py-20">
+      <div className="mx-auto flex max-w-7xl items-center px-4 py-14 md:min-h-[34rem] md:py-20">
         <div className="max-w-xl">
           <Badge tone="accent" className="text-sm">
             {t("heroEyebrow")}
