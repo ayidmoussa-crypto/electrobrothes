@@ -2,12 +2,10 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
-import { ViewTransition } from "react";
 import { Pixels } from "@/components/analytics/Pixels";
 import { Footer } from "@/components/store/Footer";
 import { WhatsAppButton } from "@/components/store/WhatsAppButton";
 import { Header } from "@/components/store/Header";
-import { MorphOnClick, RouteMark } from "@/components/ui/MorphOnClick";
 import { dirOf, routing } from "@/i18n/routing";
 import { SITE_NAME, siteUrl } from "@/lib/seo";
 import { fontClasses } from "../fonts";
@@ -59,16 +57,11 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
           <p className="relative z-10 bg-deep px-4 py-2 text-center text-xs font-medium text-warm-300">{t("cod")}</p>
           <Header />
           <main id="main" className="flex-1">
-            {/* Gives each page change a view transition: the page cross-fades and named pictures (Morph) fly. */}
-            <ViewTransition>
-              <RouteMark />
-              {children}
-            </ViewTransition>
+            {children}
           </main>
           <Footer locale={locale} />
           <WhatsAppButton locale={locale} />
           <Pixels />
-          <MorphOnClick />
         </NextIntlClientProvider>
       </body>
     </html>

@@ -1,6 +1,5 @@
 import { Plus } from "lucide-react";
 import Image from "next/image";
-import { Morph, morphName } from "@/components/ui/Morph";
 import Link from "next/link";
 import { ScoreBadge } from "@/components/admin/SeoSuggestions";
 import { PageHeader, tdClass, thClass } from "@/components/admin/ui";
@@ -103,12 +102,9 @@ export default async function ProductsPage({ searchParams }: PageProps<"/admin/p
                 <tr key={p.id} className="border-b border-warm-200/60 last:border-0 transition-colors hover:bg-white/60">
                   <td className={tdClass}>
                     <Link href={`/admin/products/${p.id}`} className="flex items-center gap-3">
-                      {/* The photo flies into the product's edit page. */}
-                      <Morph source name={morphName.adminProduct(p.id)}>
-                        <span className="relative size-12 shrink-0 overflow-hidden rounded-md bg-warm-50">
-                          {p.images[0] ? <Image src={p.images[0].url} alt="" fill sizes="48px" unoptimized className="object-contain p-1" /> : null}
-                        </span>
-                      </Morph>
+                      <span className="relative size-12 shrink-0 overflow-hidden rounded-md bg-warm-50">
+                        {p.images[0] ? <Image src={p.images[0].url} alt="" fill sizes="48px" unoptimized className="object-contain p-1" /> : null}
+                      </span>
                       <span>
                         <span className="block font-semibold text-ink underline-offset-4 hover:underline">{ar ? p.nameAr : p.nameEn}</span>
                         <span className="text-xs text-warm-500" dir="ltr">

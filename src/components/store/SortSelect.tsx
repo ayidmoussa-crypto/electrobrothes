@@ -39,7 +39,7 @@ export function SortSelect({ label, value, options }: { label: string; value: st
         {current.label}
         <ChevronDown className="size-4 text-warm-600 transition-transform group-open:rotate-180" aria-hidden="true" />
       </summary>
-      <div className="animate-pop absolute end-0 top-full z-30 mt-2 w-60 ltr:origin-top-right rtl:origin-top-left rounded-xl border border-warm-200 bg-white p-1.5 shadow-xl shadow-ink/10">
+      <div className="absolute end-0 top-full z-30 mt-2 w-60 rounded-xl border border-warm-200 bg-white p-1.5 shadow-xl shadow-ink/10">
         <p className="px-3 pt-1.5 pb-2 text-xs font-bold text-warm-600">{label}</p>
         {options.map((o) => {
           const on = o.value === current.value;

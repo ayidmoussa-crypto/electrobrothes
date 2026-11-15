@@ -190,7 +190,7 @@ export function ManualOrderForm({
               className={`${inputClass} ps-9`}
             />
             {results.length ? (
-              <ul className="animate-pop absolute inset-x-0 top-full z-20 mt-1 max-h-80 origin-top overflow-y-auto rounded-xl border border-warm-200 bg-white p-1 shadow-lg shadow-ink/10">
+              <ul className="absolute inset-x-0 top-full z-20 mt-1 max-h-80 overflow-y-auto rounded-xl border border-warm-200 bg-white p-1 shadow-lg shadow-ink/10">
                 {results.map((group) => {
                   const v = group[0];
                   const stock = group.reduce((s, x) => s + x.stock, 0);

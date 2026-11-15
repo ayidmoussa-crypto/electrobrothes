@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
-import type { CartBundle, CartLine, Upsell } from "@/app/actions/cart";
+import { getCartLines, type CartBundle, type CartLine, type Upsell } from "@/app/actions/cart";
 import { bundleDiscount } from "@/lib/bundles";
 import { useCart, type CartItem } from "@/lib/cart-store";
 
@@ -17,13 +17,9 @@ export function useCartLines() {
   useEffect(() => {
     if (!hydrated) return;
     let cancelled = false;
-    // A GET, not the server action: an action fired while a page opens can cancel that navigation.
-    fetch(`/api/cart-lines?ids=${encodeURIComponent(key)}`)
-      .then((r) => r.json() as Promise<{ lines: CartLine[]; upsell: Upsell[]; bundles: CartBundle[] }>)
-      .then((res) => {
-        if (!cancelled) setData({ key, ...res });
-      })
-      .catch(() => {});
+    getCartLines(key ? key.split(",") : []).then((res) => {
+      if (!cancelled) setData({ key, ...res });
+    });
     return () => {
       cancelled = true;
     };

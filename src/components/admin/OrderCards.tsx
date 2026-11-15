@@ -4,7 +4,6 @@ import { Phone, Plus, ShieldAlert } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { formatMAD } from "@/lib/money";
-import { Morph, morphName } from "@/components/ui/Morph";
 import { useAdminTr } from "./AdminLang";
 import { DeleteOrders } from "./DeleteOrders";
 import type { BoardOrder } from "./OrderBoard";
@@ -35,11 +34,9 @@ export function OrderCards({ days, agent }: { days: { key: string; label: string
                     <article className="w-full shrink-0 snap-start rounded-[1.75rem] border border-warm-200/80 bg-white p-3.5 shadow-[0_8px_24px_-18px] shadow-ink/40">
                       <div className="flex gap-3">
                         <Link href={`/admin/orders/${o.id}`} className="relative size-20 shrink-0" aria-label={tr(`فتح الطلب ${o.number}`, `Open order ${o.number}`)}>
-                          <Morph source name={morphName.order(o.id)}>
-                            <span className="absolute inset-0 overflow-hidden rounded-2xl bg-white">
-                              {o.image ? <Image src={o.image} alt="" fill sizes="80px" unoptimized className="object-contain p-1" /> : null}
-                            </span>
-                          </Morph>
+                          <span className="absolute inset-0 overflow-hidden rounded-2xl bg-white">
+                            {o.image ? <Image src={o.image} alt="" fill sizes="80px" unoptimized className="object-contain p-1" /> : null}
+                          </span>
                           {o.more ? (
                             <span className="absolute -end-1 -bottom-1 rounded-full border-2 border-white bg-ink px-1.5 text-[11px] leading-4 font-bold text-white">+{o.more}</span>
                           ) : o.colorHex ? (

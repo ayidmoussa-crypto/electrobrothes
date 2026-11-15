@@ -123,7 +123,6 @@ async function ShopByCategory({ locale }: { locale: Locale }) {
           <>
             <ProductSlider label={name} prevLabel={tl("previous")} nextLabel={tl("next")}>
               {products.map((p) => (
-                // A best seller can also be in its category's row: only the best-sellers row flies to the page.
                 <ProductCard key={p.slug} product={p} locale={locale} />
               ))}
             </ProductSlider>

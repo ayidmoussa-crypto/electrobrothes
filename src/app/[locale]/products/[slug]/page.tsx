@@ -1,7 +1,6 @@
 import { Banknote, BadgeCheck, Check, ChevronDown, ExternalLink, GitCompareArrows, ShieldCheck, Star, Truck } from "lucide-react";
 import type { Metadata } from "next";
 import Image from "next/image";
-import { morphName } from "@/components/ui/Morph";
 import { notFound, permanentRedirect } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Breadcrumbs } from "@/components/store/Breadcrumbs";
@@ -104,7 +103,7 @@ export default async function ProductPage({ params }: PageProps<"/[locale]/produ
 
       {/* grid-cols-1, not the default auto column: a long row of thumbnails would otherwise widen the whole page on phones. */}
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-12">
-        <ProductGallery morph={morphName.product(product.slug)} images={product.images.map((i) => ({ url: i.url, alt: ar ? i.altAr : i.altEn }))} />
+        <ProductGallery images={product.images.map((i) => ({ url: i.url, alt: ar ? i.altAr : i.altEn }))} />
 
         <div className="flex flex-col gap-5">
           <div>

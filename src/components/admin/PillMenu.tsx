@@ -158,9 +158,8 @@ export function PillMenu({
           aria-label={label}
           aria-activedescendant={`${id}-${active}`}
           onKeyDown={onKey}
-          // Grows out of the pill's corner it hangs from (under it, or above it when there is no room below).
-          style={{ top: pos.top, left: pos.left, transform: `translate(-100%, ${pos.up ? "-100%" : "0"})`, transformOrigin: pos.up ? "100% 100%" : "100% 0" }}
-          className="animate-pop fixed z-50 w-48 rounded-2xl bg-white p-1.5 shadow-xl shadow-ink/15 ring-1 ring-warm-200 outline-none"
+          style={{ top: pos.top, left: pos.left, transform: `translate(-100%, ${pos.up ? "-100%" : "0"})` }}
+          className="fixed z-50 w-48 rounded-2xl bg-white p-1.5 shadow-xl shadow-ink/15 ring-1 ring-warm-200 outline-none"
         >
           {all.map((o, i) => (
             <li

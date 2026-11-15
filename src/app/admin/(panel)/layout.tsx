@@ -1,7 +1,7 @@
 import { ExternalLink, LogOut } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Suspense, ViewTransition } from "react";
+import { Suspense } from "react";
 import { logout } from "@/app/actions/admin-auth";
 import { setAdminLang } from "@/app/actions/admin-lang";
 import { adminTr } from "@/lib/admin-lang";
@@ -12,7 +12,6 @@ import { AssistantWidget } from "@/components/admin/AssistantWidget";
 import { NotificationsButton } from "@/components/admin/NotificationsButton";
 import { loadAlerts } from "@/lib/admin-alerts-data";
 import { Logo } from "@/components/brand/Logo";
-import { MorphOnClick, RouteMark } from "@/components/ui/MorphOnClick";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { requireStaff } from "@/lib/admin";
 
@@ -31,7 +30,7 @@ async function Shell({ children }: { children: ReactNode }) {
 
         {/* The shop's floating frosted-glass bar, clear of the screen edges. Desktop: brand + account row, then
             the sections row. Phones: brand row only. */}
-        <header className="sticky top-3 z-30 mx-3 mt-3 rounded-3xl text-ink lg:mx-4" style={{ viewTransitionName: "admin-header" }}>
+        <header className="sticky top-3 z-30 mx-3 mt-3 rounded-3xl text-ink lg:mx-4">
           {/* The glass sits on its own layer: a blur on the header itself would stop its menus from blurring the page. */}
           <div aria-hidden="true" className="glass-frost absolute inset-0 -z-10 rounded-[inherit] border shadow-lg shadow-ink/10" />
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-2.5 lg:px-6">
@@ -95,16 +94,9 @@ async function Shell({ children }: { children: ReactNode }) {
         </aside>
 
         {/* Bottom padding on phones clears the floating bottom bar; on desktop the end padding clears the side rail. */}
-        <main className="mx-auto min-w-0 max-w-7xl px-4 pt-6 pb-32 md:pt-8 lg:px-6 lg:pe-24 lg:pb-12 2xl:pe-6">
-          {/* Gives each page change a view transition: the page cross-fades and named pictures (Morph) fly. */}
-          <ViewTransition>
-            <RouteMark />
-            {children}
-          </ViewTransition>
-        </main>
+        <main className="mx-auto min-w-0 max-w-7xl px-4 pt-6 pb-32 md:pt-8 lg:px-6 lg:pe-24 lg:pb-12 2xl:pe-6">{children}</main>
 
         <AdminBottomNav email={admin.email} role={admin.role} />
-        <MorphOnClick />
       </AdminLangProvider>
     </div>
   );

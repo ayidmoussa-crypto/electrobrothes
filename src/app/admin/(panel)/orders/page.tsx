@@ -12,7 +12,6 @@ import { requireStaff } from "@/lib/admin";
 import { ageLabel, filterQuery, orderWhere, parseOrderFilters, type OrderFilters } from "@/lib/admin-orders";
 import { OrderBoard, type BoardColumn, type BoardOrder } from "@/components/admin/OrderBoard";
 import { OrderCards } from "@/components/admin/OrderCards";
-import { Morph, morphName } from "@/components/ui/Morph";
 import type { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { sourceLabel } from "@/lib/manual-order";
@@ -282,12 +281,9 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
                 <td className={tdClass}>
                   <div className="flex items-center gap-3">
                     <span className="relative size-12 shrink-0">
-                      {/* The picture flies into the order's page (desktop list; phones have the cards). */}
-                      <Morph source name={morphName.order(o.id)}>
-                        <span className="absolute inset-0 overflow-hidden rounded-lg bg-white">
-                          {image ? <Image src={image} alt="" fill sizes="48px" unoptimized className="object-contain p-1" /> : null}
-                        </span>
-                      </Morph>
+                      <span className="absolute inset-0 overflow-hidden rounded-lg bg-white">
+                        {image ? <Image src={image} alt="" fill sizes="48px" unoptimized className="object-contain p-1" /> : null}
+                      </span>
                       {/* The first item's colour, pinned on its picture. */}
                       {first?.variant?.colorHex ? (
                         <span

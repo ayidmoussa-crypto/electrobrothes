@@ -147,7 +147,7 @@ export function SearchBox({ action }: { action: string }) {
       </button>
 
       <div
-        className={`animate-pop absolute inset-x-0 top-full z-40 mt-2 origin-top overflow-hidden rounded-xl border border-warm-200 bg-white text-warm-800 shadow-xl shadow-ink/10 ${showList ? "" : "hidden"}`}
+        className={`absolute inset-x-0 top-full z-40 mt-2 overflow-hidden rounded-xl border border-warm-200 bg-white text-warm-800 shadow-xl shadow-ink/10 ${showList ? "" : "hidden"}`}
       >
         <ul id={listId} role="listbox" aria-label={t("suggestions")}>
           {items.map((s, i) => (

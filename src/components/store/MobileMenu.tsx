@@ -57,8 +57,6 @@ export function MobileMenu({ items }: { items: Item[] }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [top, setTop] = useState(88);
-  // Where the menu button sits along the pane's top edge: the pane grows out of it.
-  const [originX, setOriginX] = useState(0);
   const button = useRef<HTMLButtonElement>(null);
   const pane = useRef<HTMLDivElement>(null);
   // The pane goes to <body>, which only exists in the browser: nothing to render on the server.
@@ -79,9 +77,6 @@ export function MobileMenu({ items }: { items: Item[] }) {
     // Just under the floating header, whatever its height at this moment.
     const header = button.current?.closest("header")?.getBoundingClientRect();
     if (header) setTop(Math.round(header.bottom + 8));
-    const b = button.current?.getBoundingClientRect();
-    // The pane starts 12px from the screen edge (inset-x-3).
-    if (b) setOriginX(Math.round(b.left + b.width / 2 - 12));
     setOpenedOn(pathname);
     setOpen(true);
   };
@@ -174,8 +169,8 @@ export function MobileMenu({ items }: { items: Item[] }) {
                       initial="closed"
                       animate="open"
                       exit="closed"
-                      style={{ top, maxHeight: `calc(100dvh - ${top + 12}px)`, transformOrigin: `${originX}px 0px` }}
-                      className="glass-frost fixed inset-x-3 z-50 overflow-y-auto overscroll-contain rounded-3xl border p-3 text-ink shadow-xl shadow-ink/15 select-none md:hidden"
+                      style={{ top, maxHeight: `calc(100dvh - ${top + 12}px)` }}
+                      className="glass-frost fixed inset-x-3 z-50 origin-top overflow-y-auto overscroll-contain rounded-3xl border p-3 text-ink shadow-xl shadow-ink/15 select-none md:hidden"
                     >
                       <nav aria-label={t("categoriesNav")}>
                         <motion.p variants={ROW} className="flex items-center gap-2 px-1.5 pb-2 text-xs font-bold text-warm-600">
