@@ -111,11 +111,13 @@ export function assessRisk(i: RiskInput) {
   return { score: Math.min(score, 100), flags, block: i.blacklisted || i.honeypotFilled };
 }
 
-// No 0/O/1/I so numbers read out over the phone are unambiguous.
-const ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
-export function newOrderNumber(random: (n: number) => Uint8Array) {
-  const bytes = random(6);
-  return `EB-${[...bytes].map((b) => ALPHABET[b % ALPHABET.length]).join("")}`;
+/** Orders count up from here: EB-1001, EB-1002… (easy to read out over the phone and to sort). */
+export const FIRST_ORDER_NUMBER = 1001;
+
+/** The number after the highest one given so far (null: none yet). */
+export function orderNumberAfter(last: number | null) {
+  return `EB-${Math.max(last ?? 0, FIRST_ORDER_NUMBER - 1) + 1}`;
 }
 
-export const ORDER_NUMBER = /^EB-[2-9A-HJ-NP-Z]{6}$/;
+/** A number as typed to track an order: today's EB-1001, or the older six letters (EB-XJUKQ3) still on past orders. */
+export const ORDER_NUMBER = /^EB-(?:\d{4,7}|[2-9A-HJ-NP-Z]{6})$/;

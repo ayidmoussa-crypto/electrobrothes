@@ -52,7 +52,8 @@ export function HeaderShell({ children }: { children: ReactNode }) {
         data-scrolled={scrolled}
         data-search={searchOpen ? "open" : "closed"}
         // A floating bar: it never touches the screen edges, at rest or while scrolling.
-        className={`group/header sticky top-3 z-30 mx-3 mt-3 glass-frost rounded-3xl border text-ink md:mx-4 ${scrolled ? "shadow-lg shadow-ink/10" : ""}`}
+        // While the phone menu is open the header sits above its dimmed backdrop, so it stays whole and usable.
+        className={`group/header sticky top-3 z-30 mx-3 mt-3 glass-frost rounded-3xl border text-ink md:mx-4 [html[data-menu=open]_&]:z-50 ${scrolled ? "shadow-lg shadow-ink/10" : ""}`}
       >
         {children}
       </header>

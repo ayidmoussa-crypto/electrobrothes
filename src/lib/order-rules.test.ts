@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
-import { randomBytes } from "node:crypto";
 import { ageLabel, filterQuery, parseOrderFilters } from "./admin-orders";
 import { test } from "node:test";
-import { assessRisk, canSetPrepaid, deleteBlock, deliveredByHand, undoesDelivery, cashToCollect, newOrderNumber, ORDER_NUMBER, paymentState, shipBlock, transitionPlan } from "./order-rules";
+import { assessRisk, canSetPrepaid, deleteBlock, deliveredByHand, undoesDelivery, cashToCollect, orderNumberAfter, ORDER_NUMBER, paymentState, shipBlock, transitionPlan } from "./order-rules";
 
 test("board cards: age in minutes, hours, days, then the date; the view stays in links", () => {
   const now = new Date("2026-11-13T12:00:00Z");
@@ -114,6 +113,11 @@ test("blacklist and honeypot block", () => {
   assert.equal(assessRisk({ ...clean, blacklisted: true, honeypotFilled: true }).score, 100);
 });
 
-test("order numbers are short, unambiguous and well formed", () => {
-  for (let i = 0; i < 200; i++) assert.match(newOrderNumber(randomBytes), ORDER_NUMBER);
+test("order numbers count up from EB-1001, and older letter numbers can still be tracked", () => {
+  assert.equal(orderNumberAfter(null), "EB-1001");
+  assert.equal(orderNumberAfter(7), "EB-1001");
+  assert.equal(orderNumberAfter(1001), "EB-1002");
+  assert.equal(orderNumberAfter(9999), "EB-10000");
+  for (const n of ["EB-1001", "EB-10000", "EB-XJUKQ3"]) assert.match(n, ORDER_NUMBER);
+  for (const n of ["EB-12", "EB-xjukq3", "1001", "EB-1001 "]) assert.doesNotMatch(n, ORDER_NUMBER);
 });

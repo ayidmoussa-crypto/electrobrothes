@@ -1,5 +1,4 @@
 import "server-only";
-import { randomBytes } from "node:crypto";
 import { revalidateTag } from "next/cache";
 import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
@@ -10,11 +9,26 @@ import { fireOrderEvent } from "./automations";
 import { manualTotals, type ManualOrderInput } from "./manual-order";
 import { bundleDiscount } from "./bundles";
 import { bundleRulesFor } from "./bundles-data";
-import { assessRisk, cashToCollect, deleteBlock, deliveredByHand, newOrderNumber, transitionPlan, undoesDelivery, type OrderStatus } from "./order-rules";
+import { assessRisk, cashToCollect, deleteBlock, deliveredByHand, orderNumberAfter, transitionPlan, undoesDelivery, type OrderStatus } from "./order-rules";
 import { normalizeMoroccanPhone } from "./phone";
 import { computeTotals } from "./pricing";
 import { agentMayMove, handledUpdate } from "./staff-rules";
 import { effectiveCost, InsufficientStockError, moveStock } from "./stock";
+
+/** Any fixed key: only order creation takes this lock. */
+const ORDER_NUMBER_LOCK = 0x0eb0;
+
+/**
+ * The next number in the shop's count (EB-1001, EB-1002…). A transaction lock makes two orders placed at the same
+ * moment wait for each other, so they never get the same one; the unique index stays as the last guard.
+ * shortcut: counts from the highest number still in the table, so deleting the newest order frees its number again.
+ */
+async function nextOrderNumber(tx: Prisma.TransactionClient) {
+  await tx.$queryRaw`SELECT pg_advisory_xact_lock(${ORDER_NUMBER_LOCK})::text`;
+  const [row] = await tx.$queryRaw<{ n: number | null }[]>`
+    SELECT max(substring("number" from 4)::int)::int AS n FROM "Order" WHERE "number" ~ '^EB-[0-9]+$'`;
+  return orderNumberAfter(row?.n ?? null);
+}
 
 /** httpOnly cookie holding the id of the order this browser just placed (confirmation page). */
 export const ORDER_COOKIE = "eb_order";
@@ -133,7 +147,7 @@ export async function placeOrder(input: OrderInput, ctx: { ip: string; userAgent
         }
         return tx.order.create({
           data: {
-            number: newOrderNumber(randomBytes),
+            number: await nextOrderNumber(tx),
             customerName: input.name,
             phone: input.phone,
             cityId: city.id,
@@ -208,17 +222,19 @@ export async function createManualOrder(input: ManualOrderInput, actor: string, 
   if (short.length) return { ok: false, error: "out_of_stock", skus: short.map((v) => v.sku) };
 
   const totals = manualTotals(input.items, input.shippingFee, input.discount);
-  if (totals.total === null) return { ok: false, error: "discount" };
+  const total = totals.total;
+  if (total === null) return { ok: false, error: "discount" };
 
   const byId = new Map(variants.map((v) => [v.id, v]));
-  const risk = assessRisk({ blacklisted: false, honeypotFilled: false, recentOrdersSamePhone: recent, fillSeconds: null, ordersFromIpLastHour: 0, total: totals.total });
+  const risk = assessRisk({ blacklisted: false, honeypotFilled: false, recentOrdersSamePhone: recent, fillSeconds: null, ordersFromIpLastHour: 0, total });
 
   let order: { id: string; number: string } | null = null;
   for (let attempt = 0; attempt < 3 && !order; attempt++) {
     try {
-      order = await db.order.create({
+      // A transaction, so the number's lock holds until the order is written.
+      order = await db.$transaction(async (tx) => tx.order.create({
         data: {
-          number: newOrderNumber(randomBytes),
+          number: await nextOrderNumber(tx),
           source: input.source,
           channel: channelOfManualSource(input.source),
           customerName: input.name,
@@ -230,7 +246,7 @@ export async function createManualOrder(input: ManualOrderInput, actor: string, 
           subtotal: totals.subtotal,
           shippingFee: totals.shippingFee,
           discount: totals.discount,
-          total: totals.total,
+          total,
           riskScore: risk.score,
           riskFlags: risk.flags,
           items: {
@@ -251,7 +267,7 @@ export async function createManualOrder(input: ManualOrderInput, actor: string, 
           logs: { create: { toStatus: "NEW", actor } },
         },
         select: { id: true, number: true },
-      });
+      }));
     } catch (error) {
       if (!(error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002")) throw error;
     }
