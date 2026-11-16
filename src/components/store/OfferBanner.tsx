@@ -82,7 +82,7 @@ export async function OfferBanner({ offers, locale }: { offers: HomeOffer[]; loc
                     data-offer={o.id}
                     data-product={o.productId}
                     data-template={o.style}
-                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-yellow-500 px-7 text-lg font-extrabold text-ink transition-colors hover:bg-yellow-600 active:bg-yellow-700"
+                    className={`fill-cta inline-flex min-h-12 items-center justify-center gap-2 rounded-full px-7 text-lg font-extrabold ${dark ? "fill-cta-on-dark" : ""}`}
                   >
                     <ShoppingBag className="size-5" aria-hidden="true" />
                     {t("shopNow")}

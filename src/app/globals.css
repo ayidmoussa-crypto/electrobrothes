@@ -180,6 +180,54 @@
 @utility product-disc-dark {
   box-shadow: 0 0 0 clamp(10px, 2.4vw, 22px) var(--color-warm-900);
 }
+/* Liquid-fill call to action: on hover or keyboard focus, a fill rises from the bottom with a curved edge and drains
+   back down on leave. Ink Black with a yellow label on light grounds; on dark grounds (`fill-cta-on-dark`) the fill is
+   white with an ink label, so the button never melts into the black. Pressed: the button sinks slightly. */
+@utility fill-cta-on-dark {
+  --cta-fill: var(--color-white);
+  --cta-label: var(--color-ink);
+}
+@utility fill-cta {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: var(--color-yellow-500);
+  color: var(--color-ink);
+  transition: color 300ms ease, scale 150ms ease;
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0 -12% -50%;
+    z-index: -1;
+    border-radius: 50% 50% 0 0 / 30% 30% 0 0;
+    background: var(--cta-fill, var(--color-ink));
+    transform: translateY(100%);
+    transition: transform 450ms cubic-bezier(0.65, 0, 0.35, 1);
+  }
+  &:active {
+    scale: 0.97;
+  }
+  @media (hover: hover) {
+    &:hover {
+      color: var(--cta-label, var(--color-yellow-500));
+    }
+    &:hover::before {
+      transform: translateY(-36%);
+    }
+  }
+  &:focus-visible {
+    color: var(--cta-label, var(--color-yellow-500));
+  }
+  &:focus-visible::before {
+    transform: translateY(-36%);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    &,
+    &::before {
+      transition: none;
+    }
+  }
+}
 @utility glass-light {
   background: var(--glass-light-bg);
   border-color: var(--glass-light-border);

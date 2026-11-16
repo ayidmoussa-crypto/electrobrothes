@@ -52,7 +52,7 @@ export async function LandingView({ product: p, page, config, tracking = true }:
   const trust = [t("trustCod"), p.warrantyMonths > 0 && t("trustWarranty"), config.deliveryTime.ar && t("trustDelivery", { time: config.deliveryTime.ar }), t("trustCall")].filter(Boolean) as string[];
 
   const orderButton = (extra = "") => (
-    <a href="#order" {...trackAttrs("hero_cta_click")} className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-yellow-500 px-7 text-lg font-extrabold text-ink transition-colors hover:bg-yellow-600 active:bg-yellow-700 ${extra}`}>
+    <a href="#order" {...trackAttrs("hero_cta_click")} className={`fill-cta inline-flex min-h-12 items-center justify-center gap-2 rounded-full px-7 text-lg font-extrabold ${theme.dark ? "fill-cta-on-dark" : ""} ${extra}`}>
       <ShoppingCart className="size-5" aria-hidden="true" />
       {t("orderNow")}
     </a>
