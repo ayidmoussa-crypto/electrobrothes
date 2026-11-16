@@ -83,6 +83,7 @@ model Product {
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
   externalRatings   ExternalRating[]
+  heroIn            Settings[]
 
   @@index([categoryId, isActive])
   @@index([brandId])
@@ -289,6 +290,12 @@ model Settings {
   replacementPolicyAr   String  @default("إلا وصلك المنتج فيه عطب، كنبدلوه ليك بمنتج جديد.")
   replacementPolicyEn   String  @default("If your product arrives defective, we replace it with a new one.")
   // The carrier's cut is not a setting: it is the city's delivery price, and a refused parcel costs nothing (lib/finance.ts).
+  // The product of the week on the home page hero. Null (or not on sale): the newest best seller.
+  heroProductId         String?
+  heroProduct           Product? @relation(fields: [heroProductId], references: [id], onDelete: SetNull)
+  // Replaces the product name as the hero's big title. Empty: the name.
+  heroHeadlineAr        String?
+  heroHeadlineEn        String?
 }
 
 enum CouponType {

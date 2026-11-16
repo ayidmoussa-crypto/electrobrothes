@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, Quote, Star } from "lucide-react";
+import { ChevronLeft, ChevronRight, Quote, Star } from "lucide-react";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Suspense } from "react";
 import { BrandStrip } from "@/components/store/BrandStrip";
@@ -7,6 +7,7 @@ import { CategoryIcon } from "@/components/store/CategoryIcon";
 import { CategoryTabs } from "@/components/store/CategoryTabs";
 import { EmailBox } from "@/components/store/EmailBox";
 import { GiveawaySection } from "@/components/store/GiveawayCard";
+import { HeroOffer } from "@/components/store/HeroOffer";
 import { Countdown } from "@/components/store/Countdown";
 import { ProductCard } from "@/components/store/ProductCard";
 import { ProductGrid, SectionHeader } from "@/components/store/ProductGrid";
@@ -14,7 +15,6 @@ import { ProductSlider } from "@/components/store/ProductSlider";
 import { PromoBand } from "@/components/store/PromoBand";
 import { ScrollRail } from "@/components/store/ScrollRail";
 import { TrustBar } from "@/components/store/TrustBar";
-import { Badge } from "@/components/ui/Badge";
 import { ProductGridSkeleton } from "@/components/ui/Skeleton";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
@@ -23,33 +23,6 @@ import { pageMetadata } from "@/lib/seo";
 import { organizationLd } from "@/lib/structured-data";
 import { JsonLd } from "@/components/seo/JsonLd";
 import type { Metadata } from "next";
-
-async function Hero({ locale }: { locale: Locale }) {
-  const t = await getTranslations("home");
-  const Arrow = locale === "ar" ? ArrowLeft : ArrowRight;
-
-  return (
-    // Slides 1.5rem up under the header so its rounded bottom corners sit on the dark hero, not on white.
-    // Runs up behind the floating header (its margin plus its height), so the bar sits on the photo.
-    <section className="relative isolate -mt-20 overflow-hidden bg-linear-to-b from-deep to-ink pt-20 md:-mt-[141px] md:pt-[141px] xl:-mt-20 xl:pt-20">
-      <div className="mx-auto flex max-w-7xl items-center px-4 py-14 md:min-h-[34rem] md:py-20">
-        <div className="max-w-xl">
-          <Badge tone="accent" className="text-sm">
-            {t("heroEyebrow")}
-          </Badge>
-          <h1 className="mt-4 text-4xl text-white md:text-5xl">{t("heroTitle")}</h1>
-          <p className="mt-4 text-lg text-warm-300">{t("heroSubtitle")}</p>
-          <a href="#categories" className="hero-cta mt-8">
-            <span className="relative">{t("heroSecondary")}</span>
-            <span aria-hidden="true" className="hero-cta-disc">
-              <Arrow className="size-5" />
-            </span>
-          </a>
-        </div>
-      </div>
-    </section>
-  );
-}
 
 async function Categories({ locale }: { locale: Locale }) {
   const [t, categories] = await Promise.all([getTranslations("home"), getCategories()]);
@@ -240,7 +213,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
   return (
     <>
       <JsonLd data={organizationLd(locale)} />
-      <Hero locale={locale} />
+      <HeroOffer locale={locale} />
       <TrustBar />
       <Categories locale={locale} />
       <BestSellers locale={locale} />

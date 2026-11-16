@@ -7,4 +7,4 @@ Removed from the site in favour of a static offer hero. Kept here to reuse in so
 - `hero-shapes.ts`: the product outlines the dots gather into.
 - `hero-sky.ts`: a copy of the night sky. The original still lives in `src/lib/hero-sky.ts`, because `NightSky` (promo band, bundles) uses it.
 - `hero.jpg`: the shop photo the hero used before the particles.
-- The hero button style (`.hero-cta`) stays in `src/app/globals.css` until the new hero replaces it.
+- `hero-cta.css`: the hero's old "تصفّح الأقسام" button (yellow rising behind an arched edge), taken out of `globals.css`.
