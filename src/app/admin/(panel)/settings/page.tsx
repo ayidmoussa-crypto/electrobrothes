@@ -1,4 +1,4 @@
-import { saveHero, saveSettings } from "@/app/actions/admin-catalog";
+import { saveSettings } from "@/app/actions/admin-catalog";
 import { ActionForm } from "@/components/admin/ActionForm";
 import { CopyLink } from "@/components/admin/CopyLink";
 import { trackingLinks } from "@/lib/attribution";
@@ -11,44 +11,11 @@ import { db } from "@/lib/db";
 
 export default async function SettingsPage() {
   const [, { tr, lang }] = await Promise.all([requireAdmin(), adminTr()]);
-  const [s, usage, products] = await Promise.all([
-    db.settings.findUnique({ where: { id: 1 } }),
-    usageSummary(),
-    db.product.findMany({ where: { isActive: true }, select: { id: true, nameAr: true, nameEn: true, isBestSeller: true }, orderBy: { nameAr: "asc" } }),
-  ]);
+  const [s, usage] = await Promise.all([db.settings.findUnique({ where: { id: 1 } }), usageSummary()]);
 
   return (
     <>
       <PageHeader title={tr("الإعدادات", "Settings")} />
-      <Panel title={tr("واجهة الرئيسية", "Home page hero")} className="mb-6 max-w-2xl">
-        <ActionForm action={saveHero} submitLabel={tr("حفظ الواجهة", "Save hero")}>
-          <L label={tr("منتج الأسبوع", "Product of the week")}>
-            <select name="heroProductId" defaultValue={s?.heroProductId ?? ""} className={inputClass}>
-              <option value="">{tr("تلقائي: أحدث منتج «الأكثر مبيعاً»", "Automatic: newest best seller")}</option>
-              {products.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {lang === "en" ? p.nameEn : p.nameAr}
-                  {p.isBestSeller ? ` ★` : ""}
-                </option>
-              ))}
-            </select>
-          </L>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <L label={tr("عنوان بلاصة السمية (اختياري، عربي)", "Title instead of the name (optional, Arabic)")}>
-              <input name="heroHeadlineAr" defaultValue={s?.heroHeadlineAr ?? ""} maxLength={80} className={inputClass} />
-            </L>
-            <L label={tr("عنوان بلاصة السمية (اختياري، إنجليزي)", "Title instead of the name (optional, English)")}>
-              <input name="heroHeadlineEn" dir="ltr" defaultValue={s?.heroHeadlineEn ?? ""} maxLength={80} className={inputClass} />
-            </L>
-          </div>
-          <p className="text-xs text-warm-600">
-            {tr(
-              "الثمن، الثمن القديم، الصورة وتاريخ نهاية العرض كيتاخدو من المنتج نيت. إلا كان المنتج ما فيهش ستوك ولا ما فيهش صورة، كيبان أحدث «الأكثر مبيعاً» بلاصتو.",
-              "Price, old price, photo and deal end date come straight from the product. If it has no stock or no photo, the newest best seller shows instead.",
-            )}
-          </p>
-        </ActionForm>
-      </Panel>
       <Panel title={tr("المتجر", "Shop")} className="max-w-2xl">
         <ActionForm action={saveSettings} submitLabel={tr("حفظ الإعدادات", "Save settings")}>
           <L label={tr("حد التوصيل المجاني (درهم)", "Free delivery from (MAD)")}>

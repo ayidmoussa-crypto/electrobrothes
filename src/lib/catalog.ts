@@ -146,51 +146,6 @@ export async function getActiveDeals(take = 4) {
     .slice(0, take);
 }
 
-const heroSelect = {
-  id: true,
-  slug: true,
-  nameAr: true,
-  nameEn: true,
-  warrantyMonths: true,
-  dealEndsAt: true,
-  images: { select: { url: true, altAr: true, altEn: true }, orderBy: { sortOrder: "asc" }, take: 1 },
-  variants: { select: { price: true, compareAtPrice: true, stock: true, isDefault: true }, orderBy: { sortOrder: "asc" } },
-} satisfies Prisma.ProductSelect;
-
-/**
- * The home page hero: the product the owner picked in Settings, or else the newest best seller, as long as it is on
- * sale with a photo. The price shown is that of the default colour (else the cheapest one in stock), with its own old
- * price. Cached with the catalog; the deal date is checked here, so an ended deal drops off within the cache's minutes.
- */
-export async function getHeroProduct() {
-  "use cache";
-  cacheLife("minutes");
-  cacheTag("products", "settings");
-  const settings = await db.settings.findUnique({ where: { id: 1 }, select: { heroProductId: true, heroHeadlineAr: true, heroHeadlineEn: true } });
-  // A hero product must be buyable right now: a photo and a colour in stock.
-  const onSale = visible({ images: { some: {} }, variants: { some: { stock: { gt: 0 } } } });
-  const picked = settings?.heroProductId ? await db.product.findFirst({ where: { ...onSale, id: settings.heroProductId }, select: heroSelect }) : null;
-  const p = picked ?? (await db.product.findFirst({ where: { ...onSale, isBestSeller: true }, select: heroSelect, orderBy: { createdAt: "desc" } }));
-  if (!p) return null;
-
-  const inStock = p.variants.filter((v) => v.stock > 0);
-  const shown = inStock.find((v) => v.isDefault) ?? inStock.sort((a, b) => a.price - b.price)[0];
-  const now = Date.now();
-  return {
-    slug: p.slug,
-    nameAr: p.nameAr,
-    nameEn: p.nameEn,
-    image: p.images[0],
-    price: shown.price,
-    compareAtPrice: shown.compareAtPrice && shown.compareAtPrice > shown.price ? shown.compareAtPrice : null,
-    hasWarranty: p.warrantyMonths > 0,
-    dealEndsAt: p.dealEndsAt && p.dealEndsAt.getTime() > now ? p.dealEndsAt : null,
-    headline: { ar: settings?.heroHeadlineAr || null, en: settings?.heroHeadlineEn || null },
-  };
-}
-
-export type HeroProduct = NonNullable<Awaited<ReturnType<typeof getHeroProduct>>>;
-
 /** Free-text search over product, brand and category names in both languages. */
 export async function searchProducts(q: string, take?: number) {
   "use cache";

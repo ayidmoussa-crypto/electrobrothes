@@ -156,25 +156,6 @@ const settingsInput = z.object({
   replacementPolicyEn: z.string().trim().min(1).max(500),
 });
 
-const heroInput = z.object({
-  heroProductId: z.string().max(40).transform((v) => v || null),
-  heroHeadlineAr: z.string().trim().max(80).transform((v) => v || null),
-  heroHeadlineEn: z.string().trim().max(80).transform((v) => v || null),
-});
-
-/** The home page hero: product of the week (empty: newest best seller) and an optional title over its name. */
-export async function saveHero(_: State, fd: FormData) {
-  return run(
-    async () => {
-      const data = heroInput.parse(fields(fd));
-      await db.settings.upsert({ where: { id: 1 }, create: { id: 1, ...data }, update: data });
-    },
-    ["/admin/settings"],
-    ["settings"],
-    (await adminTr()).tr("تم حفظ واجهة الرئيسية.", "Home hero saved."),
-  );
-}
-
 export async function saveSettings(_: State, fd: FormData) {
   return run(
     async () => {
