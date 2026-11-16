@@ -85,6 +85,7 @@ model Product {
   externalRatings   ExternalRating[]
   heroIn            Settings[]
   landingPage       LandingPage?
+  offers            Offer[]
 
   @@index([categoryId, isActive])
   @@index([brandId])
@@ -285,6 +286,59 @@ model LandingPage {
   updatedAt   DateTime  @updatedAt
 }
 
+// One offer of the week at the top of the home page (Campaign Studio). Several published ones are swiped through.
+// Price and stock come from the product; the photo is one of the shop's own (a product photo or a campaign
+// photo uploaded to Cloudinary).
+model Offer {
+  id          String          @id @default(cuid())
+  // For the admin list only.
+  name        String
+  productId   String
+  product     Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  // Key from lib/offers.ts OFFER_STYLES.
+  style       String          @default("dark")
+  titleAr     String
+  titleEn     String          @default("")
+  sublineAr   String          @default("")
+  sublineEn   String          @default("")
+  // Empty: the product's first photo.
+  image       String?
+  // "product": the product page; "page": its offer page (/offers/<slug>), when published.
+  link        String          @default("product")
+  // Shown and counted only between these dates. endsAt is the real end shown to shoppers ("ينتهي ...").
+  startsAt    DateTime?
+  endsAt      DateTime?
+  isPublished Boolean         @default(false)
+  sortOrder   Int             @default(0)
+  // The Claude model that last wrote the title; null when typed by hand.
+  model       String?
+  updatedBy   String?
+  events      CampaignEvent[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([isPublished, sortOrder])
+}
+
+// One click on a home offer or an offer page (lib/campaign-events.ts). No personal data: no IP, no cookie id.
+model CampaignEvent {
+  id        String   @id @default(cuid())
+  // hero_cta_click, whatsapp_click, order_form_submit
+  type      String
+  // "home" (offer banner) or "page" (offer page)
+  source    String
+  offerId   String?
+  offer     Offer?   @relation(fields: [offerId], references: [id], onDelete: SetNull)
+  productId String?
+  // Banner style or page template at the time of the click.
+  template  String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([offerId, type])
+  @@index([productId, type])
+}
+
 // ───────────────────────── Delivery & settings ─────────────────────────
 
 model City {
@@ -320,6 +374,8 @@ model Settings {
   heroProduct           Product? @relation(fields: [heroProductId], references: [id], onDelete: SetNull)
   heroHeadlineAr        String?
   heroHeadlineEn        String?
+  // Offer pages: from this price (MAD) the AI picks the "editorial" template (lib/landing.ts chooseTemplate).
+  landingEditorialFrom  Int      @default(1500)
 }
 
 enum CouponType {
@@ -410,6 +466,10 @@ model Order {
   channel           String?
   // The ad campaign or referring site, when known.
   channelDetail     String?
+  // Campaign Studio: the home offer clicked before ordering (cookie, 7 days), and the offer page template when the
+  // order came from an offer page's form. Plain ids, no relation: the offer may be deleted, the figure stays.
+  offerId           String?
+  landingTemplate   String?
   // Shipment: filled in by an admin today, by the carrier's API once it is connected.
   carrier           String?
   trackingNumber    String?
@@ -466,6 +526,8 @@ model Order {
   @@index([status, deliveredAt])
   @@index([status, returnedAt])
   @@index([handledById, handledAt])
+  @@index([offerId])
+  @@index([landingTemplate])
 }
 
 // A delivery company the shop works with (Settings → Delivery companies). It pushes parcel updates to its own

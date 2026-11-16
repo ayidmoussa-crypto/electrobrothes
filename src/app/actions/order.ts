@@ -11,6 +11,8 @@ import { clientIp, hit, verifyTurnstile } from "@/lib/guard";
 import { notifyNewOrder } from "@/lib/notify";
 import { ORDER_NUMBER } from "@/lib/order-rules";
 import { ORDER_COOKIE, orderInput, placeOrder } from "@/lib/orders";
+import { isTemplate } from "@/lib/landing";
+import { OFFER_COOKIE } from "@/lib/offers";
 import { normalizeMoroccanPhone } from "@/lib/phone";
 import { computeTotals } from "@/lib/pricing";
 
@@ -50,11 +52,16 @@ async function processOrder(raw: Record<string, string>): Promise<{ state: Order
 
   if (!(await verifyTurnstile(raw["cf-turnstile-response"] ?? null, ip))) return { state: { error: "captcha", values } };
 
+  const jar = await cookies();
   const result = await placeOrder(parsed.data, {
     ip,
     userAgent: (await headers()).get("user-agent"),
     ordersFromIpLastHour: fromIp - 1,
-    touch: decodeTouch((await cookies()).get(CHANNEL_COOKIE)?.value),
+    touch: decodeTouch(jar.get(CHANNEL_COOKIE)?.value),
+    campaign: {
+      offerId: jar.get(OFFER_COOKIE)?.value?.slice(0, 40) || null,
+      landingTemplate: isTemplate(raw.landingTemplate) ? raw.landingTemplate : null,
+    },
   });
   if (!result.ok) return { state: { error: result.error, couponError: result.couponError, variantIds: result.variantIds, values } };
 

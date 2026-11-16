@@ -137,7 +137,7 @@ const clip = (s: string, n: number) => s.trim().split(/\s+/).filter(Boolean).sli
 /** First sentence of a text, cut to `n` words. */
 const firstSentence = (s: string, n: number) => clip(s.split(/(?<=[.!؟?])\s+/)[0] ?? "", n).replace(/[،,:;]$/, "");
 
-const SPEC_ICON: Record<string, LandingIcon> = {
+export const SPEC_ICON: Record<string, LandingIcon> = {
   battery: "battery",
   power: "zap",
   connectivity: "bluetooth",
@@ -198,6 +198,36 @@ export function defaultLandingContent(p: LandingSource): LandingDraft {
     faq: p.faqs.slice(0, 6).map((f) => ({ q: f.questionAr, a: f.answerAr })),
   };
 }
+
+// ───────── Rules for the AI (lib/assistant/campaigns.ts) ─────────
+
+/**
+ * The template for a product, by fixed rules rather than left to the model: several models or capacities →
+ * comparison; priced from the owner's threshold → editorial; several colours → product spotlight; else dark premium.
+ */
+export function chooseTemplate(p: { variants: { storage: string | null; colorAr: string | null; price: number }[] }, editorialFrom: number): LandingTemplate {
+  const capacities = new Set(p.variants.map((v) => v.storage?.trim()).filter(Boolean));
+  if (capacities.size >= 2) return "comparison";
+  if (Math.min(...p.variants.map((v) => v.price)) >= editorialFrom) return "editorial";
+  const colours = new Set(p.variants.map((v) => v.colorAr?.trim()).filter(Boolean));
+  if (colours.size >= 2) return "product_spotlight";
+  return "dark_premium";
+}
+
+/** Every number written in a text ("30", "5.3", "٤٠" as 40). */
+export function numbersIn(text: string): string[] {
+  const western = text.replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)));
+  return western.match(/\d+(?:[.,]\d+)?/g)?.map((n) => n.replace(",", ".")) ?? [];
+}
+
+/** Numbers the generated texts hold that the product's own data does not: any one means an invented fact. */
+export function inventedNumbers(texts: string[], facts: string): string[] {
+  const allowed = new Set(numbersIn(facts));
+  return [...new Set(texts.flatMap(numbersIn))].filter((n) => !allowed.has(n));
+}
+
+/** All the texts of a page's content, for the checks above. */
+export const contentTexts = (c: LandingDraft) => [c.headline, c.subline, ...c.features.flatMap((f) => [f.title, f.text]), ...c.comparison.flatMap((r) => [r.label, ...r.values]), ...c.faq.flatMap((f) => [f.q, f.a])];
 
 /** The shape stored in LandingPage.published. */
 export type PublishedLanding = { template: LandingTemplate; sections: SectionSetting[]; content: LandingDraft };

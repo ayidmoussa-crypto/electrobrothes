@@ -1,6 +1,21 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { defaultLandingContent, landingContentSchema, normalizeSections, publishProblems, readPublished, words } from "./landing";
+import { chooseTemplate, defaultLandingContent, inventedNumbers, landingContentSchema, normalizeSections, numbersIn, publishProblems, readPublished, words } from "./landing";
+
+test("template rules: capacities → comparison, price → editorial, colours → spotlight, else dark premium", () => {
+  const v = (storage: string | null, colorAr: string | null, price: number) => ({ storage, colorAr, price });
+  assert.equal(chooseTemplate({ variants: [v("128GB", "أسود", 3000), v("256GB", "أسود", 3500)] }, 1500), "comparison");
+  assert.equal(chooseTemplate({ variants: [v(null, "أسود", 1800)] }, 1500), "editorial");
+  assert.equal(chooseTemplate({ variants: [v(null, "أسود", 300), v(null, "أزرق", 300)] }, 1500), "product_spotlight");
+  assert.equal(chooseTemplate({ variants: [v(null, null, 300)] }, 1500), "dark_premium");
+});
+
+test("a number the product data does not hold is caught, in Western or Arabic digits", () => {
+  assert.deepEqual(numbersIn("بطارية ٤٠ ساعة و 5,3"), ["40", "5.3"]);
+  const facts = "سماعة X200 بطارية 30 ساعة بلوتوث 5.3";
+  assert.deepEqual(inventedNumbers(["حتى 30 ساعة", "بلوتوث 5.3"], facts), []);
+  assert.deepEqual(inventedNumbers(["حتى 40 ساعة", "ضمان 24 شهر"], facts), ["40", "24"]);
+});
 
 test("sections: every middle section once, saved order kept, unknown and repeated keys dropped, missing ones added", () => {
   const s = normalizeSections([{ key: "warranty", hidden: true }, { key: "hero" }, { key: "warranty" }, { key: "features" }, { key: "order", hidden: true }]);

@@ -154,6 +154,7 @@ const settingsInput = z.object({
   deliveryTimeEn: z.string().trim().min(1).max(60),
   replacementPolicyAr: z.string().trim().min(1).max(500),
   replacementPolicyEn: z.string().trim().min(1).max(500),
+  landingEditorialFrom: z.coerce.number().int().min(0).max(1_000_000),
 });
 
 export async function saveSettings(_: State, fd: FormData) {

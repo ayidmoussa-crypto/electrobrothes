@@ -2,6 +2,7 @@ import { Banknote, BadgeCheck, PhoneCall, ShieldCheck, ShoppingCart, Star, Truck
 import Image from "next/image";
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
+import { CampaignTracker } from "@/components/analytics/CampaignTracker";
 import { PriceView } from "@/components/store/PriceView";
 import { WhatsAppGlyph } from "@/components/store/WhatsAppButton";
 import type { LandingTemplate, MiddleSection, PublishedLanding } from "@/lib/landing";
@@ -10,6 +11,7 @@ import { cutoutUrl } from "@/lib/image-cutout";
 import { formatMAD } from "@/lib/money";
 import { orderRequestText, whatsappLink } from "@/lib/order-whatsapp";
 import type { CheckoutConfig } from "@/lib/store-config";
+import { TIME_ZONE } from "@/lib/time";
 import { FeatureIcon } from "./FeatureIcon";
 import { LandingOrderForm, type LandingVariant } from "./LandingOrderForm";
 
@@ -29,8 +31,10 @@ const variantLabel = (v: { colorAr: string | null; storage: string | null }) => 
  * with the price, "اطلب الآن" and WhatsApp. Static: no animation. Prices, stock, photos, dates and reviews come from
  * the product; only the texts come from the page.
  */
-export async function LandingView({ product: p, page, config }: { product: LandingProduct; page: PublishedLanding; config: CheckoutConfig }) {
+export async function LandingView({ product: p, page, config, tracking = true }: { product: LandingProduct; page: PublishedLanding; config: CheckoutConfig; tracking?: boolean }) {
   const t = await getTranslations({ locale: "ar", namespace: "landing" });
+  // Clicks counted for Campaign Studio (the owner's previews are not counted).
+  const trackAttrs = (type: "hero_cta_click" | "whatsapp_click") => (tracking ? { "data-track": type, "data-product": p.id, "data-template": page.template } : {});
   const theme = THEME[page.template];
   const c = page.content;
 
@@ -43,11 +47,11 @@ export async function LandingView({ product: p, page, config }: { product: Landi
   const waHref = whatsapp ? whatsappLink(whatsapp, orderRequestText(p.nameAr, shown.price)) : null;
   const image = p.images[0];
   const cut = cutoutUrl(image.url);
-  const endDate = p.dealEndsAt ? new Intl.DateTimeFormat("ar-MA", { day: "numeric", month: "long", timeZone: "Africa/Casablanca" }).format(p.dealEndsAt) : null;
+  const endDate = p.dealEndsAt ? new Intl.DateTimeFormat("ar-MA", { day: "numeric", month: "long", timeZone: TIME_ZONE }).format(p.dealEndsAt) : null;
   const trust = [t("trustCod"), p.warrantyMonths > 0 && t("trustWarranty"), config.deliveryTime.ar && t("trustDelivery", { time: config.deliveryTime.ar }), t("trustCall")].filter(Boolean) as string[];
 
   const orderButton = (extra = "") => (
-    <a href="#order" className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-yellow-500 px-7 text-lg font-extrabold text-ink transition-colors hover:bg-yellow-600 active:bg-yellow-700 ${extra}`}>
+    <a href="#order" {...trackAttrs("hero_cta_click")} className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-yellow-500 px-7 text-lg font-extrabold text-ink transition-colors hover:bg-yellow-600 active:bg-yellow-700 ${extra}`}>
       <ShoppingCart className="size-5" aria-hidden="true" />
       {t("orderNow")}
     </a>
@@ -55,6 +59,7 @@ export async function LandingView({ product: p, page, config }: { product: Landi
   const waButton = waHref ? (
     <a
       href={waHref}
+      {...trackAttrs("whatsapp_click")}
       target="_blank"
       rel="noopener noreferrer"
       aria-label={t("whatsappLabel", { name: p.nameAr })}
@@ -325,6 +330,7 @@ export async function LandingView({ product: p, page, config }: { product: Landi
   return (
     // Bottom padding on phones: room for the fixed order bar.
     <div className="pb-24 md:pb-0">
+      {tracking ? <CampaignTracker source="page" /> : null}
       <section className={`relative isolate -mt-20 overflow-hidden pt-20 md:-mt-[141px] md:pt-[141px] xl:-mt-20 xl:pt-20 ${theme.hero}`}>{hero}</section>
 
       {sections.map((s, i) => wrap(s.key, titles[s.key], s.body, i))}
@@ -339,7 +345,7 @@ export async function LandingView({ product: p, page, config }: { product: Landi
             {soldOut ? (
               <p className="text-center font-bold text-danger">{t("soldOut")}</p>
             ) : (
-              <LandingOrderForm productName={p.nameAr} variants={variants} defaultVariantId={shown.id} config={config} />
+              <LandingOrderForm productId={p.id} productName={p.nameAr} variants={variants} defaultVariantId={shown.id} config={config} template={page.template} />
             )}
           </div>
         </div>
@@ -352,12 +358,12 @@ export async function LandingView({ product: p, page, config }: { product: Landi
             <span className="block text-lg font-extrabold text-white tabular-nums">{formatMAD(shown.price, "ar")}</span>
             {compareAt ? <s className="text-xs text-warm-300">{formatMAD(compareAt, "ar")}</s> : null}
           </span>
-          <a href="#order" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-yellow-500 px-5 font-extrabold text-ink hover:bg-yellow-600 active:bg-yellow-700">
+          <a href="#order" {...trackAttrs("hero_cta_click")} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-yellow-500 px-5 font-extrabold text-ink hover:bg-yellow-600 active:bg-yellow-700">
             <ShoppingCart className="size-5" aria-hidden="true" />
             {t("orderNow")}
           </a>
           {waHref ? (
-            <a href={waHref} target="_blank" rel="noopener noreferrer" aria-label={t("whatsappLabel", { name: p.nameAr })} className="grid size-12 shrink-0 place-items-center rounded-full bg-whatsapp text-ink">
+            <a href={waHref} {...trackAttrs("whatsapp_click")} target="_blank" rel="noopener noreferrer" aria-label={t("whatsappLabel", { name: p.nameAr })} className="grid size-12 shrink-0 place-items-center rounded-full bg-whatsapp text-ink">
               <WhatsAppGlyph className="size-6" />
             </a>
           ) : null}

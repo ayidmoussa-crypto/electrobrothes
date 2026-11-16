@@ -54,6 +54,12 @@
     "viewAll": "عرض الكل",
     "bought": "اشترى {product}"
   },
+  "offers": {
+    "bannerLabel": "عروض الأسبوع",
+    "slide": "العرض {n} من {total}",
+    "ends": "ينتهي العرض {date}",
+    "shopNow": "تسوّق الآن"
+  },
   "landing": {
     "orderNow": "اطلب الآن",
     "whatsapp": "واتساب",

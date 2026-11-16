@@ -7,6 +7,7 @@ import { CategoryIcon } from "@/components/store/CategoryIcon";
 import { CategoryTabs } from "@/components/store/CategoryTabs";
 import { EmailBox } from "@/components/store/EmailBox";
 import { GiveawaySection } from "@/components/store/GiveawayCard";
+import { OfferBanner } from "@/components/store/OfferBanner";
 import { Countdown } from "@/components/store/Countdown";
 import { ProductCard } from "@/components/store/ProductCard";
 import { ProductGrid, SectionHeader } from "@/components/store/ProductGrid";
@@ -19,13 +20,16 @@ import { ProductGridSkeleton } from "@/components/ui/Skeleton";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { getActiveDeals, getBrands, getCategories, getProductCards, getTestimonials } from "@/lib/catalog";
+import { getHomeOffers } from "@/lib/offers-data";
 import { pageMetadata } from "@/lib/seo";
 import { organizationLd } from "@/lib/structured-data";
 import { JsonLd } from "@/components/seo/JsonLd";
 import type { Metadata } from "next";
 
+/** The week's offers from Campaign Studio; without any live offer, the shop's own title and browse button. */
 async function Hero({ locale }: { locale: Locale }) {
-  const t = await getTranslations("home");
+  const [t, offers] = await Promise.all([getTranslations("home"), getHomeOffers()]);
+  if (offers.length) return <OfferBanner offers={offers} locale={locale} />;
   const Arrow = locale === "ar" ? ArrowLeft : ArrowRight;
 
   return (

@@ -74,7 +74,10 @@ export type PlaceOrderResult =
 
 // ───────────────────────── Place a cash-on-delivery order ─────────────────────────
 
-export async function placeOrder(input: OrderInput, ctx: { ip: string; userAgent: string | null; ordersFromIpLastHour: number; touch?: Touch | null }) {
+export async function placeOrder(
+  input: OrderInput,
+  ctx: { ip: string; userAgent: string | null; ordersFromIpLastHour: number; touch?: Touch | null; campaign?: { offerId: string | null; landingTemplate: string | null } },
+) {
   const variantIds = input.items.map((i) => i.variantId);
   const [variants, city, settings, coupon, blacklisted, recentSamePhone] = await Promise.all([
     db.variant.findMany({
@@ -165,6 +168,9 @@ export async function placeOrder(input: OrderInput, ctx: { ip: string; userAgent
             // No cookie at all (blocked, or a visit the proxy never saw) is the same as a direct visit.
             channel: ctx.touch?.channel ?? "DIRECT",
             channelDetail: ctx.touch?.detail ?? null,
+            // Campaign Studio figures only; nothing in the order's handling reads these.
+            offerId: ctx.campaign?.offerId ?? null,
+            landingTemplate: ctx.campaign?.landingTemplate ?? null,
             ip: ctx.ip,
             userAgent: ctx.userAgent?.slice(0, 300) ?? null,
             items: {

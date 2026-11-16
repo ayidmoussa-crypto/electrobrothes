@@ -5,6 +5,7 @@ import Script from "next/script";
 import { useTranslations } from "next-intl";
 import { useActionState, useEffect, useRef, useState } from "react";
 import { submitLandingOrder, type LandingOrderState } from "@/app/actions/order";
+import { sendCampaignEvent } from "@/components/analytics/CampaignTracker";
 import { CityPicker } from "@/components/store/CityPicker";
 import { buttonClass } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/Field";
@@ -25,7 +26,21 @@ export type LandingVariant = { id: string; label: string; price: number; stock: 
  * when there is more than one. It goes through the shop's own order action (Turnstile, risk, same-basket dedupe);
  * the button is off while sending, and the thanks replace the form.
  */
-export function LandingOrderForm({ productName, variants, defaultVariantId, config }: { productName: string; variants: LandingVariant[]; defaultVariantId: string; config: CheckoutConfig }) {
+export function LandingOrderForm({
+  productId,
+  productName,
+  variants,
+  defaultVariantId,
+  config,
+  template,
+}: {
+  productId: string;
+  productName: string;
+  variants: LandingVariant[];
+  defaultVariantId: string;
+  config: CheckoutConfig;
+  template: string;
+}) {
   const t = useTranslations("landing");
   const tc = useTranslations("checkout");
   const [state, action, pending] = useActionState<LandingOrderState, FormData>(submitLandingOrder, {});
@@ -51,6 +66,7 @@ export function LandingOrderForm({ productName, variants, defaultVariantId, conf
     if (state.done) {
       doneRef.current?.focus();
       track({ name: "Purchase", orderNumber: state.done.number, value: totals.total, items: [{ id: variant.id, name: productName, price: variant.price, quantity: qty }] });
+      sendCampaignEvent({ type: "order_form_submit", source: "page", productId, template });
     } else if (state.error) summaryRef.current?.focus();
     // Only when a new answer comes back from the server.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -91,6 +107,7 @@ export function LandingOrderForm({ productName, variants, defaultVariantId, conf
 
       <input type="hidden" name="items" value={JSON.stringify([{ variantId: variant.id, qty }])} />
       <input type="hidden" name="locale" value="ar" />
+      <input type="hidden" name="landingTemplate" value={template} />
       <input type="hidden" name="startedAt" ref={startedRef} />
       <div aria-hidden="true" className="pointer-events-none absolute size-px overflow-hidden opacity-0 [clip-path:inset(50%)]">
         <label>

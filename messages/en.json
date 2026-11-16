@@ -54,6 +54,12 @@
     "viewAll": "View all",
     "bought": "Bought {product}"
   },
+  "offers": {
+    "bannerLabel": "Offers of the week",
+    "slide": "Offer {n} of {total}",
+    "ends": "Ends {date}",
+    "shopNow": "Shop now"
+  },
   "landing": {
     "orderNow": "Order now",
     "whatsapp": "WhatsApp",

@@ -2,9 +2,11 @@
 
 import { ArrowDown, ArrowUp, CircleAlert, Eye, EyeOff, LoaderCircle, Lock, Plus, Trash2 } from "lucide-react";
 import { useState, useTransition } from "react";
+import { aiLandingPage, aiLandingSection } from "@/app/actions/admin-campaign-ai";
 import { publishLanding, saveLandingDraft, unpublishLanding, type LandingSaveState } from "@/app/actions/admin-landing";
 import { buttonClass } from "@/components/ui/button";
 import { LANDING_ICONS, SECTION_LABEL, TEMPLATE_LABEL, TEMPLATES, words, type LandingDraft, type LandingIcon, type PublishedLanding, type SectionSetting } from "@/lib/landing";
+import { AiButton } from "./AiButton";
 import { useAdminTr } from "./AdminLang";
 import { inputClass, L, Panel } from "./ui";
 
@@ -26,6 +28,30 @@ export function LandingEditor({ productId, slug, initial, publishedAt: initialPu
   const [publishedAt, setPublishedAt] = useState(initialPublishedAt);
   const [result, setResult] = useState<LandingSaveState>({});
   const [pending, start] = useTransition();
+  const [aiPending, startAi] = useTransition();
+  const [aiNote, setAiNote] = useState<{ ok: boolean; text: string } | null>(null);
+  const [aiSection, setAiSection] = useState<string | null>(null);
+
+  const regenerate = (section: "headline" | "features" | "comparison" | "faq") => {
+    setAiSection(section);
+    startAi(async () => {
+      const r = await aiLandingSection(productId, section);
+      setAiSection(null);
+      if (!r.ok) return setAiNote({ ok: false, text: r.message });
+      setContent((c) => ({ ...c, ...r.part }));
+      setAiNote({
+        ok: !r.fallback,
+        text: r.fallback
+          ? tr("الذكاء الاصطناعي ما عطاش جواب صالح، فحطينا نص من معلومات المنتج. راجعو.", "The AI gave no valid answer, so text from the product data was used. Check it.")
+          : tr("تبدل هاد القسم. شوفو وحفظ ملي يعجبك.", "This section changed. Review it and save when happy."),
+      });
+    });
+  };
+  const regenButton = (section: "headline" | "features" | "comparison" | "faq") => (
+    <AiButton pending={aiPending && aiSection === section} onClick={() => regenerate(section)} className="min-h-9 px-3 text-sm">
+      {tr("إعادة التوليد", "Regenerate")}
+    </AiButton>
+  );
 
   const payload = () => ({ productId, template, sections, content });
   const run = (task: () => Promise<LandingSaveState>, after?: (r: LandingSaveState) => void) =>
@@ -46,6 +72,41 @@ export function LandingEditor({ productId, slug, initial, publishedAt: initialPu
 
   return (
     <div className="grid max-w-4xl gap-6">
+      <Panel title={tr("الذكاء الاصطناعي", "AI")}>
+        <p className="mb-3 text-sm text-warm-600">
+          {tr(
+            "كيكتب النصوص من معلومات المنتج فقط، وكيختار القالب حسب القواعد. كيتحفظ كمسودة، والزبناء ما كيشوفو والو حتى تضغط «نشر».",
+            "Writes the texts from the product data only and picks the template by the rules. Saved as a draft; shoppers see nothing until you click “Publish”.",
+          )}
+        </p>
+        <AiButton
+          pending={aiPending && aiSection === "page"}
+          onClick={() => {
+            setAiSection("page");
+            startAi(async () => {
+              const r = await aiLandingPage(productId);
+              setAiSection(null);
+              if (!r.ok) return setAiNote({ ok: false, text: r.message });
+              setTemplate(r.template);
+              setContent(r.content);
+              setAiNote({
+                ok: !r.fallback,
+                text: r.fallback
+                  ? tr("الذكاء الاصطناعي ما عطاش جواب صالح، فتحفظات مسودة من معلومات المنتج. كمّلها وراجعها.", "The AI gave no valid answer, so a draft from the product data was saved. Complete and check it.")
+                  : tr("تحفظات مسودة جديدة. راجعها ومن بعد انشر.", "A new draft was saved. Review it, then publish."),
+              });
+            });
+          }}
+        >
+          {tr("ولّد الصفحة كاملة", "Generate the whole page")}
+        </AiButton>
+        {aiNote ? (
+          <p role="status" className={`mt-3 text-sm font-semibold ${aiNote.ok ? "text-success" : "text-danger"}`}>
+            {aiNote.text}
+          </p>
+        ) : null}
+      </Panel>
+
       <Panel title={tr("اختيار القالب", "Choose the template")}>
         <div className="grid gap-3 sm:grid-cols-2">
           {TEMPLATES.map((key) => (
@@ -100,6 +161,7 @@ export function LandingEditor({ productId, slug, initial, publishedAt: initialPu
 
       <Panel title={tr("النصوص", "Texts")}>
         <div className="flex flex-col gap-4">
+          <div className="self-start">{regenButton("headline")}</div>
           <L label={tr("العنوان (8 كلمات على الأكثر)", "Headline (8 words max)")}>
             <input value={content.headline} onChange={(e) => set("headline", e.target.value)} maxLength={120} className={inputClass} />
             {counter(content.headline, 8)}
@@ -111,6 +173,7 @@ export function LandingEditor({ productId, slug, initial, publishedAt: initialPu
 
           <fieldset className="flex flex-col gap-3">
             <legend className="mb-2 font-bold text-ink">{tr("المميزات (3 حتى 5)", "Features (3 to 5)")}</legend>
+            <div className="self-start">{regenButton("features")}</div>
             {content.features.map((f, i) => (
               <div key={i} className="grid gap-2 rounded-lg border border-warm-200 p-3 sm:grid-cols-[1fr_2fr_auto_auto] sm:items-end">
                 <L label={tr(`عنوان ${i + 1} (4 كلمات)`, `Title ${i + 1} (4 words)`)}>
@@ -145,6 +208,7 @@ export function LandingEditor({ productId, slug, initial, publishedAt: initialPu
 
           <fieldset className="flex flex-col gap-3">
             <legend className="mb-1 font-bold text-ink">{tr("مقارنة تقنية (اختياري)", "Technical comparison (optional)")}</legend>
+            <div className="self-start">{regenButton("comparison")}</div>
             <p className="text-sm text-warm-600">{tr("الخيارات والثمن ديال كل لون كيتزادو بوحدهم من المنتج. هنا غير سطور إضافية: الخاصية والقيمة.", "Options and the price of each colour are added from the product on their own. Here only extra rows: property and value.")}</p>
             {content.comparison.map((r, i) => (
               <div key={i} className="grid gap-2 sm:grid-cols-[1fr_2fr_auto] sm:items-end">
@@ -173,6 +237,7 @@ export function LandingEditor({ productId, slug, initial, publishedAt: initialPu
 
           <fieldset className="flex flex-col gap-3">
             <legend className="mb-2 font-bold text-ink">{tr("أسئلة شائعة (اختياري)", "FAQ (optional)")}</legend>
+            <div className="self-start">{regenButton("faq")}</div>
             {content.faq.map((f, i) => (
               <div key={i} className="grid gap-2 rounded-lg border border-warm-200 p-3">
                 <L label={tr("السؤال", "Question")}>

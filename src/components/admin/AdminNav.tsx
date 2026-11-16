@@ -84,7 +84,7 @@ const items: Item[] = [
       { href: "/admin/categories", label: ["الأقسام", "Categories"], icon: Boxes },
       { href: "/admin/brands", label: ["الماركات", "Brands"], icon: Tags },
       { href: "/admin/bundles", label: ["الباكات", "Bundles"], icon: Gift },
-      { href: "/admin/landing", label: ["صفحات الهبوط", "Landing pages"], icon: LayoutTemplate },
+      { href: "/admin/campaigns", label: ["استوديو العروض", "Campaign Studio"], icon: LayoutTemplate },
       { href: "/admin/coupons", label: ["الكوبونات", "Coupons"], icon: TicketPercent },
     ],
   },

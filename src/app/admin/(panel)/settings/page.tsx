@@ -43,6 +43,9 @@ export default async function SettingsPage() {
             <textarea name="replacementPolicyEn" rows={2} dir="ltr" defaultValue={s?.replacementPolicyEn ?? ""} required maxLength={500} className={`${inputClass} py-2`} />
           </L>
           <p className="text-xs text-warm-600">{tr("تظهر في صفحات المتجر، والمساعد الذكي ينقلها حرفياً ولا يكتب وعوداً من عنده.", "Shown on the shop pages; the assistant copies it word for word and never writes promises of its own.")}</p>
+          <L label={tr("صفحات العروض: من هاد الثمن (درهم) الذكاء الاصطناعي كيختار القالب «تحريري»", "Offer pages: from this price (MAD) the AI picks the “Editorial” template")}>
+            <input name="landingEditorialFrom" type="number" min={0} dir="ltr" defaultValue={s?.landingEditorialFrom ?? 1500} required className={inputClass} />
+          </L>
           <L label={tr("السقف الشهري للمساعد الذكي (بالدولار، 0 يوقفه)", "Assistant monthly cap (USD, 0 turns it off)")}>
             <input name="assistantBudgetCents" type="number" min={0} max={1000} step={0.5} dir="ltr" defaultValue={(s?.assistantBudgetCents ?? 500) / 100} required className={inputClass} />
           </L>

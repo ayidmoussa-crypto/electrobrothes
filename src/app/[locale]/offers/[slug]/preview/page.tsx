@@ -26,7 +26,7 @@ async function Preview({ slug }: { slug: string }) {
         <Eye className="size-4 shrink-0" aria-hidden="true" />
         {t("previewBanner")}
       </p>
-      <LandingView product={p} page={draftForView(p)} config={config} />
+      <LandingView product={p} page={draftForView(p)} config={config} tracking={false} />
     </>
   );
 }
