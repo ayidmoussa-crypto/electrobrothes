@@ -8,6 +8,7 @@ import type { Locale } from "@/i18n/routing";
 import { cutoutUrl } from "@/lib/image-cutout";
 import { SPEC_ICON } from "@/lib/landing";
 import type { HomeOffer } from "@/lib/offers-data";
+import { NightSky } from "./NightSky";
 import { OfferSlider } from "./OfferSlider";
 import { TIME_ZONE } from "@/lib/time";
 import { PriceView } from "./PriceView";
@@ -17,8 +18,8 @@ const UNDER_HEADER = "pt-20 md:pt-[141px] xl:pt-20";
 
 /**
  * The week's offers at the top of the home page, as big brands do: the real end date, a large title, a line under
- * it, the price, "تسوّق الآن", and a large photo of the product. Static; several offers are swiped. Only the first
- * photo loads with priority.
+ * it, the price, "تسوّق الآن", and a large photo of the product on a flat yellow disc (dark slides add the site's night
+ * sky). The product itself never moves; several offers are swiped. Only the first photo loads with priority.
  */
 export async function OfferBanner({ offers, locale }: { offers: HomeOffer[]; locale: Locale }) {
   const [t, tp, ts] = await Promise.all([getTranslations("offers"), getTranslations("product"), getTranslations("specs")]);
@@ -41,8 +42,9 @@ export async function OfferBanner({ offers, locale }: { offers: HomeOffer[]; loc
               data-index={i}
               aria-roledescription={offers.length > 1 ? "slide" : undefined}
               aria-label={offers.length > 1 ? t("slide", { n: i + 1, total: offers.length }) : undefined}
-              className={`w-full shrink-0 snap-center ${UNDER_HEADER} ${dark ? "bg-linear-to-b from-deep to-ink" : "bg-linear-to-b from-warm-100 to-white"}`}
+              className={`relative isolate w-full shrink-0 snap-center ${UNDER_HEADER} ${dark ? "bg-ink" : "bg-warm-100"}`}
             >
+              {dark ? <NightSky /> : null}
               <div className={`mx-auto flex max-w-5xl flex-col items-center px-4 pt-6 pb-14 text-center md:pt-10 ${o.style === "features" ? "md:pb-16" : ""}`}>
                 {o.endsAt ? (
                   <p className={`text-sm font-bold ${dark ? "text-yellow-500" : "text-ink"}`}>
@@ -88,7 +90,7 @@ export async function OfferBanner({ offers, locale }: { offers: HomeOffer[]; loc
                 </div>
 
                 <div className="relative isolate mt-6 flex h-56 w-full justify-center md:h-[24rem]">
-                  {dark ? <span aria-hidden="true" className="absolute inset-y-0 left-1/2 -z-10 aspect-square h-full -translate-x-1/2 rounded-full bg-radial from-warm-300/30 to-transparent to-70%" /> : null}
+                  <span aria-hidden="true" className={`product-disc ${dark ? "product-disc-dark" : ""}`} />
                   <Image
                     src={cut ?? o.image.url}
                     alt={ar ? o.image.altAr : o.image.altEn}

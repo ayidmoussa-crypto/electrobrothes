@@ -163,6 +163,23 @@
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
   backdrop-filter: blur(var(--glass-blur)) saturate(160%);
 }
+/* Offer stage: a flat Electric Yellow disc behind the product photo, ringed in the ground's own tone (no gradient).
+   Works for any product cut-out and echoes the EB bolt. Sits inside a `relative isolate` photo box. */
+@utility product-disc {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: -1;
+  height: 84%;
+  aspect-ratio: 1;
+  border-radius: 9999px;
+  background: var(--color-yellow-500);
+  box-shadow: 0 0 0 clamp(10px, 2.4vw, 22px) var(--color-white);
+  translate: -50% -50%;
+}
+@utility product-disc-dark {
+  box-shadow: 0 0 0 clamp(10px, 2.4vw, 22px) var(--color-warm-900);
+}
 @utility glass-light {
   background: var(--glass-light-bg);
   border-color: var(--glass-light-border);

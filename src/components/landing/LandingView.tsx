@@ -3,6 +3,7 @@ import Image from "next/image";
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { CampaignTracker } from "@/components/analytics/CampaignTracker";
+import { NightSky } from "@/components/store/NightSky";
 import { PriceView } from "@/components/store/PriceView";
 import { WhatsAppGlyph } from "@/components/store/WhatsAppButton";
 import type { LandingTemplate, MiddleSection, PublishedLanding } from "@/lib/landing";
@@ -17,10 +18,10 @@ import { LandingOrderForm, type LandingVariant } from "./LandingOrderForm";
 
 /** How each template looks. The structure (and every required piece) is the same; only the surfaces change. */
 const THEME: Record<LandingTemplate, { hero: string; dark: boolean; muted: string; band: string; card: string; disc: string; layout: "split" | "center" | "editorial" }> = {
-  dark_premium: { hero: "bg-linear-to-b from-deep to-ink", dark: true, muted: "text-warm-300", band: "bg-warm-50", card: "rounded-2xl border border-warm-200 bg-white", disc: "bg-ink text-yellow-500", layout: "split" },
-  product_spotlight: { hero: "bg-linear-to-b from-yellow-50 to-white", dark: false, muted: "text-warm-600", band: "bg-yellow-50", card: "rounded-3xl bg-white shadow-sm shadow-ink/5", disc: "bg-yellow-500 text-ink", layout: "center" },
+  dark_premium: { hero: "bg-ink", dark: true, muted: "text-warm-300", band: "bg-warm-50", card: "rounded-2xl border border-warm-200 bg-white", disc: "bg-ink text-yellow-500", layout: "split" },
+  product_spotlight: { hero: "bg-yellow-50", dark: false, muted: "text-warm-600", band: "bg-yellow-50", card: "rounded-3xl bg-white shadow-sm shadow-ink/5", disc: "bg-yellow-500 text-ink", layout: "center" },
   comparison: { hero: "bg-warm-100", dark: false, muted: "text-warm-600", band: "bg-white", card: "rounded-2xl border border-warm-200 bg-warm-50", disc: "bg-ink text-yellow-500", layout: "split" },
-  editorial: { hero: "bg-white", dark: false, muted: "text-warm-600", band: "bg-white", card: "border-t-2 border-ink pt-4", disc: "bg-warm-100 text-ink", layout: "editorial" },
+  editorial: { hero: "bg-warm-50", dark: false, muted: "text-warm-600", band: "bg-white", card: "border-t-2 border-ink pt-4", disc: "bg-warm-100 text-ink", layout: "editorial" },
 };
 
 const variantLabel = (v: { colorAr: string | null; storage: string | null }) => [v.colorAr, v.storage].filter(Boolean).join(" · ");
@@ -85,7 +86,7 @@ export async function LandingView({ product: p, page, config, tracking = true }:
 
   const photo = (box: string, sizes: string) => (
     <div className={`relative isolate flex justify-center ${box}`}>
-      {theme.dark ? <span aria-hidden="true" className="absolute inset-y-0 left-1/2 -z-10 aspect-square h-full -translate-x-1/2 rounded-full bg-radial from-warm-300/35 to-transparent to-70%" /> : null}
+      <span aria-hidden="true" className={`product-disc ${theme.dark ? "product-disc-dark" : ""}`} />
       <Image
         src={cut ?? image.url}
         alt={image.altAr || p.nameAr}
@@ -331,7 +332,10 @@ export async function LandingView({ product: p, page, config, tracking = true }:
     // Bottom padding on phones: room for the fixed order bar.
     <div className="pb-24 md:pb-0">
       {tracking ? <CampaignTracker source="page" /> : null}
-      <section className={`relative isolate -mt-20 overflow-hidden pt-20 md:-mt-[141px] md:pt-[141px] xl:-mt-20 xl:pt-20 ${theme.hero}`}>{hero}</section>
+      <section className={`relative isolate -mt-20 overflow-hidden pt-20 md:-mt-[141px] md:pt-[141px] xl:-mt-20 xl:pt-20 ${theme.hero}`}>
+        {theme.dark ? <NightSky /> : null}
+        {hero}
+      </section>
 
       {sections.map((s, i) => wrap(s.key, titles[s.key], s.body, i))}
 
