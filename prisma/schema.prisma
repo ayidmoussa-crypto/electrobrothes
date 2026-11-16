@@ -84,6 +84,7 @@ model Product {
   updatedAt         DateTime         @updatedAt
   externalRatings   ExternalRating[]
   heroIn            Settings[]
+  landingPage       LandingPage?
 
   @@index([categoryId, isActive])
   @@index([brandId])
@@ -261,6 +262,29 @@ model ExternalRating {
   @@index([status, lastCheckedAt])
 }
 
+// One product's landing page (/offers/<slug>), built from a template in code (lib/landing.ts). Texts only: prices,
+// stock, photos and dates always come from the product. The owner edits the draft; "نشر" copies it to `published`,
+// which is the only thing shoppers see.
+model LandingPage {
+  id          String    @id @default(cuid())
+  productId   String    @unique
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  // Key from lib/landing.ts TEMPLATES.
+  template    String    @default("dark_premium")
+  // [{ key, hidden }] for the middle sections; the hero is always first and the order form always last.
+  sections    Json
+  // { headline, subline, features, comparison, faq }
+  content     Json
+  // The Claude model that last wrote the draft's texts; null when written by hand or from the product's own data.
+  model       String?
+  // { template, sections, content } as published. Null: not live.
+  published   Json?
+  publishedAt DateTime?
+  updatedBy   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
 // ───────────────────────── Delivery & settings ─────────────────────────
 
 model City {
@@ -290,10 +314,10 @@ model Settings {
   replacementPolicyAr   String  @default("إلا وصلك المنتج فيه عطب، كنبدلوه ليك بمنتج جديد.")
   replacementPolicyEn   String  @default("If your product arrives defective, we replace it with a new one.")
   // The carrier's cut is not a setting: it is the city's delivery price, and a refused parcel costs nothing (lib/finance.ts).
-  // The product of the week on the home page hero. Null (or not on sale): the newest best seller.
+  // Unused: a "product of the week" home hero, tried on 2026-11-16 and taken back at the owner's request. The columns
+  // are empty and stay until the owner agrees to drop them.
   heroProductId         String?
   heroProduct           Product? @relation(fields: [heroProductId], references: [id], onDelete: SetNull)
-  // Replaces the product name as the hero's big title. Empty: the name.
   heroHeadlineAr        String?
   heroHeadlineEn        String?
 }
