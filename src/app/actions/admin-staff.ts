@@ -1,7 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { z } from "zod";
+import { logSecurity } from "@/lib/security-log";
 import { requireAdmin } from "@/lib/admin";
 import { adminTr } from "@/lib/admin-lang";
 import { db } from "@/lib/db";
@@ -58,7 +60,7 @@ const updateInput = z.object({
 
 /** Name, pay, on/off and an optional new password. Owner accounts are never touched from here. */
 export async function updateAgent(_: State, fd: FormData): Promise<State> {
-  await requireAdmin();
+  const owner = await requireAdmin();
   const { tr } = await adminTr();
   const parsed = updateInput.safeParse(Object.fromEntries(fd));
   if (!parsed.success) return { ok: false, message: tr("تحقق من الاسم والمبالغ.", "Check the name and the amounts.") };
@@ -69,6 +71,8 @@ export async function updateAgent(_: State, fd: FormData): Promise<State> {
     data: { ...data, isActive: active === "1", ...(password ? { passwordHash: await hashPassword(password) } : {}) },
   });
   if (!updated.count) return { ok: false, message: tr("هاد الموظف ما بقاش.", "This agent no longer exists.") };
+  // A new password also ends the agent's open sessions (the session stamp follows the password).
+  if (password) after(() => logSecurity("password_changed", { userId: id, email: owner.email, detail: "agent password set by the owner" }));
   revalidatePath("/admin/staff");
   return { ok: true, message: tr("تحفظ.", "Saved.") };
 }

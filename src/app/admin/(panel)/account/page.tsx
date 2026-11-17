@@ -1,5 +1,6 @@
 import { ShieldCheck, ShieldOff } from "lucide-react";
 import { cancel2faSetup, confirm2faSetup, disable2fa, regenerateBackupCodes, start2faSetup } from "@/app/actions/admin-2fa";
+import { changeOwnPassword } from "@/app/actions/admin-password";
 import { ActionForm } from "@/components/admin/ActionForm";
 import { TwoFactorCodeForm } from "@/components/admin/TwoFactorForm";
 import { inputClass, L, PageHeader, Panel } from "@/components/admin/ui";
@@ -12,13 +13,27 @@ import { db } from "@/lib/db";
 import { TIME_ZONE } from "@/lib/time";
 import { groupKey, openTotpSecret, otpauthUrl } from "@/lib/totp";
 
-/** The owner's account: two-step login with an authenticator app (optional). */
+const BAD = new Set(["login_failed", "login_blocked", "2fa_failed", "admin_denied"]);
+
+/** The owner's account: two-step login (optional), password, and the security log. */
 export default async function AccountPage() {
   const [me, { tr, lang }] = await Promise.all([requireAdmin(), adminTr()]);
   const user = await db.adminUser.findUniqueOrThrow({
     where: { id: me.id },
     select: { email: true, totpSecret: true, totpEnabledAt: true, totpBackupCodes: true },
   });
+  const events = await db.securityEvent.findMany({ orderBy: { createdAt: "desc" }, take: 40 });
+  const stamp = new Intl.DateTimeFormat(adminLocale(lang), { dateStyle: "short", timeStyle: "short", timeZone: TIME_ZONE });
+  const LABELS: Record<string, [string, string]> = {
+    login_ok: ["دخول", "Signed in"],
+    login_failed: ["دخول فاشل", "Failed login"],
+    login_blocked: ["تسدّ الدخول مؤقتاً", "Login blocked"],
+    "2fa_failed": ["رمز خاطئ", "Wrong code"],
+    password_changed: ["تبدلات كلمة السر", "Password changed"],
+    admin_denied: ["موظف حاول صفحة ممنوعة", "Agent tried an owner page"],
+    admin_visit: ["زيارة اللوحة", "Panel visit"],
+  };
+  const label = (type: string) => tr(...(LABELS[type] ?? [type, type]));
   const enabled = !!user.totpEnabledAt;
   // A setup in progress: the key is shown to the owner only, on this page, until confirmed.
   const pendingKey = enabled ? null : openTotpSecret(user.totpSecret);
@@ -107,6 +122,57 @@ export default async function AccountPage() {
             </form>
           )}
         </div>
+      </Panel>
+
+      <Panel title={tr("تبديل كلمة السر", "Change password")}>
+        <ActionForm action={changeOwnPassword} submitLabel={tr("بدّل كلمة السر", "Change password")} className="flex max-w-sm flex-col gap-3">
+          <L label={tr("كلمة السر الحالية", "Current password")}>
+            <input name="current" type="password" required autoComplete="current-password" maxLength={200} dir="ltr" className={inputClass} />
+          </L>
+          <L label={tr("كلمة السر الجديدة (12 حرف على الأقل)", "New password (at least 12 characters)")}>
+            <input name="next" type="password" required minLength={12} autoComplete="new-password" maxLength={200} dir="ltr" className={inputClass} />
+          </L>
+          <L label={tr("عاود كتب الجديدة", "Type the new one again")}>
+            <input name="again" type="password" required minLength={12} autoComplete="new-password" maxLength={200} dir="ltr" className={inputClass} />
+          </L>
+          <p className="text-sm text-warm-600">{tr("أي جهاز آخر داخل بالحساب كيخرج مباشرة.", "Any other device signed in to this account is signed out at once.")}</p>
+        </ActionForm>
+      </Panel>
+
+      <Panel title={tr("سجل الأمان", "Security log")}>
+        {events.length ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-start text-sm">
+              <thead className="text-warm-600">
+                <tr>
+                  <th className="py-2 pe-4 text-start font-semibold">{tr("الوقت", "When")}</th>
+                  <th className="py-2 pe-4 text-start font-semibold">{tr("الحدث", "Event")}</th>
+                  <th className="py-2 pe-4 text-start font-semibold">{tr("الإيميل", "Email")}</th>
+                  <th className="py-2 text-start font-semibold">IP</th>
+                </tr>
+              </thead>
+              <tbody>
+                {events.map((e) => (
+                  <tr key={e.id} className="border-t border-warm-200">
+                    <td className="py-2 pe-4 whitespace-nowrap text-warm-600">{stamp.format(e.createdAt)}</td>
+                    <td className="py-2 pe-4">
+                      <Badge tone={BAD.has(e.type) ? "danger" : "neutral"}>{label(e.type)}</Badge>
+                      {e.detail ? <span className="ms-2 text-warm-600">{e.detail}</span> : null}
+                    </td>
+                    <td className="py-2 pe-4 text-warm-800" dir="ltr">
+                      {e.email ?? "-"}
+                    </td>
+                    <td className="py-2 font-mono text-warm-600" dir="ltr">
+                      {e.ip ?? "-"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-sm text-warm-600">{tr("مازال ما كاين والو.", "Nothing yet.")}</p>
+        )}
       </Panel>
     </>
   );

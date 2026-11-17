@@ -1,22 +1,26 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { connection } from "next/server";
+import { after, connection } from "next/server";
 import { db } from "./db";
-import { readSessionToken, SESSION_COOKIE } from "./session";
+import { logSecurity } from "./security-log";
+import { passwordStamp, readSessionToken, SESSION_COOKIE, sessionUserId } from "./session";
 
 export async function getAdmin() {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   // The expiry check reads the clock: mark this as request-time so prerendering never evaluates it.
   await connection();
-  const userId = readSessionToken(token);
-  if (!userId) return null;
+  const id = sessionUserId(token);
+  if (!id) return null;
   const user = await db.adminUser.findUnique({
-    where: { id: userId },
-    select: { id: true, email: true, name: true, role: true, isActive: true, payPerConfirmed: true, payPerDelivered: true },
+    where: { id: id.slice(0, 40) },
+    select: { id: true, email: true, name: true, role: true, isActive: true, payPerConfirmed: true, payPerDelivered: true, passwordHash: true },
   });
+  // Signed for this account with its current password: a changed password ends every older session.
+  if (!user || readSessionToken(token, passwordStamp(user.passwordHash)) !== user.id) return null;
   // A switched-off account is out at once, even with a session still running.
-  return user?.isActive ? user : null;
+  if (!user.isActive) return null;
+  return { id: user.id, email: user.email, name: user.name, role: user.role, isActive: user.isActive, payPerConfirmed: user.payPerConfirmed, payPerDelivered: user.payPerDelivered };
 }
 
 /** The owner's account, or null: for route handlers, which answer 401 instead of redirecting. */
@@ -34,10 +38,13 @@ export async function requireStaff() {
 
 /**
  * The owner only. Every other admin page AND server action calls this: actions are public endpoints
- * otherwise. An agent who lands on an owner page goes to their own figures.
+ * otherwise. An agent who lands on an owner page goes to their own figures, and it is logged.
  */
 export async function requireAdmin() {
   const user = await requireStaff();
-  if (user.role !== "OWNER") redirect("/admin/me");
+  if (user.role !== "OWNER") {
+    after(() => logSecurity("admin_denied", { userId: user.id, email: user.email }));
+    redirect("/admin/me");
+  }
   return user;
 }

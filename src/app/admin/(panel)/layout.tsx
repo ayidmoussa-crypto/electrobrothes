@@ -14,12 +14,19 @@ import { loadAlerts } from "@/lib/admin-alerts-data";
 import { Logo } from "@/components/brand/Logo";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { requireStaff } from "@/lib/admin";
+import { clientIp, hit } from "@/lib/guard";
+import { logSecurity } from "@/lib/security-log";
+import { after } from "next/server";
 
 const iconLink = "grid size-10 cursor-pointer place-items-center rounded-full text-warm-800 transition-colors hover:bg-ink/5 hover:text-ink";
 
 async function Shell({ children }: { children: ReactNode }) {
-  const [admin, { lang, ar, tr }] = await Promise.all([requireStaff(), adminTr()]);
+  const [admin, { lang, ar, tr }, ip] = await Promise.all([requireStaff(), adminTr(), clientIp()]);
   const agent = admin.role === "AGENT";
+  // One "admin visit" line per person per hour in the security log, written after the page is sent.
+  after(async () => {
+    if ((await hit(`seclog:visit:${admin.id}`, 3600)) === 1) await logSecurity("admin_visit", { userId: admin.id, email: admin.email, ip });
+  });
   const alerts = await loadAlerts(admin.role, tr, ar);
 
   return (

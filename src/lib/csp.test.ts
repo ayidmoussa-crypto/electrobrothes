@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { contentSecurityPolicy, sentryCspReportUri } from "./csp";
+import { contentSecurityPolicy } from "./csp";
 
-const directive = (csp: string, name: string) => csp.split("; ").find((d) => d.startsWith(`${name} `));
+const directive = (csp: string, name: string) => csp.split("; ").find((d) => d === name || d.startsWith(`${name} `));
 
-test("the policy has the four locks the owner asked for", () => {
+test("the policy has the four locks", () => {
   const csp = contentSecurityPolicy();
   assert.equal(directive(csp, "object-src"), "object-src 'none'");
   assert.equal(directive(csp, "base-uri"), "base-uri 'self'");
@@ -12,33 +12,20 @@ test("the policy has the four locks the owner asked for", () => {
   assert.equal(directive(csp, "form-action"), "form-action 'self'");
 });
 
-test("Cloudinary, Turnstile, the three pixels and Sentry are allowed", () => {
+test("Cloudinary, Turnstile and the three pixels are allowed, nothing else for scripts", () => {
   const csp = contentSecurityPolicy();
   for (const host of ["https://connect.facebook.net", "https://www.googletagmanager.com", "https://analytics.tiktok.com", "https://challenges.cloudflare.com"]) {
     assert.ok(directive(csp, "script-src")?.includes(host), host);
   }
-  assert.ok(directive(csp, "img-src")?.includes("https://res.cloudinary.com"));
+  assert.ok(!directive(csp, "script-src")?.includes(" https: "));
   assert.ok(directive(csp, "connect-src")?.includes("https://api.cloudinary.com"));
-  assert.ok(directive(csp, "connect-src")?.includes("https://*.sentry.io"));
   assert.equal(directive(csp, "frame-src"), "frame-src https://challenges.cloudflare.com");
 });
 
-test("eval and the dev websocket are allowed in development only", () => {
+test("eval and the dev websocket are allowed in development only; production upgrades http", () => {
   assert.ok(!contentSecurityPolicy().includes("'unsafe-eval'"));
   assert.ok(!contentSecurityPolicy().includes("ws:"));
   assert.ok(contentSecurityPolicy({ dev: true }).includes("'unsafe-eval'"));
-});
-
-test("reports go to Sentry when a DSN is set", () => {
-  assert.equal(
-    sentryCspReportUri("https://abc123@o456.ingest.de.sentry.io/789"),
-    "https://o456.ingest.de.sentry.io/api/789/security/?sentry_key=abc123",
-  );
-  assert.equal(sentryCspReportUri(""), null);
-  assert.equal(sentryCspReportUri(undefined), null);
-  assert.equal(sentryCspReportUri("not a url"), null);
-  assert.equal(sentryCspReportUri("https://o456.ingest.sentry.io/789"), null);
-  const csp = contentSecurityPolicy({ reportUri: "https://x.sentry.io/api/1/security/?sentry_key=k" });
-  assert.equal(directive(csp, "report-uri"), "report-uri https://x.sentry.io/api/1/security/?sentry_key=k");
-  assert.equal(directive(contentSecurityPolicy(), "report-uri"), undefined);
+  assert.equal(directive(contentSecurityPolicy(), "upgrade-insecure-requests"), "upgrade-insecure-requests");
+  assert.equal(directive(contentSecurityPolicy({ dev: true }), "upgrade-insecure-requests"), undefined);
 });

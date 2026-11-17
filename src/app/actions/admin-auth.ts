@@ -2,13 +2,17 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { spendSecondFactor } from "@/lib/admin-2fa";
 import { db } from "@/lib/db";
 import { clientIp, hit } from "@/lib/guard";
 import { verifyPassword } from "@/lib/password";
+import { alertRepeatedFailures, logSecurity } from "@/lib/security-log";
+import { firstOverLimit, LOGIN_LIMITS, overLimit } from "@/lib/security-limits";
 import {
   createPending2faToken,
   createSessionToken,
+  passwordStamp,
   PENDING_2FA_COOKIE,
   PENDING_2FA_TTL_SECONDS,
   readPending2faToken,
@@ -21,6 +25,8 @@ export type LoginState = { error?: "invalid" | "rate_limited" | "bad_code" | "ex
 // A real hash to compare against when the email is unknown, so timing does not reveal which emails exist.
 const DUMMY_HASH = "scrypt$AAAAAAAAAAAAAAAAAAAAAA==$" + "A".repeat(86) + "==";
 
+// HttpOnly: no script can read it. SameSite=lax: other sites' forms and fetches don't carry it.
+// Secure in production: sent over HTTPS only.
 const cookieOptions = (maxAge: number) => ({
   httpOnly: true,
   sameSite: "lax" as const,
@@ -29,11 +35,12 @@ const cookieOptions = (maxAge: number) => ({
   path: "/",
 });
 
-async function startSession(user: { id: string; role: string }): Promise<never> {
+async function startSession(user: { id: string; role: string; email: string; passwordHash: string }, ip: string): Promise<never> {
   await db.adminUser.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
   const jar = await cookies();
   jar.delete(PENDING_2FA_COOKIE);
-  jar.set(SESSION_COOKIE, createSessionToken(user.id), cookieOptions(SESSION_TTL_SECONDS));
+  jar.set(SESSION_COOKIE, createSessionToken(user.id, passwordStamp(user.passwordHash)), cookieOptions(SESSION_TTL_SECONDS));
+  after(() => logSecurity("login_ok", { userId: user.id, email: user.email, ip }));
   // An agent starts on their own figures.
   redirect(user.role === "AGENT" ? "/admin/me" : "/admin");
 }
@@ -43,20 +50,26 @@ export async function login(_prev: LoginState, formData: FormData): Promise<Logi
   const password = String(formData.get("password") ?? "").slice(0, 200);
 
   const ip = await clientIp();
-  const [byIp, byEmail] = await Promise.all([hit(`login:ip:${ip}`, 900), hit(`login:email:${email}`, 900)]);
-  if (byIp > 10 || byEmail > 5) return { error: "rate_limited", email };
+  const [byIp, byEmail] = await Promise.all([hit(`login:ip:${ip}`, LOGIN_LIMITS.windowSeconds), hit(`login:email:${email}`, LOGIN_LIMITS.windowSeconds)]);
+  if (overLimit(byEmail, byIp)) {
+    if (firstOverLimit(byEmail, byIp)) after(() => alertRepeatedFailures(email, ip));
+    return { error: "rate_limited", email };
+  }
 
   const user = email ? await db.adminUser.findUnique({ where: { email } }) : null;
   const ok = await verifyPassword(password, user?.passwordHash ?? DUMMY_HASH);
   // A switched-off account answers like a wrong password: nothing tells it apart.
-  if (!user || !ok || !user.isActive) return { error: "invalid", email };
+  if (!user || !ok || !user.isActive) {
+    after(() => logSecurity("login_failed", { email, userId: user?.id, ip, detail: !user ? "unknown email" : !ok ? "wrong password" : "account off" }));
+    return { error: "invalid", email };
+  }
 
   // Two-step login on: the password only earns 5 minutes to type the code, not a session.
   if (user.totpEnabledAt && user.totpSecret) {
     (await cookies()).set(PENDING_2FA_COOKIE, createPending2faToken(user.id), cookieOptions(PENDING_2FA_TTL_SECONDS));
     return { step: "code", email };
   }
-  return startSession(user);
+  return startSession(user, ip);
 }
 
 /** Second step: the 6-digit code from the authenticator app, or one of the backup codes. */
@@ -74,8 +87,11 @@ export async function verifyLoginCode(_prev: LoginState, formData: FormData): Pr
   if (!user?.isActive || !user.totpEnabledAt) return { error: "expired" };
 
   const result = await spendSecondFactor(user, String(formData.get("code") ?? ""));
-  if (!result.ok) return { error: "bad_code", step: "code" };
-  return startSession(user);
+  if (!result.ok) {
+    after(() => logSecurity("2fa_failed", { userId: user.id, email: user.email, ip }));
+    return { error: "bad_code", step: "code" };
+  }
+  return startSession(user, ip);
 }
 
 export async function logout() {

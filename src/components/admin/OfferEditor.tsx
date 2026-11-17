@@ -13,6 +13,7 @@ import { AiButton } from "./AiButton";
 import { useAdminTr } from "./AdminLang";
 import { useConfirm } from "./ConfirmDialog";
 import { FormMessage, inputClass, L, Panel } from "./ui";
+import { uploadImage } from "@/lib/upload-client";
 
 export type OfferProductOption = { id: string; name: string; images: string[]; hasPage: boolean };
 export type OfferInitial = {
@@ -68,17 +69,8 @@ export function OfferEditor({ initial, products }: { initial: OfferInitial; prod
     setUploading(true);
     setUploadError(null);
     try {
-      const sig = await fetch("/api/admin/upload-signature", { method: "POST" }).then((r) => r.json());
-      if (sig.error) throw new Error(sig.error);
-      const body = new FormData();
-      body.append("file", file);
-      body.append("api_key", sig.apiKey);
-      body.append("timestamp", String(sig.timestamp));
-      body.append("folder", sig.folder);
-      body.append("signature", sig.signature);
-      const res = await fetch(`https://api.cloudinary.com/v1_1/${sig.cloudName}/image/upload`, { method: "POST", body }).then((r) => r.json());
-      if (!res.secure_url) throw new Error("upload");
-      setImage(res.secure_url);
+      const url = await uploadImage(file);
+      setImage(url);
     } catch {
       setUploadError(tr("فشل رفع الصورة. جرب مرة أخرى.", "Upload failed. Try again."));
     } finally {

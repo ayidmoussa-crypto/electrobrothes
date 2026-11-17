@@ -11,6 +11,19 @@ function transport() {
   return nodemailer.createTransport({ host: SMTP_HOST, port, secure: port === 465, auth: { user: SMTP_USER, pass: SMTP_PASS } });
 }
 
+/** A security warning to the shop's email (repeated failed logins...). Plain text, never a password. */
+export async function notifySecurityAlert(subject: string, text: string) {
+  const mailer = transport();
+  const settings = await db.settings.findUnique({ where: { id: 1 }, select: { notifyEmail: true } });
+  const to = settings?.notifyEmail || process.env.NOTIFY_EMAIL;
+  if (!mailer || !to) return;
+  try {
+    await mailer.sendMail({ from: process.env.SMTP_FROM || process.env.SMTP_USER, to, subject: `[تنبيه أمني] ${subject}`.replace(/[\r\n]+/g, " "), text });
+  } catch (error) {
+    console.error("[notify] security alert: email failed", error instanceof Error ? error.message : "");
+  }
+}
+
 /** Warns the shop about a 1 or 2 star review, so they can call the customer. Plain text: the comment is untrusted. */
 export async function notifyNegativeReview(reviewId: string) {
   const mailer = transport();

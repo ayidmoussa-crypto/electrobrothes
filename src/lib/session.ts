@@ -1,6 +1,8 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 
 // Stateless admin session: "<userId>.<expiresAtSeconds>.<hmac>" signed with SESSION_SECRET.
+// The signature also covers a stamp of the account's password hash: a new password changes the stamp,
+// so every session opened with the old one stops working at once (a stolen cookie dies with it).
 
 export const SESSION_COOKIE = "eb_admin";
 export const SESSION_TTL_SECONDS = 60 * 60 * 12;
@@ -13,14 +15,20 @@ function secret() {
 
 const sign = (payload: string) => createHmac("sha256", secret()).update(payload).digest("base64url");
 
-export function createSessionToken(userId: string, nowSeconds = Math.floor(Date.now() / 1000)) {
+/** A short fingerprint of the stored password hash (never the password): changes when the password does. */
+export const passwordStamp = (passwordHash: string) => createHash("sha256").update(passwordHash).digest("base64url").slice(0, 16);
+
+export function createSessionToken(userId: string, stamp: string, nowSeconds = Math.floor(Date.now() / 1000)) {
   const payload = `${userId}.${nowSeconds + SESSION_TTL_SECONDS}`;
-  return `${payload}.${sign(payload)}`;
+  return `${payload}.${sign(`s:${stamp}:${payload}`)}`;
 }
 
-/** Returns the user id when the token is authentic and not expired. */
-export function readSessionToken(token: string | undefined, nowSeconds = Math.floor(Date.now() / 1000)) {
-  return readSigned(token, "", nowSeconds);
+/** The user id written in a cookie, NOT checked yet: only to look the account up, then readSessionToken. */
+export const sessionUserId = (token: string | undefined) => token?.split(".")[0] || null;
+
+/** Returns the user id when the token is authentic, made with this password stamp and not expired. */
+export function readSessionToken(token: string | undefined, stamp: string, nowSeconds = Math.floor(Date.now() / 1000)) {
+  return readSigned(token, `s:${stamp}:`, nowSeconds);
 }
 
 function readSigned(token: string | undefined, purpose: string, nowSeconds: number) {

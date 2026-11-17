@@ -12,6 +12,7 @@ import { ActionForm } from "./ActionForm";
 import { useAdminTr } from "./AdminLang";
 import { FILTER_SPECS, KNOWN_SPECS, SpecPicker } from "./SpecPicker";
 import { FormMessage } from "./ui";
+import { uploadImage } from "@/lib/upload-client";
 
 type Option = { id: string; label: string };
 type Variant = ProductInput["variants"][number];
@@ -85,17 +86,8 @@ export function ProductEditor({
     setUploadError(null);
     try {
       for (const file of [...files].slice(0, 6)) {
-        const sig = await fetch("/api/admin/upload-signature", { method: "POST" }).then((r) => r.json());
-        if (sig.error) throw new Error(sig.error);
-        const body = new FormData();
-        body.append("file", file);
-        body.append("api_key", sig.apiKey);
-        body.append("timestamp", String(sig.timestamp));
-        body.append("folder", sig.folder);
-        body.append("signature", sig.signature);
-        const res = await fetch(`https://api.cloudinary.com/v1_1/${sig.cloudName}/image/upload`, { method: "POST", body }).then((r) => r.json());
-        if (!res.secure_url) throw new Error("upload");
-        setP((prev) => ({ ...prev, images: [...prev.images, { url: res.secure_url, altAr: prev.nameAr, altEn: prev.nameEn }] }));
+        const url = await uploadImage(file);
+        setP((prev) => ({ ...prev, images: [...prev.images, { url: url, altAr: prev.nameAr, altEn: prev.nameEn }] }));
       }
     } catch {
       setUploadError(tr("فشل رفع الصورة. تحقق من إعدادات Cloudinary أو استعمل رابطاً.", "Image upload failed. Check the Cloudinary settings or use a link."));

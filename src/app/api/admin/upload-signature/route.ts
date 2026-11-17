@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { getOwner } from "@/lib/admin";
+import { UPLOAD_FORMATS } from "@/lib/upload-client";
 
 // Signed direct upload to Cloudinary: the browser sends the file straight to Cloudinary,
 // the API secret never leaves the server. Admin only.
@@ -13,8 +14,9 @@ export async function POST() {
 
   const timestamp = Math.floor(Date.now() / 1000);
   const folder = "electrobrothers/products";
-  // Cloudinary signature: SHA-1 of the sorted params + secret.
-  const signature = createHash("sha1").update(`folder=${folder}&timestamp=${timestamp}${apiSecret}`).digest("hex");
+  // Cloudinary signature: SHA-1 of the params sorted by name + secret. The format list is signed, so Cloudinary
+  // refuses any other kind of file (it reads the file itself, not the name the browser gives).
+  const signature = createHash("sha1").update(`allowed_formats=${UPLOAD_FORMATS}&folder=${folder}&timestamp=${timestamp}${apiSecret}`).digest("hex");
 
-  return Response.json({ cloudName, apiKey, timestamp, folder, signature }, { headers: { "Cache-Control": "no-store" } });
+  return Response.json({ cloudName, apiKey, timestamp, folder, allowedFormats: UPLOAD_FORMATS, signature }, { headers: { "Cache-Control": "no-store" } });
 }

@@ -818,6 +818,20 @@ model RateLimit {
   resetAt DateTime
 }
 
+// What happened around sign-ins and the back office: failed and good logins, blocked attempts, wrong
+// two-step codes, password changes, an agent trying an owner page, admin visits. Never a password.
+model SecurityEvent {
+  id        String   @id @default(cuid())
+  type      String
+  email     String?
+  userId    String?
+  ip        String?
+  detail    String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
 // ───────────────────────── Admin ─────────────────────────
 
 enum AdminRole {
