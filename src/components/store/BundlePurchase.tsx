@@ -2,7 +2,7 @@
 
 import { CircleCheck, Info, ShoppingBag } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { buttonClass } from "@/components/ui/button";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
@@ -10,6 +10,7 @@ import { track } from "@/lib/analytics";
 import { cart, useCart } from "@/lib/cart-store";
 import { formatMAD } from "@/lib/money";
 import { openCartDrawer } from "./CartDrawer";
+import { useOrderBar } from "./useOrderBar";
 
 export type BundlePurchaseItem = {
   productId: string;
@@ -35,14 +36,7 @@ export function BundlePurchase({ items, name, price, available, locale }: { item
   const chosen = items.map((i) => ({ item: i, variant: i.variants.find((v) => v.id === choice[i.productId])! }));
   const canBuy = available && chosen.every((c) => c.variant.stock >= c.item.quantity);
 
-  // Lets the floating WhatsApp button sit above the phone order bar (same as the product page).
-  useEffect(() => {
-    if (!canBuy) return;
-    document.documentElement.dataset.orderBar = "";
-    return () => {
-      delete document.documentElement.dataset.orderBar;
-    };
-  }, [canBuy]);
+  const { buttonRef, visible: barVisible } = useOrderBar<HTMLAnchorElement>(canBuy);
 
   const trackAdd = () =>
     track({ name: "AddToCart", items: chosen.map((c) => ({ id: c.variant.id, name: c.item.name, price: c.variant.price, quantity: c.item.quantity })) });
@@ -113,7 +107,7 @@ export function BundlePurchase({ items, name, price, available, locale }: { item
             <ShoppingBag className="size-5" aria-hidden="true" />
             {t("addToCart")}
           </button>
-          <div aria-live="polite">
+          <div aria-live="polite" className="empty:hidden">
             {added ? (
               <p className="flex flex-wrap items-center gap-2 rounded-lg bg-success-soft px-3 py-2 text-sm font-semibold text-success">
                 <CircleCheck className="size-4" aria-hidden="true" />
@@ -124,7 +118,7 @@ export function BundlePurchase({ items, name, price, available, locale }: { item
               </p>
             ) : null}
           </div>
-          <Link href="/checkout" onClick={orderNow} className={buttonClass({ size: "lg", className: "w-full" })}>
+          <Link ref={buttonRef} href="/checkout" onClick={orderNow} className={buttonClass({ size: "lg", className: "w-full" })}>
             {t("orderNow")}
           </Link>
           <p className="flex gap-2 text-sm text-warm-600">
@@ -132,13 +126,15 @@ export function BundlePurchase({ items, name, price, available, locale }: { item
             {t("howItWorks")}
           </p>
 
-          {/* Phones: price + order always reachable, padded for the iOS home indicator. */}
-          <div className="glass-light fixed inset-x-2 bottom-2 z-30 flex items-center gap-3 rounded-glass border px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden">
-            <p className="min-w-0 flex-1 text-lg font-extrabold text-ink">{formatMAD(price, locale)}</p>
-            <Link href="/checkout" onClick={orderNow} className={buttonClass({ className: "flex-1" })} aria-label={`${t("orderNow")}: ${name}`}>
-              {t("orderNow")}
-            </Link>
-          </div>
+          {/* Phones: price + order, only while the main button is off screen; padded for the iOS home indicator. */}
+          {barVisible ? (
+            <div className="glass-light fixed inset-x-2 bottom-2 z-30 flex items-center gap-3 rounded-glass border px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden">
+              <p className="min-w-0 flex-1 text-lg font-extrabold text-ink">{formatMAD(price, locale)}</p>
+              <Link href="/checkout" onClick={orderNow} className={buttonClass({ className: "flex-1" })} aria-label={`${t("orderNow")}: ${name}`}>
+                {t("orderNow")}
+              </Link>
+            </div>
+          ) : null}
         </>
       ) : (
         <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm font-semibold text-danger">{t("soldOut")}</p>

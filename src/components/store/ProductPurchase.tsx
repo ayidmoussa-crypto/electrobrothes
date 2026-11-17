@@ -14,6 +14,7 @@ import { openCartDrawer } from "./CartDrawer";
 import { QtyStepper } from "./QtyStepper";
 import { TopUpProducts } from "./TopUpProducts";
 import { useCartLines } from "./useCartLines";
+import { useOrderBar } from "./useOrderBar";
 import { VariantPicker, type PickerVariant } from "./VariantPicker";
 
 /**
@@ -51,15 +52,7 @@ export function ProductPurchase({
   }, [selected, name]);
 
   const soldOut = selected.stock <= 0;
-  // Tells the floating WhatsApp button to sit above the order bar. An effect, not a CSS :has() on the bar: Next keeps a
-  // left page in the DOM, hidden, and an effect is the part that does stop when the shopper leaves.
-  useEffect(() => {
-    if (soldOut) return;
-    document.documentElement.dataset.orderBar = "";
-    return () => {
-      delete document.documentElement.dataset.orderBar;
-    };
-  }, [soldOut]);
+  const { buttonRef, visible: barVisible } = useOrderBar<HTMLAnchorElement>(!soldOut);
 
   const maxQty = Math.max(1, Math.min(MAX_QTY, selected.stock));
   const quantity = Math.min(qty, maxQty);
@@ -105,7 +98,8 @@ export function ProductPurchase({
         </div>
       )}
 
-      <div aria-live="polite">
+      {/* Takes no room (and no gap) until there is something to say. */}
+      <div aria-live="polite" className="empty:hidden">
         {added ? (
           <p className="flex flex-wrap items-center gap-2 rounded-lg bg-success-soft px-3 py-2 text-sm font-semibold text-success">
             <CircleCheck className="size-4" aria-hidden="true" />
@@ -118,6 +112,7 @@ export function ProductPurchase({
       </div>
 
       <Link
+        ref={buttonRef}
         href="/checkout"
         onClick={orderNow}
         aria-disabled={soldOut}
@@ -130,8 +125,8 @@ export function ProductPurchase({
 
       {children}
 
-      {/* Mobile: price + CTA always reachable, on light glass; padded for the iOS home indicator. */}
-      {!soldOut ? (
+      {/* Phones: price + order on light glass, only while the main button is off screen; padded for the iOS home indicator. */}
+      {barVisible ? (
         <div className="glass-light fixed inset-x-2 bottom-2 z-30 flex items-center gap-3 rounded-glass border px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden">
           <p className="min-w-0 flex-1 text-lg font-extrabold text-ink">{formatMAD(selected.price * quantity, locale)}</p>
           <Link href="/checkout" onClick={orderNow} className={buttonClass({ className: "flex-1" })}>
