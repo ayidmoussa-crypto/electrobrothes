@@ -1,4 +1,4 @@
-import { Banknote, CircleCheck, MessageCircle, PackageSearch, Phone, Truck } from "lucide-react";
+import { Banknote, CircleCheck, MessageCircle, PackageSearch, Truck } from "lucide-react";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { getTranslations, setRequestLocale } from "next-intl/server";
@@ -47,7 +47,7 @@ async function Confirmation({ locale }: { locale: Locale }) {
   const strong = (chunks: ReactNode) => <b className="font-bold text-ink">{chunks}</b>;
   const steps = [
     {
-      Icon: Phone,
+      Icon: MessageCircle,
       title: t("step1"),
       // The number reads left to right inside the Arabic sentence, so its groups keep their order.
       text: t.rich("next1", {

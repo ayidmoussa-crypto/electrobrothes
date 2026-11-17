@@ -21,7 +21,8 @@ const tone: Record<string, BadgeTone> = {
   CANCELLED: "danger",
 };
 
-export function TrackForm() {
+/** `initial`: the buyer's last order (from the private order cookie), so they can track it without typing. */
+export function TrackForm({ initial }: { initial?: { number: string; phone: string } }) {
   const t = useTranslations("track");
   const to = useTranslations("order");
   const locale = useLocale() as Locale;
@@ -39,11 +40,11 @@ export function TrackForm() {
           </p>
         ) : null}
         <Field id="track-number" label={t("number")} hint={t("numberHint")} required>
-          {(p) => <Input {...p} name="number" dir="ltr" autoComplete="off" defaultValue={state.values?.number} className="text-start uppercase" />}
+          {(p) => <Input {...p} name="number" dir="ltr" autoComplete="off" defaultValue={state.values?.number ?? initial?.number}className="text-start uppercase" />}
         </Field>
         <Field id="track-phone" label={t("phone")} required>
           {(p) => (
-            <Input {...p} name="phone" type="tel" inputMode="tel" autoComplete="tel" dir="ltr" defaultValue={state.values?.phone} className="text-start" />
+            <Input {...p} name="phone" type="tel" inputMode="tel" autoComplete="tel" dir="ltr" defaultValue={state.values?.phone ?? initial?.phone}className="text-start" />
           )}
         </Field>
         <button type="submit" disabled={pending} className={buttonClass()}>
