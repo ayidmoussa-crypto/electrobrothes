@@ -33,7 +33,7 @@ async function Shell({ children }: { children: ReactNode }) {
         <header className="sticky top-3 z-30 mx-3 mt-3 rounded-3xl text-ink lg:mx-4">
           {/* The glass sits on its own layer: a blur on the header itself would stop its menus from blurring the page. */}
           <div aria-hidden="true" className="glass-frost absolute inset-0 -z-10 rounded-[inherit] border shadow-lg shadow-ink/10" />
-          <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-2.5 lg:px-6">
+          <div className="mx-auto flex max-w-[110rem] items-center justify-between gap-3 px-4 py-2.5 lg:px-6">
             <Link href={agent ? "/admin/me" : "/admin"} className="flex items-center gap-2.5 rounded-md">
               <Logo className="h-8 w-auto text-logo-dark" />
               <span className="leading-tight">
@@ -79,7 +79,7 @@ async function Shell({ children }: { children: ReactNode }) {
             </div>
           </div>
           <nav aria-label={tr("أقسام لوحة التحكم", "Dashboard sections")} className="hidden border-t border-ink/10 lg:block">
-            <div className="mx-auto max-w-7xl px-4 py-2 lg:px-6">
+            <div className="mx-auto max-w-[110rem] px-4 py-2 lg:px-6">
               <AdminTopNav role={admin.role} />
             </div>
           </nav>
@@ -94,7 +94,9 @@ async function Shell({ children }: { children: ReactNode }) {
         </aside>
 
         {/* Bottom padding on phones clears the floating bottom bar; on desktop the end padding clears the side rail. */}
-        <main className="mx-auto min-w-0 max-w-7xl px-4 pt-6 pb-32 md:pt-8 lg:px-6 lg:pe-24 lg:pb-12 2xl:pe-6">{children}</main>
+        {/* As wide as the screen allows (tables read better), capped on very wide screens; the end padding always
+            clears the side rail. */}
+        <main className="mx-auto min-w-0 max-w-[110rem] px-4 pt-6 pb-32 md:pt-8 lg:ps-6 lg:pe-24 lg:pb-12">{children}</main>
 
         <AdminBottomNav email={admin.email} role={admin.role} />
       </AdminLangProvider>
