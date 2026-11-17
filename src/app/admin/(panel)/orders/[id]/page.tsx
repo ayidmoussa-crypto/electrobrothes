@@ -1,11 +1,11 @@
-import { ArrowRight, MessageCircle, MessagesSquare, Phone, ShieldAlert, Truck } from "lucide-react";
+import { ArrowRight, MessagesSquare, Phone, ShieldAlert, Truck } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { setCodReceived } from "@/app/actions/admin-finance";
 import { addShipmentEvent, addToBlacklist, saveShipment } from "@/app/actions/admin-orders";
 import { ActionForm } from "@/components/admin/ActionForm";
 import { PaymentMenu, StatusMenu, WhatsAppConfirm } from "@/components/admin/OrderRowMenus";
-import { confirmationText, whatsappLink } from "@/lib/order-whatsapp";
+import { orderWhatsappHref } from "@/lib/order-whatsapp-href";
 import { StatusButtons, type StatusOption } from "@/components/admin/StatusButtons";
 import { inputClass, L, PageHeader, Panel, riskLabel, statusLabel } from "@/components/admin/ui";
 import { adminTr } from "@/lib/admin-lang";
@@ -25,7 +25,6 @@ import { formatMAD } from "@/lib/money";
 import { allowedNext, cashToCollect, type OrderStatus } from "@/lib/order-rules";
 import { formatMoroccanPhone } from "@/lib/phone";
 import { reviewLink } from "@/lib/reviews/customer";
-import { reviewWhatsappMessage } from "@/lib/reviews/rules";
 import { TIME_ZONE } from "@/lib/time";
 
 const VARIANT: Record<OrderStatus, StatusOption["variant"]> = {
@@ -66,8 +65,6 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
   const goodsCost = order.items.every((i) => i.unitCost !== null) ? order.items.reduce((s, i) => s + (i.unitCost ?? 0) * i.quantity, 0) : null;
   const shippable = order.status === "CONFIRMED" || order.status === "SHIPPING" || order.status === "DELIVERED";
   const nextSteps = allowedNext(order.status).filter((to) => !agent || agentMayMove(order.status, to));
-
-  const waNumber = order.phone.replace("+", "");
 
   return (
     <>
@@ -145,7 +142,7 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
                 <Phone className="size-4" aria-hidden="true" />
                 {tr("اتصال", "Call")}
               </a>
-              <WhatsAppConfirm orderId={order.id} status={order.status} href={whatsappLink(order.phone, confirmationText({ ...order, prepaid }))} />
+              <WhatsAppConfirm orderId={order.id} status={order.status} href={orderWhatsappHref(order)} />
               <Link href={`/admin/inbox?phone=${encodeURIComponent(order.phone)}`} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-warm-200 bg-white px-4 font-semibold text-ink hover:bg-warm-50">
                 <MessagesSquare className="size-4" aria-hidden="true" />
                 {tr("المحادثة", "Conversation")}
@@ -325,13 +322,15 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
             </Panel>
           ) : null}
 
-          {order.status === "DELIVERED" && !agent ? (
+          {order.status === "DELIVERED" ? (
             <Panel title={tr("طلب التقييم", "Review request")}>
               <p className="text-sm text-warm-600">{tr(`${reviewed} من ${order.items.length} منتجات تقيّمات.`, `${reviewed} of ${order.items.length} products reviewed.`)}</p>
-              <a href={`https://wa.me/${waNumber}?text=${encodeURIComponent(reviewWhatsappMessage(order.customerName, order.number, reviewLink(order.id)))}`} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-lg bg-whatsapp px-4 font-semibold text-ink hover:opacity-90">
-                <MessageCircle className="size-4" aria-hidden="true" />
-                {tr("رسالة التقييم فواتساب", "Review message on WhatsApp")}
-              </a>
+              {order.reviewAskedAt ? (
+                <p className="mt-1 text-sm text-warm-600">{tr(`تصيفطات الرسالة ${dateFmt.format(order.reviewAskedAt)}.`, `Request sent ${dateFmt.format(order.reviewAskedAt)}.`)}</p>
+              ) : null}
+              <div className="mt-2">
+                <WhatsAppConfirm orderId={order.id} status={order.status} href={orderWhatsappHref(order)} />
+              </div>
               <a href={reviewLink(order.id)} target="_blank" rel="noopener noreferrer" className="mt-2 block text-xs text-warm-600 underline underline-offset-2">
                 {tr("الرابط الخاص بهذا الطلب", "This order's own link")}
               </a>

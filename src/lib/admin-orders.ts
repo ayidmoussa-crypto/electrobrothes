@@ -1,10 +1,14 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { ORDER_STATUSES, type OrderStatus } from "./order-rules";
 import { normalizeMoroccanPhone } from "./phone";
+import { reviewAskSince } from "./reviews/ask";
 import { moroccanDate } from "./time";
 
-/** `view: "board"` shows the orders as columns by status (desktop) instead of the table. */
-export type OrderFilters = { status?: OrderStatus; q?: string; risky?: boolean; from?: string; to?: string; page: number; view?: "board" };
+/**
+ * `view: "board"` shows the orders as columns by status (desktop) instead of the table. `reviewAsk`: delivered orders
+ * still waiting for their review request (lib/reviews/ask.ts), oldest delivery first.
+ */
+export type OrderFilters = { status?: OrderStatus; q?: string; risky?: boolean; reviewAsk?: boolean; from?: string; to?: string; page: number; view?: "board" };
 
 type Raw = Record<string, string | string[] | undefined>;
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v)?.trim() || undefined;
@@ -16,6 +20,7 @@ export function parseOrderFilters(raw: Raw): OrderFilters {
     status: status && ORDER_STATUSES.includes(status) ? status : undefined,
     q: one(raw.q)?.slice(0, 80),
     risky: raw.risky === "1",
+    reviewAsk: raw.review === "ask",
     from: isoDate(one(raw.from)),
     to: isoDate(one(raw.to)),
     page: Math.max(1, Number(one(raw.page)) || 1),
@@ -23,12 +28,21 @@ export function parseOrderFilters(raw: Raw): OrderFilters {
   };
 }
 
+/** The database side of awaitsReviewAsk (lib/reviews/ask.ts): the bell's count and the orders filter use it. */
+export const awaitingReviewAskWhere = (now: Date): Prisma.OrderWhereInput => ({
+  status: "DELIVERED",
+  reviewAskedAt: null,
+  deliveredAt: { gte: reviewAskSince(now) },
+  items: { none: { review: { isNot: null } } },
+});
+
 /** Same filters for the orders table and the CSV export. */
-export function orderWhere(f: OrderFilters): Prisma.OrderWhereInput {
+export function orderWhere(f: OrderFilters, now = new Date()): Prisma.OrderWhereInput {
   const phone = f.q ? normalizeMoroccanPhone(f.q) : null;
   return {
     ...(f.status ? { status: f.status } : {}),
     ...(f.risky ? { riskScore: { gte: 30 } } : {}),
+    ...(f.reviewAsk ? awaitingReviewAskWhere(now) : {}),
     ...(f.from || f.to
       ? {
           createdAt: {
@@ -65,6 +79,7 @@ export function filterQuery(f: Partial<OrderFilters>) {
   if (f.status) s.set("status", f.status);
   if (f.q) s.set("q", f.q);
   if (f.risky) s.set("risky", "1");
+  if (f.reviewAsk) s.set("review", "ask");
   if (f.from) s.set("from", f.from);
   if (f.to) s.set("to", f.to);
   if (f.page && f.page > 1) s.set("page", String(f.page));

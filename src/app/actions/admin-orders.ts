@@ -153,6 +153,22 @@ export async function markConfirmSent(orderId: string): Promise<void> {
   revalidatePath(`/admin/orders/${id.data}`);
 }
 
+/**
+ * Someone opened WhatsApp with the review request of a delivered order (sent by hand). The order leaves the
+ * "waiting for a review request" list. Only the first send is logged.
+ */
+export async function markReviewAsked(orderId: string): Promise<void> {
+  const admin = await requireStaff();
+  const id = z.string().min(1).max(40).safeParse(orderId);
+  if (!id.success) return;
+  const updated = await db.order.updateMany({ where: { id: id.data, status: "DELIVERED", reviewAskedAt: null }, data: { reviewAskedAt: new Date() } });
+  if (updated.count) {
+    await db.orderStatusLog.create({ data: { orderId: id.data, fromStatus: "DELIVERED", toStatus: "DELIVERED", actor: admin.email, note: "تصيفطات رسالة طلب التقييم فواتساب" } });
+  }
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${id.data}`);
+}
+
 // ───────── An order typed in from WhatsApp, a call or social media ─────────
 
 export async function createOrderByHand(_prev: ActionState, formData: FormData): Promise<ActionState> {

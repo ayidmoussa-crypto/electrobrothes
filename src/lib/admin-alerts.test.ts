@@ -16,6 +16,7 @@ const calm: AlertCounts = {
   pendingReviews: 0,
   negativeReviews: 0,
   externalPending: 0,
+  reviewAsks: 0,
   variantsWithoutCost: 0,
   emailReady: true,
 };
@@ -51,6 +52,14 @@ test("stock: each named colour opens its product, empty ones first, the rest sum
     ],
   );
   assert.equal(stock.items.at(-1)!.title, "+3 لون آخر قرب يسالي");
+});
+
+test("delivered orders waiting for a review request show to the owner and the team, and open the filtered list", () => {
+  for (const role of ["OWNER", "AGENT"] as const) {
+    const groups = buildAlerts({ ...calm, reviewAsks: 4 }, role, tr);
+    assert.deepEqual(groups.map((g) => g.id), ["reviews"]);
+    assert.deepEqual(groups[0].items.map((i) => [i.id, i.title, i.href]), [["review-asks", "4 طلب وصل وكيتسنى رسالة التقييم", "/admin/orders?review=ask"]]);
+  }
 });
 
 test("the confirmation team sees orders, messages and WhatsApp only", () => {

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { CarrierLogo } from "@/components/admin/CarrierLogo";
 import { PaymentMenu, StatusMenu, WhatsAppConfirm } from "@/components/admin/OrderRowMenus";
 import { AllCheck, OrderSelectionProvider, RowCheck, SelectionBar } from "@/components/admin/OrderSelection";
-import { confirmationText, whatsappLink } from "@/lib/order-whatsapp";
+import { orderWhatsappHref } from "@/lib/order-whatsapp-href";
 import { PageHeader, tdClass, thClass } from "@/components/admin/ui";
 import { buttonClass } from "@/components/ui/button";
 import { Badge } from "@/components/ui/Badge";
@@ -77,7 +77,8 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
   const [orders, total, carriers] = await Promise.all([
     db.order.findMany({
       where,
-      orderBy: { createdAt: "desc" },
+      // Waiting for a review request: the oldest delivery first, the one closest to dropping off the list.
+      orderBy: f.reviewAsk ? { deliveredAt: "asc" } : { createdAt: "desc" },
       skip: (f.page - 1) * PAGE,
       take: PAGE,
       select: orderCard,
@@ -114,7 +115,7 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
       waiting: o.confirmSentAt !== null,
       risky: o.riskScore >= 30 ? o.riskScore : null,
       source: o.source !== "WEBSITE" ? sourceLabel(o.source, lang) : null,
-      waHref: whatsappLink(o.phone, confirmationText({ ...o, prepaid: o.prepaidAt !== null })),
+      waHref: orderWhatsappHref(o),
       carrier: c ? { name: c.name, logoUrl: c.logoUrl } : null,
       // Reviews only come after delivery, which deleteBlock refuses already; the server checks them again.
       canDelete: !deleteBlock(o.status, o.trackingNumber, 0),
@@ -223,6 +224,10 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
           <input type="checkbox" name="risky" value="1" defaultChecked={f.risky} className="size-5 accent-ink" />
           {tr("المشبوهة فقط", "Suspicious only")}
         </label>
+        <label className="flex min-h-11 items-center gap-2 text-sm text-warm-800 max-lg:hidden">
+          <input type="checkbox" name="review" value="ask" defaultChecked={f.reviewAsk} className="size-5 accent-ink" />
+          {tr("كيتسناو طلب التقييم", "Awaiting a review request")}
+        </label>
         <button type="submit" aria-label={tr("تصفية", "Filter")} className={buttonClass({ className: "shrink-0 max-lg:size-11! max-lg:px-0!" })}>
           <Search className="size-4.5 lg:hidden" aria-hidden="true" />
           <span className="max-lg:hidden">{tr("تصفية", "Filter")}</span>
@@ -231,7 +236,7 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
         <Link
           href={`/admin/orders${filterQuery({ page: 1, view: f.view })}`}
           aria-label={tr("مسح", "Clear")}
-          className={buttonClass({ variant: "ghost", className: `shrink-0 max-lg:size-11! max-lg:px-0! ${f.q || f.status || f.from || f.to || f.risky ? "" : "max-lg:hidden"}` })}
+          className={buttonClass({ variant: "ghost", className: `shrink-0 max-lg:size-11! max-lg:px-0! ${f.q || f.status || f.from || f.to || f.risky || f.reviewAsk ? "" : "max-lg:hidden"}` })}
         >
           <X className="size-4.5 lg:hidden" aria-hidden="true" />
           <span className="max-lg:hidden">{tr("مسح", "Clear")}</span>
@@ -355,7 +360,7 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
                       compact
                       orderId={o.id}
                       status={o.status}
-                      href={whatsappLink(o.phone, confirmationText({ ...o, prepaid: o.prepaidAt !== null }))}
+                      href={orderWhatsappHref(o)}
                     />
                     {/* The delivery company holding this order; an empty ring until one is picked. */}
                     {(() => {

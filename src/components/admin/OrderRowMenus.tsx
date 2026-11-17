@@ -1,8 +1,9 @@
 "use client";
 
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, Star } from "lucide-react";
 import { useActionState, useTransition } from "react";
-import { markConfirmSent, setOrderStatus, setPrepaid, type ActionState } from "@/app/actions/admin-orders";
+import { markConfirmSent, markReviewAsked, setOrderStatus, setPrepaid, type ActionState } from "@/app/actions/admin-orders";
+import { whatsappKind } from "@/lib/reviews/ask";
 import { allowedNext, canSetPrepaid, deliveredByHand, holdsStock, ORDER_STATUSES, paymentState, undoesDelivery, type OrderStatus } from "@/lib/order-rules";
 import { useConfirm } from "./ConfirmDialog";
 import { PillMenu, type PillOption } from "./PillMenu";
@@ -194,8 +195,9 @@ export function PaymentMenu({ orderId, status, prepaid, collected, number }: { o
 }
 
 /**
- * Opens WhatsApp with the confirmation message ready to send (sending stays by hand). A new order then
- * shows "waiting for the reply" until the owner confirms it.
+ * Opens WhatsApp with the message ready to send (sending stays by hand), chosen by the order's status (`href` is
+ * built to match, lib/order-whatsapp-href.ts). New, confirmed and the rest: the confirmation; a new order then shows
+ * "waiting for the reply". Delivered: the review request, with a star, and the order leaves the to-ask list.
  */
 export function WhatsAppConfirm({
   orderId,
@@ -213,6 +215,9 @@ export function WhatsAppConfirm({
 }) {
   const [, start] = useTransition();
   const { tr } = useAdminTr();
+  const review = whatsappKind(status) === "review";
+  const label = review ? tr("رسالة طلب التقييم فواتساب", "Review request on WhatsApp") : tr("رسالة التأكيد فواتساب", "Confirmation message on WhatsApp");
+  const Icon = review ? Star : MessageCircle;
   return (
     <a
       href={href}
@@ -220,9 +225,10 @@ export function WhatsAppConfirm({
       rel="noopener noreferrer"
       onClick={() => {
         if (status === "NEW") start(() => markConfirmSent(orderId));
+        if (review) start(() => markReviewAsked(orderId));
       }}
-      aria-label={compact ? tr("رسالة التأكيد فواتساب", "Confirmation message on WhatsApp") : undefined}
-      title={compact ? tr("رسالة التأكيد فواتساب", "Confirmation message on WhatsApp") : undefined}
+      aria-label={compact ? label : undefined}
+      title={compact ? label : undefined}
       className={
         panel
           ? "flex w-28 shrink-0 snap-end flex-col items-center justify-center gap-1.5 rounded-[1.75rem] bg-whatsapp font-bold text-ink"
@@ -231,8 +237,8 @@ export function WhatsAppConfirm({
           : "inline-flex min-h-11 items-center gap-2 rounded-lg bg-whatsapp px-4 font-semibold text-ink hover:opacity-90"
       }
     >
-      <MessageCircle className={panel ? "size-6" : "size-4"} aria-hidden="true" />
-      {panel ? tr("واتساب", "WhatsApp") : compact ? null : tr("تأكيد عبر واتساب", "Confirm on WhatsApp")}
+      <Icon className={panel ? "size-6" : "size-4"} aria-hidden="true" />
+      {panel ? (review ? tr("التقييم", "Review") : tr("واتساب", "WhatsApp")) : compact ? null : review ? tr("طلب التقييم فواتساب", "Ask for a review on WhatsApp") : tr("تأكيد عبر واتساب", "Confirm on WhatsApp")}
     </a>
   );
 }

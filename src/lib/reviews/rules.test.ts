@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { costMicros, SONNET } from "@/lib/assistant/rules";
 import { externalRatingInput, formatCount, formatRating, isNegativeReview, isStaleRating, normalizeUrl, publicAuthorName, readReviewToken, reviewInput, reviewToken, reviewWhatsappMessage, urlsInText } from "./rules";
+import { awaitsReviewAsk, REVIEW_ASK_DAYS, whatsappKind } from "./ask";
 
 const SECRET = "a-test-secret-of-at-least-32-characters";
 
@@ -34,9 +35,32 @@ test("only the first name is public", () => {
   assert.equal(publicAuthorName("  أيوب ادموسى "), "أيوب");
 });
 
-test("the WhatsApp message has the link and no full name", () => {
-  const m = reviewWhatsappMessage("أيوب ادموسى", "EB-1", "https://shop/review/x");
-  assert.ok(m.includes("https://shop/review/x") && m.includes("EB-1") && !m.includes("ادموسى"));
+test("the WhatsApp message has the link, the product and no full name", () => {
+  const m = reviewWhatsappMessage("أيوب ادموسى", ["سماعات QCY T13 Pro"], "https://shop/review/x");
+  assert.ok(m.includes("https://shop/review/x") && m.includes("سماعات QCY T13 Pro") && m.includes("أيوب") && !m.includes("ادموسى"));
+  assert.equal(m.trim().split("\n").at(-1), "https://shop/review/x");
+});
+
+test("the review message names the first product of several, or the order when none", () => {
+  assert.ok(reviewWhatsappMessage("Sara", ["شاحن", "كابل"], "L").includes("شاحن وباقي المنتجات"));
+  assert.ok(reviewWhatsappMessage("Sara", [" "], "L").includes("عجباتك طلبك"));
+});
+
+test("the green button asks for a review only on delivered orders", () => {
+  assert.equal(whatsappKind("DELIVERED"), "review");
+  for (const s of ["NEW", "CONFIRMED", "SHIPPING", "RETURNING", "RETURNED", "CANCELLED"]) assert.equal(whatsappKind(s), "confirm");
+});
+
+test("a delivered order awaits its review request until asked, reviewed or 30 days old", () => {
+  const now = new Date("2026-11-17T12:00:00Z");
+  const base = { status: "DELIVERED", deliveredAt: new Date("2026-11-15T12:00:00Z"), reviewAskedAt: null, reviewed: false };
+  assert.equal(awaitsReviewAsk(base, now), true);
+  assert.equal(awaitsReviewAsk({ ...base, reviewAskedAt: now }, now), false);
+  assert.equal(awaitsReviewAsk({ ...base, reviewed: true }, now), false);
+  assert.equal(awaitsReviewAsk({ ...base, status: "SHIPPING" }, now), false);
+  assert.equal(awaitsReviewAsk({ ...base, deliveredAt: null }, now), false);
+  assert.equal(awaitsReviewAsk({ ...base, deliveredAt: new Date(now.getTime() - REVIEW_ASK_DAYS * 86_400_000) }, now), true);
+  assert.equal(awaitsReviewAsk({ ...base, deliveredAt: new Date(now.getTime() - REVIEW_ASK_DAYS * 86_400_000 - 1) }, now), false);
 });
 
 test("a rating is stale only after 3 full months", () => {

@@ -481,6 +481,8 @@ model Order {
   returnedAt        DateTime?
   // The owner opened WhatsApp with the confirmation message: a NEW order then waits for the reply.
   confirmSentAt     DateTime?
+  // Someone opened WhatsApp with the review request for this delivered order (sent by hand). First send only.
+  reviewAskedAt     DateTime?
   // Who took the order out of NEW (confirmed or cancelled it), when, and to what: an agent's figures.
   handledById       String?
   handledBy         AdminUser?       @relation(fields: [handledById], references: [id], onDelete: SetNull)

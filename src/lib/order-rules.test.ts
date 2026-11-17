@@ -14,6 +14,9 @@ test("board cards: age in minutes, hours, days, then the date; the view stays in
   assert.equal(filterQuery({ status: "NEW", view: "board", page: 1 }), "?status=NEW&view=board");
   assert.equal(parseOrderFilters({ view: "board" }).view, "board");
   assert.equal(parseOrderFilters({ view: "x" }).view, undefined);
+  assert.equal(parseOrderFilters({ review: "ask" }).reviewAsk, true);
+  assert.equal(parseOrderFilters({ review: "x" }).reviewAsk, false);
+  assert.equal(filterQuery({ reviewAsk: true, page: 1 }), "?review=ask");
 });
 
 test("only orders that never left the shop can be deleted, and never one with a review", () => {

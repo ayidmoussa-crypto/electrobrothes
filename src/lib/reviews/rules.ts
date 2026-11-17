@@ -31,8 +31,22 @@ export function readReviewToken(token: string, secret: string) {
   return given.length === expected.length && timingSafeEqual(given, expected) ? orderId : null;
 }
 
-export const reviewWhatsappMessage = (customerName: string, orderNumber: string, link: string) =>
-  `السلام عليكم ${publicAuthorName(customerName)}، معك ElectroBrothers. نتمنى يكون طلبك ${orderNumber} عجبك. واش تقدر تعطينا رأيك فالمنتج من هنا؟\n${link}`;
+// ───────── Asking for a review after delivery (sent by hand on WhatsApp until the API is connected) ─────────
+
+/**
+ * The review request: first name, what was bought, why it matters, the private link. No reward is offered: paid
+ * reviews hurt trust, and search engines penalise them.
+ */
+export function reviewWhatsappMessage(customerName: string, productNames: string[], link: string) {
+  const names = productNames.map((n) => n.trim()).filter(Boolean);
+  const bought = names.length === 0 ? "طلبك" : names.length === 1 ? names[0] : `${names[0]} وباقي المنتجات`;
+  return [
+    `السلام عليكم ${publicAuthorName(customerName)}، معك ElectroBrothers 👋`,
+    `نتمناو تكون عجباتك ${bought}.`,
+    "رأيك كيعاون زبناء آخرين يختارو مزيان، وكياخد ليك غير دقيقة وحدة ⭐",
+    link,
+  ].join("\n");
+}
 
 // ───────── Ratings from other websites ─────────
 

@@ -1,5 +1,6 @@
 import "server-only";
 import { buildAlerts, type AlertCounts } from "./admin-alerts";
+import { awaitingReviewAskWhere } from "./admin-orders";
 import type { Tr } from "./admin-tr";
 import { db } from "./db";
 import { waConfig } from "./whatsapp/client";
@@ -10,7 +11,7 @@ const pendingReview = { verified: true, isApproved: false, rejectedAt: null };
 export async function loadAlerts(role: "OWNER" | "AGENT", tr: Tr, ar: boolean) {
   const owner = role === "OWNER";
   const zero = Promise.resolve(0);
-  const [newOrders, oldestNew, readyToShip, outOfStock, atAlert, unread, pendingReviews, negativeReviews, externalPending, variantsWithoutCost, settings] = await Promise.all([
+  const [newOrders, oldestNew, readyToShip, outOfStock, atAlert, unread, pendingReviews, negativeReviews, externalPending, variantsWithoutCost, settings, reviewAsks] = await Promise.all([
     db.order.count({ where: { status: "NEW" } }),
     db.order.findFirst({ where: { status: "NEW" }, orderBy: { createdAt: "asc" }, select: { createdAt: true } }),
     db.order.count({ where: { status: "CONFIRMED" } }),
@@ -23,6 +24,8 @@ export async function loadAlerts(role: "OWNER" | "AGENT", tr: Tr, ar: boolean) {
     // Same rule as the finance page: the colour's own price, else the product's.
     owner ? db.variant.count({ where: { costPrice: null, stock: { gt: 0 }, product: { isActive: true, costPrice: null } } }) : zero,
     owner ? db.settings.findUnique({ where: { id: 1 }, select: { notifyEmail: true } }) : null,
+    // Both roles: whoever handles WhatsApp sends the review requests.
+    db.order.count({ where: awaitingReviewAskWhere(new Date()) }),
   ]);
   // The emptiest colours by name (products shown in the shop only), like the dashboard's old "running low" card.
   const low = owner
@@ -52,6 +55,7 @@ export async function loadAlerts(role: "OWNER" | "AGENT", tr: Tr, ar: boolean) {
     pendingReviews,
     negativeReviews,
     externalPending,
+    reviewAsks,
     variantsWithoutCost,
     emailReady: !!(SMTP_HOST && SMTP_USER && SMTP_PASS && (settings?.notifyEmail || NOTIFY_EMAIL)),
   };

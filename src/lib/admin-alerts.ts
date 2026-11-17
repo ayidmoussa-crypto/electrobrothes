@@ -24,6 +24,8 @@ export type AlertCounts = {
   pendingReviews: number;
   negativeReviews: number;
   externalPending: number;
+  /** Delivered orders still waiting for their review request on WhatsApp (lib/reviews/ask.ts). */
+  reviewAsks: number;
   /** Active colours in stock with no purchase price, so profit is guessed. */
   variantsWithoutCost: number;
   emailReady: boolean;
@@ -94,24 +96,34 @@ export function buildAlerts(c: AlertCounts, role: "OWNER" | "AGENT", tr: Tr): Al
     {
       id: "reviews",
       title: tr("التقييمات", "Reviews"),
-      items: owner
-        ? [
-            c.negativeReviews && {
-              id: "negative",
-              tone: "danger",
-              title: tr(`${c.negativeReviews} تقييم سلبي كيتسنى`, `${c.negativeReviews} negative reviews waiting`),
-              detail: tr("اتصل بالزبون قبل ما تقرر.", "Call the customer before you decide."),
-              href: "/admin/reviews",
-            },
-            c.pendingReviews - c.negativeReviews > 0 && {
-              id: "pending",
-              tone: "info",
-              title: tr(`${c.pendingReviews - c.negativeReviews} تقييم كيتسنى الموافقة`, `${c.pendingReviews - c.negativeReviews} reviews waiting for approval`),
-              href: "/admin/reviews",
-            },
-            c.externalPending && { id: "external", tone: "info", title: tr(`${c.externalPending} تقييم خارجي كيتسنى تأكيدك`, `${c.externalPending} external ratings to check`), href: "/admin/reviews" },
-          ]
-        : [],
+      items: [
+        // Both roles: whoever handles WhatsApp sends these.
+        c.reviewAsks && {
+          id: "review-asks",
+          tone: "info",
+          title: tr(`${c.reviewAsks} طلب وصل وكيتسنى رسالة التقييم`, `${c.reviewAsks} delivered orders waiting for a review request`),
+          detail: tr("الزر الأخضر (النجمة) كيحل واتساب بالرسالة والرابط.", "The green star button opens WhatsApp with the message and link."),
+          href: "/admin/orders?review=ask",
+        },
+        ...(owner
+          ? ([
+              c.negativeReviews && {
+                id: "negative",
+                tone: "danger",
+                title: tr(`${c.negativeReviews} تقييم سلبي كيتسنى`, `${c.negativeReviews} negative reviews waiting`),
+                detail: tr("اتصل بالزبون قبل ما تقرر.", "Call the customer before you decide."),
+                href: "/admin/reviews",
+              },
+              c.pendingReviews - c.negativeReviews > 0 && {
+                id: "pending",
+                tone: "info",
+                title: tr(`${c.pendingReviews - c.negativeReviews} تقييم كيتسنى الموافقة`, `${c.pendingReviews - c.negativeReviews} reviews waiting for approval`),
+                href: "/admin/reviews",
+              },
+              c.externalPending && { id: "external", tone: "info", title: tr(`${c.externalPending} تقييم خارجي كيتسنى تأكيدك`, `${c.externalPending} external ratings to check`), href: "/admin/reviews" },
+            ] satisfies (AlertItem | false | 0)[])
+          : []),
+      ],
     },
     {
       id: "finance",
