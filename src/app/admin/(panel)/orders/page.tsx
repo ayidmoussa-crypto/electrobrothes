@@ -14,7 +14,7 @@ import { OrderBoard, type BoardColumn, type BoardOrder } from "@/components/admi
 import { OrderCards } from "@/components/admin/OrderCards";
 import type { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
-import { sourceLabel } from "@/lib/manual-order";
+import { orderSourceLabel } from "@/lib/manual-order";
 import { adminTr } from "@/lib/admin-lang";
 import { adminLocale } from "@/lib/admin-tr";
 import { formatMAD } from "@/lib/money";
@@ -31,6 +31,7 @@ const BOARD_CARDS = 40;
 
 const orderCard = {
   id: true,
+  channel: true,
   number: true,
   createdAt: true,
   customerName: true,
@@ -114,7 +115,7 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
       more: Math.max(0, o._count.items - 1),
       waiting: o.confirmSentAt !== null,
       risky: o.riskScore >= 30 ? o.riskScore : null,
-      source: o.source !== "WEBSITE" ? sourceLabel(o.source, lang) : null,
+      source: o.source !== "WEBSITE" ? orderSourceLabel(o, lang) : null,
       waHref: orderWhatsappHref(o),
       carrier: c ? { name: c.name, logoUrl: c.logoUrl } : null,
       // Reviews only come after delivery, which deleteBlock refuses already; the server checks them again.
@@ -324,7 +325,7 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
                         </span>
                       ) : null}
                       <span className="mt-1 flex flex-wrap gap-1">
-                        {o.source !== "WEBSITE" ? <Badge tone="neutral">{sourceLabel(o.source, lang)}</Badge> : null}
+                        {o.source !== "WEBSITE" ? <Badge tone="neutral">{orderSourceLabel(o, lang)}</Badge> : null}
                         {o.riskScore >= 30 ? (
                           <Badge tone="warning" icon={<ShieldAlert className="size-3.5" aria-hidden="true" />}>
                             {tr("مشبوه", "Risk")} {o.riskScore}

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { IN_SHOP_ADDRESS, manualOrderInput, manualTotals, suggestedShipping } from "./manual-order";
+import { decodeTouch, SHOP_CHANNEL } from "./attribution";
+import { IN_SHOP_ADDRESS, manualOrderInput, manualTotals, orderSourceLabel, suggestedShipping } from "./manual-order";
 
 const valid = {
   items: JSON.stringify([{ variantId: "v1", qty: 2, unitPrice: 150 }]),
@@ -45,6 +46,15 @@ test("a sale at the shop needs no address; a delivery does", () => {
   assert.equal(manualOrderInput.parse({ ...valid, address: "", startAs: "DELIVERED" }).address, IN_SHOP_ADDRESS);
   assert.equal(manualOrderInput.parse({ ...valid, startAs: "DELIVERED" }).address, "حي السلام");
   assert.equal(manualOrderInput.safeParse({ ...valid, address: "" }).success, false);
+});
+
+test("a shop sale never carries a delivery fee and reads as the shop", () => {
+  const sale = manualOrderInput.parse({ ...valid, startAs: "DELIVERED" });
+  assert.equal(sale.shippingFee, 0);
+  assert.equal(sale.source, "OTHER");
+  assert.equal(orderSourceLabel({ source: sale.source, channel: SHOP_CHANNEL }), "المحل");
+  assert.equal(orderSourceLabel({ source: "WHATSAPP", channel: "WHATSAPP" }), "واتساب");
+  assert.equal(decodeTouch(SHOP_CHANNEL), null);
 });
 
 test("totals with an agreed price, discount and delivery", () => {

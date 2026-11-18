@@ -42,9 +42,16 @@ export const CHANNEL_LABEL_EN: Record<Channel, string> = {
   OTHER: "Other",
 };
 
+/**
+ * A sale made at the shop's counter. Set only by the admin form and kept out of CHANNEL_LABEL on purpose:
+ * the visitor's cookie is checked against that list, so nobody online can pass as a shop sale.
+ */
+export const SHOP_CHANNEL = "SHOP";
+export const isShopSale = (o: { channel: string | null }) => o.channel === SHOP_CHANNEL;
+
 /** Label of a stored channel; orders from before tracking started have none. */
 export const channelLabel = (c: string | null, lang: "ar" | "en" = "ar") =>
-  c ? ((lang === "en" ? CHANNEL_LABEL_EN : (CHANNEL_LABEL as Record<string, string>))[c as Channel] ?? c) : lang === "en" ? "Before tracking" : "قبل التتبع";
+  c === SHOP_CHANNEL ? (lang === "en" ? "Shop" : "المحل") : c ? ((lang === "en" ? CHANNEL_LABEL_EN : (CHANNEL_LABEL as Record<string, string>))[c as Channel] ?? c) : lang === "en" ? "Before tracking" : "قبل التتبع";
 
 const PAID = /^(cpc|ppc|paid|paid_?social|paidsocial|ads?|cpm|display|sponsored)$/;
 const SEARCH = /(^|\.)(google|bing|yahoo|duckduckgo|yandex|ecosia|qwant|baidu|brave)\./;

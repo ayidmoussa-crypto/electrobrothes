@@ -3,7 +3,7 @@ import { revalidateTag } from "next/cache";
 import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import { db } from "./db";
-import { channelOfManualSource, type Touch } from "./attribution";
+import { channelOfManualSource, SHOP_CHANNEL, type Touch } from "./attribution";
 import { manualTotals, type ManualOrderInput } from "./manual-order";
 import { bundleDiscount } from "./bundles";
 import { bundleRulesFor } from "./bundles-data";
@@ -240,7 +240,7 @@ export async function createManualOrder(input: ManualOrderInput, actor: string, 
         data: {
           number: await nextOrderNumber(tx),
           source: input.source,
-          channel: channelOfManualSource(input.source),
+          channel: input.startAs === "DELIVERED" ? SHOP_CHANNEL : channelOfManualSource(input.source),
           customerName: input.name,
           phone: input.phone,
           cityId: city.id,

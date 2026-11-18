@@ -12,6 +12,7 @@ export default async function NewOrderPage({ searchParams }: PageProps<"/admin/o
   // Agents type in orders that come by WhatsApp or phone too; the ones they confirm count for them.
   const [user, { tr, ar }] = await Promise.all([requireStaff(), adminTr()]);
   const q = await searchParams;
+  const agent = user.role === "AGENT";
   const [variants, cities, settings] = await Promise.all([
     db.variant.findMany({
       where: { product: { isActive: true } },
@@ -42,7 +43,7 @@ export default async function NewOrderPage({ searchParams }: PageProps<"/admin/o
         <ArrowRight className="size-4 ltr:rotate-180" aria-hidden="true" />
         {tr("كل الطلبات", "All orders")}
       </Link>
-      <PageHeader title={tr("إضافة طلب", "New order")} description={tr("طلب جا من واتساب، مكالمة، ولا مواقع التواصل.", "An order from WhatsApp, a call or social media.")} />
+      <PageHeader title={tr("إضافة طلب", "New order")} description={agent ? tr("طلب جا من واتساب، مكالمة، ولا مواقع التواصل.", "An order from WhatsApp, a call or social media.") : tr("طلب للتوصيل، ولا بيع فالمحل.", "An order to deliver, or a sale at the shop.")} />
       <ManualOrderForm
         variants={variants.map((v) => ({
           id: v.id,
@@ -58,7 +59,8 @@ export default async function NewOrderPage({ searchParams }: PageProps<"/admin/o
         cities={cities.map((c) => ({ id: c.id, name: ar ? c.nameAr : c.nameEn, fee: c.shippingFee }))}
         freeThreshold={settings?.freeShippingThreshold ?? 1000}
         defaults={{ name, phone: phone ? formatMoroccanPhone(phone) : "" }}
-        agent={user.role === "AGENT"}
+        agent={agent}
+        shopSale={!agent && q.shop === "1"}
       />
     </>
   );

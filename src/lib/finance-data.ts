@@ -1,5 +1,7 @@
 import "server-only";
+import { SHOP_CHANNEL } from "./attribution";
 import { db } from "./db";
+import { compareSales } from "./sales-compare";
 import { computeCapital, computeProfit, expectedFromCarrier, goodsOnTheRoad, profitTrend, trendBuckets } from "./finance";
 import type { Period } from "./period";
 import { effectiveCost } from "./stock";
@@ -62,6 +64,21 @@ export async function loadPeriod({ from: since, until: now, days, prevFrom }: Pi
   }
   const sources = [...byChannel].map(([channel, c]) => ({ channel, ...c })).sort((x, y) => y.revenue - x.revenue);
   return { profit, trend, sources, before };
+}
+
+/** Online orders against shop sales over a period, with the latest of each to act on. */
+export async function loadSalesComparison({ from, until }: Pick<Period, "from" | "until">) {
+  const range = { gte: from, lte: until };
+  const select = { ...orderFields, channel: true } as const;
+  const row = { id: true, number: true, customerName: true, total: true, status: true, createdAt: true } as const;
+  const [delivered, returned, latestShop, latestOnline] = await Promise.all([
+    db.order.findMany({ where: { status: "DELIVERED", deliveredAt: range }, select }),
+    db.order.findMany({ where: { status: "RETURNED", returnedAt: range }, select }),
+    db.order.findMany({ where: { channel: SHOP_CHANNEL }, orderBy: { createdAt: "desc" }, take: 6, select: row }),
+    // Orders from before tracking have no channel: `not` alone would skip them.
+    db.order.findMany({ where: { OR: [{ channel: null }, { channel: { not: SHOP_CHANNEL } }] }, orderBy: { createdAt: "desc" }, take: 6, select: row }),
+  ]);
+  return { ...compareSales(delivered.map(toFeeOrder), returned.map(toFeeOrder)), latestShop, latestOnline };
 }
 
 /** Where all the money is today, since the very beginning. */

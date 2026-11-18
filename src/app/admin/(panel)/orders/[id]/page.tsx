@@ -20,7 +20,7 @@ import { CARRIER_LABEL, CARRIER_STATUSES, isCarrierStatus } from "@/lib/carrier/
 import { db } from "@/lib/db";
 import { expectedFromCarrier } from "@/lib/finance";
 import { channelLabel } from "@/lib/attribution";
-import { sourceLabel } from "@/lib/manual-order";
+import { orderSourceLabel } from "@/lib/manual-order";
 import { formatMAD } from "@/lib/money";
 import { allowedNext, cashToCollect, type OrderStatus } from "@/lib/order-rules";
 import { formatMoroccanPhone } from "@/lib/phone";
@@ -74,7 +74,7 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
       </Link>
       <PageHeader
         title={tr(`الطلب ${order.number}`, `Order ${order.number}`)}
-        description={`${dateFmt.format(order.createdAt)} · ${tr("المصدر", "Source")}: ${sourceLabel(order.source, lang)} · ${tr("جا من", "Came from")}: ${channelLabel(order.channel, lang)}${order.channelDetail ? ` (${order.channelDetail})` : ""}`}
+        description={`${dateFmt.format(order.createdAt)} · ${tr("المصدر", "Source")}: ${orderSourceLabel(order, lang)} · ${tr("جا من", "Came from")}: ${channelLabel(order.channel, lang)}${order.channelDetail ? ` (${order.channelDetail})` : ""}`}
         actions={
           <div className="flex flex-wrap items-start gap-2">
             {agent ? null : <PaymentMenu orderId={order.id} number={order.number} status={order.status} prepaid={prepaid} collected={order.codReceivedAt !== null} />}

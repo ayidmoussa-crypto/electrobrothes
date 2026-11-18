@@ -21,6 +21,7 @@ import {
   ShoppingCart,
   Sparkles,
   Star,
+  Store,
   Tags,
   TicketPercent,
   Trophy,
@@ -48,6 +49,7 @@ const items: Item[] = [
     children: [
       { href: "/admin/orders", label: ["كل الطلبات", "All orders"], icon: ShoppingCart },
       { href: "/admin/orders/new", label: ["إضافة طلب", "New order"], icon: Plus },
+      { href: "/admin/sales", label: ["أونلاين والمحل", "Online and shop"], icon: Store },
       { href: "/admin/staff", label: ["فريق التأكيد", "Confirmation team"], icon: Headset },
     ],
   },

@@ -1,6 +1,7 @@
 // An order the owner types in from a WhatsApp, phone or social conversation. Pure validation and totals:
 // unlike the shop's checkout, the owner may agree a price, a discount or the delivery fee with the customer.
 import { z } from "zod";
+import { channelLabel, isShopSale } from "./attribution";
 import { normalizeMoroccanPhone } from "./phone";
 
 export const MANUAL_SOURCES = {
@@ -25,6 +26,9 @@ export const MANUAL_SOURCES_EN: Record<keyof typeof MANUAL_SOURCES, string> = {
 
 export const sourceLabel = (s: string, lang: "ar" | "en" = "ar") => (lang === "en" ? ({ WEBSITE: "Website", ...MANUAL_SOURCES_EN } as Record<string, string>) : SOURCE_LABEL)[s] ?? s;
 
+/** Where an order came from, as the admin reads it: a shop sale says so instead of its stored source. */
+export const orderSourceLabel = (o: { source: string; channel: string | null }, lang: "ar" | "en" = "ar") => (isShopSale(o) ? channelLabel(o.channel, lang) : sourceLabel(o.source, lang));
+
 const money = z.coerce.number().int().min(0).max(10_000_000);
 
 const lines = z
@@ -32,9 +36,9 @@ const lines = z
   .min(1, "items")
   .max(30, "items");
 
-/** Where a typed-in order starts. DELIVERED: the customer came to the shop and left with it. */
-export const START_AS = { NEW: "جديد", CONFIRMED: "مؤكَّد", DELIVERED: "تسلّم فالمحل" } as const;
-export const START_AS_EN: Record<keyof typeof START_AS, string> = { NEW: "New", CONFIRMED: "Confirmed", DELIVERED: "Picked up in the shop" };
+/** Where a typed-in order starts. DELIVERED: sold at the shop, the customer left with it. */
+export const START_AS = { NEW: "جديد", CONFIRMED: "مؤكَّد", DELIVERED: "بيع فالمحل" } as const;
+export const START_AS_EN: Record<keyof typeof START_AS, string> = { NEW: "New", CONFIRMED: "Confirmed", DELIVERED: "Shop sale" };
 export const IN_SHOP_ADDRESS = "استلم من المحل";
 
 export const manualOrderInput = z
@@ -57,10 +61,10 @@ export const manualOrderInput = z
     discount: money,
     startAs: z.enum(["NEW", "CONFIRMED", "DELIVERED"]).default("CONFIRMED"),
   })
-  // A sale at the shop needs no delivery address.
+  // A sale at the shop has nothing to deliver: no address needed and no delivery fee, whatever was sent.
   .transform((o, ctx) => {
+    if (o.startAs === "DELIVERED") return { ...o, source: "OTHER" as const, shippingFee: 0, address: o.address.length >= 3 ? o.address : IN_SHOP_ADDRESS };
     if (o.address.length >= 3) return o;
-    if (o.startAs === "DELIVERED") return { ...o, address: IN_SHOP_ADDRESS };
     ctx.addIssue({ code: "custom", message: "address", path: ["address"] });
     return z.NEVER;
   });
