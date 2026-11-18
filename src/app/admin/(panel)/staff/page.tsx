@@ -105,8 +105,8 @@ export default async function StaffPage({ searchParams }: PageProps<"/admin/staf
           <p className="mt-3 flex items-start gap-2 text-xs text-warm-600">
             <UserPlus className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
             {tr(
-              "الموظف كيدخل من نفس صفحة الدخول ديال اللوحة، وكيشوف غير الطلبات والرسائل والأرقام ديالو. كيقدر يزيد طلبات جات فواتساب ولا بالتيليفون، ويأكد ولا يلغي غير الطلبات الجديدة.",
-              "The agent signs in on the same panel login page and only sees orders, messages and their own figures. They can add orders that came by WhatsApp or phone, and only confirm or cancel new orders.",
+              "الموظف كيدخل من نفس صفحة الدخول ديال اللوحة، وكيشوف غير الطلبات والأرقام ديالو. كيقدر يزيد طلبات جات فواتساب ولا بالتيليفون، ويأكد ولا يلغي غير الطلبات الجديدة.",
+              "The agent signs in on the same panel login page and only sees orders and their own figures. They can add orders that came by WhatsApp or phone, and only confirm or cancel new orders.",
             )}
           </p>
         </Panel>

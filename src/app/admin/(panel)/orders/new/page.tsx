@@ -32,7 +32,7 @@ export default async function NewOrderPage({ searchParams }: PageProps<"/admin/o
     db.settings.findUnique({ where: { id: 1 }, select: { freeShippingThreshold: true } }),
   ]);
 
-  // Arriving from a WhatsApp conversation: the customer's number and name are already filled in.
+  // A link can bring the customer's number and name, already filled in.
   const phone = normalizeMoroccanPhone(typeof q.phone === "string" ? q.phone : "");
   const name = typeof q.name === "string" ? q.name.slice(0, 80) : "";
 

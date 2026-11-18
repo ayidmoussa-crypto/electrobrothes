@@ -5,7 +5,6 @@ import { after } from "next/server";
 import { redirect } from "@/i18n/navigation";
 import { routing, type Locale } from "@/i18n/routing";
 import { CHANNEL_COOKIE, decodeTouch } from "@/lib/attribution";
-import { fireOrderEvent, runDueAutomations } from "@/lib/automations";
 import { db } from "@/lib/db";
 import { clientIp, hit, verifyTurnstile } from "@/lib/guard";
 import { notifyNewOrder } from "@/lib/notify";
@@ -30,7 +29,7 @@ const formValues = (formData: FormData) => Object.fromEntries([...formData].filt
 
 /**
  * The whole cash-on-delivery path shared by every order form: validation, IP limit, Turnstile, placeOrder (risk,
- * stock, same-basket dedupe), the shop's email and automations, and the cookie that lets this browser see its order.
+ * stock, same-basket dedupe), the shop's email, and the cookie that lets this browser see its order.
  */
 async function processOrder(raw: Record<string, string>): Promise<{ state: OrderFormState } | { placed: { orderId: string; number: string } }> {
   // Echo back what the customer typed (never the honeypot) so a failed submit keeps the form filled.
@@ -69,8 +68,6 @@ async function processOrder(raw: Record<string, string>): Promise<{ state: Order
   if (!result.duplicate) {
     after(async () => {
       await notifyNewOrder(result.orderId);
-      await fireOrderEvent(result.orderId, "order_created");
-      await runDueAutomations().catch((e) => console.error("[automations]", e));
     });
   }
 

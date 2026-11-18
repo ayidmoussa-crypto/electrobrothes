@@ -3,7 +3,6 @@ import { buildAlerts, type AlertCounts } from "./admin-alerts";
 import { awaitingReviewAskWhere } from "./admin-orders";
 import type { Tr } from "./admin-tr";
 import { db } from "./db";
-import { waConfig } from "./whatsapp/client";
 
 const pendingReview = { verified: true, isApproved: false, rejectedAt: null };
 
@@ -11,13 +10,12 @@ const pendingReview = { verified: true, isApproved: false, rejectedAt: null };
 export async function loadAlerts(role: "OWNER" | "AGENT", tr: Tr, ar: boolean) {
   const owner = role === "OWNER";
   const zero = Promise.resolve(0);
-  const [newOrders, oldestNew, readyToShip, outOfStock, atAlert, unread, pendingReviews, negativeReviews, externalPending, variantsWithoutCost, settings, reviewAsks] = await Promise.all([
+  const [newOrders, oldestNew, readyToShip, outOfStock, atAlert, pendingReviews, negativeReviews, externalPending, variantsWithoutCost, settings, reviewAsks] = await Promise.all([
     db.order.count({ where: { status: "NEW" } }),
     db.order.findFirst({ where: { status: "NEW" }, orderBy: { createdAt: "asc" }, select: { createdAt: true } }),
     db.order.count({ where: { status: "CONFIRMED" } }),
     owner ? db.variant.count({ where: { stock: { lte: 0 }, product: { isActive: true } } }) : zero,
     owner ? db.variant.count({ where: { stock: { lte: db.variant.fields.lowStockAt }, product: { isActive: true } } }) : zero,
-    db.waConversation.aggregate({ where: { unread: { gt: 0 } }, _sum: { unread: true }, _count: true }),
     owner ? db.review.count({ where: pendingReview }) : zero,
     owner ? db.review.count({ where: { ...pendingReview, rating: { lte: 2 } } }) : zero,
     owner ? db.externalRating.count({ where: { status: "PENDING" } }) : zero,
@@ -49,9 +47,6 @@ export async function loadAlerts(role: "OWNER" | "AGENT", tr: Tr, ar: boolean) {
       name: [ar ? v.product.nameAr : v.product.nameEn, ar ? v.colorAr : v.colorEn, v.storage].filter(Boolean).join(" · "),
       left: v.stock,
     })),
-    unreadMessages: unread._sum.unread ?? 0,
-    unreadChats: unread._count,
-    whatsappConnected: !!waConfig(),
     pendingReviews,
     negativeReviews,
     externalPending,

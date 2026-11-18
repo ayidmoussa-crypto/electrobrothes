@@ -22,7 +22,7 @@ const createInput = z.object({
   payPerDelivered: pay,
 });
 
-/** A new confirmation agent: signs in on /admin/login and only sees orders, messages and their figures. */
+/** A new confirmation agent: signs in on /admin/login and only sees orders and their figures. */
 export async function createAgent(_: State, fd: FormData): Promise<State> {
   await requireAdmin();
   const { tr } = await adminTr();

@@ -136,7 +136,7 @@ export default async function CarriersPage() {
         <ol className="list-decimal space-y-1 ps-5 text-sm text-warm-800">
           <li>{tr("زيد الشركة هنا، وعمّر الولوج اللي عطاوك.", "Add the company here with the access they gave you.")}</li>
           <li>{tr("نسخ «رابط الاستقبال» وعطيه للشركة (كيسميوه webhook ولا callback URL).", "Copy the “receiving link” and give it to the company (they call it a webhook or callback URL).")}</li>
-          <li>{tr("ملي يتحرك الطرد، الشركة كتصيفط لهاد الرابط، والطلب كيتبدل بوحدو: الحالة، المخزون، ورسائل واتساب.", "When a parcel moves, the company calls this link and the order updates itself: status, stock and WhatsApp messages.")}</li>
+          <li>{tr("ملي يتحرك الطرد، الشركة كتصيفط لهاد الرابط، والطلب كيتبدل بوحدو: الحالة والمخزون.", "When a parcel moves, the company calls this link and the order updates itself: status and stock.")}</li>
           <li>{tr("ربط الحالات ديالهم بالحالات ديالنا. أي حالة جديدة كتبان ليك باش تربطها.", "Map their statuses to ours. Any new status shows up for you to map.")}</li>
         </ol>
         <p className="mt-2 text-xs text-warm-600">{tr("رقم التتبع خاصو يكون مكتوب فالطلب باش نعرفو أي طلب هذا.", "The tracking number must be on the order so the parcel can be matched to it.")}</p>

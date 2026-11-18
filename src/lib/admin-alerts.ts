@@ -3,7 +3,7 @@
 import type { Tr } from "./admin-tr";
 
 export type AlertTone = "danger" | "warning" | "info";
-export type AlertGroupId = "orders" | "messages" | "stock" | "reviews" | "finance" | "system";
+export type AlertGroupId = "orders" | "stock" | "reviews" | "finance" | "system";
 /** `code` holds setting names or paths, shown left to right on their own line. */
 export type AlertItem = { id: string; tone: AlertTone; title: string; detail?: string; code?: string; href: string };
 export type AlertGroup = { id: AlertGroupId; title: string; items: AlertItem[] };
@@ -18,9 +18,6 @@ export type AlertCounts = {
   lowStock: number;
   /** The emptiest of those colours, named, so each one opens its product. */
   stockList: { id: string; productId: string; name: string; left: number }[];
-  unreadMessages: number;
-  unreadChats: number;
-  whatsappConnected: boolean;
   pendingReviews: number;
   negativeReviews: number;
   externalPending: number;
@@ -36,7 +33,7 @@ export const LATE_CALL_HOURS = 24;
 
 const RANK: Record<AlertTone, number> = { danger: 0, warning: 1, info: 2 };
 
-/** The groups with something in them, most urgent item first. The confirmation team sees orders, messages and setup only. */
+/** The groups with something in them, most urgent item first. The confirmation team sees orders and review requests only. */
 export function buildAlerts(c: AlertCounts, role: "OWNER" | "AGENT", tr: Tr): AlertGroup[] {
   const owner = role === "OWNER";
   const raw: { id: AlertGroupId; title: string; items: (AlertItem | false | 0)[] }[] = [
@@ -56,19 +53,6 @@ export function buildAlerts(c: AlertCounts, role: "OWNER" | "AGENT", tr: Tr): Al
           tone: "info",
           title: tr(`${c.readyToShip} طلب مؤكَّد كيتسنى الشحن`, `${c.readyToShip} confirmed orders waiting to ship`),
           href: "/admin/orders?status=CONFIRMED",
-        },
-      ],
-    },
-    {
-      id: "messages",
-      title: tr("الرسائل", "Messages"),
-      items: [
-        c.unreadMessages && {
-          id: "unread",
-          tone: "warning",
-          title: tr(`${c.unreadMessages} رسالة ما تقراتش`, `${c.unreadMessages} unread messages`),
-          detail: tr(`فـ ${c.unreadChats} محادثة`, `in ${c.unreadChats} conversations`),
-          href: "/admin/inbox",
         },
       ],
     },
@@ -144,14 +128,6 @@ export function buildAlerts(c: AlertCounts, role: "OWNER" | "AGENT", tr: Tr): Al
       id: "system",
       title: tr("الإعدادات", "Setup"),
       items: [
-        !c.whatsappConnected && {
-          id: "whatsapp",
-          tone: "warning",
-          title: tr("واتساب مازال ما مربوطش", "WhatsApp is not connected"),
-          detail: tr("الرسائل والأتمتة كيتسناو حتى يتربط. خاص هادو فـ Vercel، والـ webhook فـ Meta:", "Messages and automations wait until it is. These are needed in Vercel, and the webhook in Meta:"),
-          code: "WHATSAPP_TOKEN · WHATSAPP_PHONE_NUMBER_ID · WHATSAPP_APP_SECRET · WHATSAPP_VERIFY_TOKEN · /api/webhooks/whatsapp",
-          href: "/admin/inbox",
-        },
         owner &&
           !c.emailReady && {
             id: "email",

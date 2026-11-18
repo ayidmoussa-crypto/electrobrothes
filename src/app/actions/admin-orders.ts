@@ -2,11 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { after } from "next/server";
 import { z } from "zod";
 import { requireAdmin, requireStaff } from "@/lib/admin";
 import { adminTr, type Tr } from "@/lib/admin-lang";
-import { runDueAutomations } from "@/lib/automations";
 import { CARRIER_STATUSES } from "@/lib/carrier/status";
 import { db } from "@/lib/db";
 import { manualError, manualOrderInput } from "@/lib/manual-order";
@@ -14,8 +12,6 @@ import { canSetPrepaid, ORDER_STATUSES, shipBlock } from "@/lib/order-rules";
 import { changeOrderStatus, createManualOrder, deleteOrder, OrderTransitionError } from "@/lib/orders";
 import { normalizeMoroccanPhone } from "@/lib/phone";
 import { recordShipmentEvent } from "@/lib/shipments";
-
-const sendDueMessages = () => after(() => runDueAutomations().catch((e) => console.error("[automations]", e)));
 
 export type ActionState = { ok?: boolean; message?: string };
 
@@ -47,7 +43,6 @@ export async function setOrderStatus(_prev: ActionState, formData: FormData): Pr
     }
     throw e;
   }
-  sendDueMessages();
   revalidatePath("/admin/orders");
   revalidatePath("/admin");
   return { ok: true, message: tr("تم تحديث حالة الطلب.", "Order status updated.") };
@@ -189,7 +184,6 @@ export async function createOrderByHand(_prev: ActionState, formData: FormData):
     }[result.error];
     return { ok: false, message };
   }
-  sendDueMessages();
   revalidatePath("/admin/orders");
   revalidatePath("/admin");
   redirect(`/admin/orders/${result.orderId}${result.confirmError ? "?unconfirmed=1" : ""}`);
@@ -233,7 +227,6 @@ export async function addShipmentEvent(_prev: ActionState, formData: FormData): 
     if (e instanceof OrderTransitionError) return { ok: false, message: e.reason === "not_allowed" ? tr("أكّد الطلب أولاً: هذه الخطوة لا تناسب حالته الحالية.", "Confirm the order first: this step does not fit its current status.") : `${reasons(tr)[e.reason]}${e.sku ? ` (${e.sku})` : ""}` };
     throw e;
   }
-  sendDueMessages();
   revalidatePath(`/admin/orders/${parsed.data.orderId}`);
   revalidatePath("/admin/orders");
   revalidatePath("/admin");

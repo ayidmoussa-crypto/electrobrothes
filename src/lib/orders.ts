@@ -4,8 +4,6 @@ import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import { db } from "./db";
 import { channelOfManualSource, type Touch } from "./attribution";
-import { TRIGGER_OF_STATUS } from "./automation-rules";
-import { fireOrderEvent } from "./automations";
 import { manualTotals, type ManualOrderInput } from "./manual-order";
 import { bundleDiscount } from "./bundles";
 import { bundleRulesFor } from "./bundles-data";
@@ -280,10 +278,7 @@ export async function createManualOrder(input: ManualOrderInput, actor: string, 
   }
   if (!order) return { ok: false, error: "unavailable" };
 
-  if (input.startAs === "NEW") {
-    await fireOrderEvent(order.id, "order_created");
-    return { ok: true, orderId: order.id, number: order.number };
-  }
+  if (input.startAs === "NEW") return { ok: true, orderId: order.id, number: order.number };
   try {
     // Sold at the shop: handed over by the owner, so no carrier fee and the cash is already in hand.
     if (input.startAs === "DELIVERED") await changeOrderStatus(order.id, "DELIVERED", actor, undefined, { manual: true });
@@ -361,14 +356,12 @@ export async function changeOrderStatus(orderId: string, to: OrderStatus, actor:
   });
   // Stock shown on product pages changed.
   if (stockMoved) revalidateTag("products", "max");
-  const trigger = TRIGGER_OF_STATUS[to];
-  if (trigger) await fireOrderEvent(orderId, trigger);
 }
 
 /**
  * Deletes an order for good (a duplicate, a test, a prank), when deleteBlock allows it. Stock it was holding goes
- * back with a ledger line, its coupon use is given back, and its waiting WhatsApp messages are dropped. Lines,
- * history and parcel events go with it (cascade); the stock ledger keeps its number. Row-locked like a status change.
+ * back with a ledger line and its coupon use is given back. Lines, history and parcel events go with it (cascade);
+ * the stock ledger keeps its number. Row-locked like a status change.
  */
 export async function deleteOrder(orderId: string, actor: string): Promise<"ok" | "not_found" | NonNullable<ReturnType<typeof deleteBlock>>> {
   const result = await db.$transaction(async (tx) => {
@@ -386,7 +379,6 @@ export async function deleteOrder(orderId: string, actor: string): Promise<"ok" 
       }
     }
     if (order.couponCode) await tx.coupon.updateMany({ where: { code: order.couponCode, usedCount: { gt: 0 } }, data: { usedCount: { decrement: 1 } } });
-    await tx.automationJob.deleteMany({ where: { orderId } });
     await tx.order.delete({ where: { id: orderId } });
     return order.stockDeducted ? ("ok-stock" as const) : ("ok" as const);
   });

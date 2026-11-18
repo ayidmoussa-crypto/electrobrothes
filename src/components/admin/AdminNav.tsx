@@ -15,7 +15,6 @@ import {
   LayoutTemplate,
   LogOut,
   MapPin,
-  MessagesSquare,
   Package,
   Plus,
   Settings,
@@ -29,7 +28,6 @@ import {
   Users,
   Wallet,
   X,
-  Zap,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -51,15 +49,6 @@ const items: Item[] = [
       { href: "/admin/orders", label: ["كل الطلبات", "All orders"], icon: ShoppingCart },
       { href: "/admin/orders/new", label: ["إضافة طلب", "New order"], icon: Plus },
       { href: "/admin/staff", label: ["فريق التأكيد", "Confirmation team"], icon: Headset },
-    ],
-  },
-  {
-    href: "/admin/inbox",
-    label: ["الرسائل", "Messages"],
-    icon: MessagesSquare,
-    children: [
-      { href: "/admin/inbox", label: ["المحادثات", "Conversations"], icon: MessagesSquare },
-      { href: "/admin/automations", label: ["الأتمتة", "Automations"], icon: Zap },
     ],
   },
   {
@@ -104,7 +93,7 @@ const items: Item[] = [
   },
 ];
 
-// A confirmation agent's whole panel: their figures, the orders to call, and the WhatsApp messages.
+// A confirmation agent's whole panel: their figures and the orders to call.
 const agentItems: Item[] = [
   { href: "/admin/me", label: ["إحصائياتي", "My figures"], icon: Wallet },
   {
@@ -116,12 +105,11 @@ const agentItems: Item[] = [
       { href: "/admin/orders/new", label: ["إضافة طلب", "New order"], icon: Plus },
     ],
   },
-  { href: "/admin/inbox", label: ["الرسائل", "Messages"], icon: MessagesSquare },
 ];
 const itemsFor = (role: Role) => (role === "AGENT" ? agentItems : items);
 
-// Phones: the four daily sections sit in the bottom bar; the rest open from "المزيد".
-const PRIMARY = ["/admin", "/admin/orders", "/admin/inbox", "/admin/products", "/admin/me"];
+// Phones: the daily sections sit in the bottom bar; the rest open from "المزيد".
+const PRIMARY = ["/admin", "/admin/orders", "/admin/products", "/admin/me"];
 
 const activeChild = (pathname: string, children: Item[]) => children.filter((c) => pathname.startsWith(c.href)).at(-1);
 const isActive = (pathname: string, { href, children }: Item) =>
@@ -250,7 +238,7 @@ export function AdminTopNav({ role }: { role: Role }) {
 }
 
 /**
- * Phones and tablets: a floating dark-glass bar at the bottom (thumb reach) with the four daily
+ * Phones and tablets: a floating dark-glass bar at the bottom (thumb reach) with the daily
  * sections and "المزيد", which slides up a sheet with the other sections, the shop link and logout.
  */
 export function AdminBottomNav({ email, role }: { email: string; role: Role }) {

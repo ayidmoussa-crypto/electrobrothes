@@ -1,5 +1,5 @@
 import { revalidatePath } from "next/cache";
-import { after, type NextRequest } from "next/server";
+import type { NextRequest } from "next/server";
 import { parseCarrierPayload } from "@/lib/carrier/webhook";
 import { db } from "@/lib/db";
 import { OrderTransitionError } from "@/lib/orders";
@@ -87,10 +87,5 @@ export async function POST(request: NextRequest, { params }: RouteContext<"/api/
   }
   revalidatePath("/admin/carriers");
 
-  // A step can start a WhatsApp automation ("out for delivery"): due messages go out after the answer.
-  after(async () => {
-    const { runDueAutomations } = await import("@/lib/automations");
-    await runDueAutomations().catch((e) => console.error("[automations]", e));
-  });
   return Response.json({ received: events.length, applied, unknownStatuses: [...unknown], problems });
 }

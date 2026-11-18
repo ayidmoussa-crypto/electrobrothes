@@ -1,4 +1,4 @@
-import { ArrowRight, MessagesSquare, Phone, ShieldAlert, Truck } from "lucide-react";
+import { ArrowRight, Phone, ShieldAlert, Truck } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { setCodReceived } from "@/app/actions/admin-finance";
@@ -143,10 +143,6 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
                 {tr("اتصال", "Call")}
               </a>
               <WhatsAppConfirm orderId={order.id} status={order.status} href={orderWhatsappHref(order)} />
-              <Link href={`/admin/inbox?phone=${encodeURIComponent(order.phone)}`} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-warm-200 bg-white px-4 font-semibold text-ink hover:bg-warm-50">
-                <MessagesSquare className="size-4" aria-hidden="true" />
-                {tr("المحادثة", "Conversation")}
-              </Link>
             </div>
           </Panel>
 

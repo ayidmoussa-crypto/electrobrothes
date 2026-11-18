@@ -1,13 +1,13 @@
 "use client";
 
 import type { LucideIcon } from "lucide-react";
-import { Bell, ChevronLeft, ChevronRight, CircleCheck, Landmark, MessagesSquare, PackageX, Settings, ShoppingCart, Star, X } from "lucide-react";
+import { Bell, ChevronLeft, ChevronRight, CircleCheck, Landmark, PackageX, Settings, ShoppingCart, Star, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { AlertGroup, AlertGroupId, AlertTone } from "@/lib/admin-alerts";
 import { useAdminTr } from "./AdminLang";
 
-const ICON: Record<AlertGroupId, LucideIcon> = { orders: ShoppingCart, messages: MessagesSquare, stock: PackageX, reviews: Star, finance: Landmark, system: Settings };
+const ICON: Record<AlertGroupId, LucideIcon> = { orders: ShoppingCart, stock: PackageX, reviews: Star, finance: Landmark, system: Settings };
 const TONE: Record<AlertTone, string> = {
   danger: "bg-danger-soft text-danger",
   warning: "bg-warning-soft text-warning-text",
@@ -28,7 +28,7 @@ export const PANEL_PLACE: Record<Placement, string> = {
 };
 
 /**
- * The bell: everything that needs the team, grouped (orders, messages, stock, reviews, finance, setup), with a
+ * The bell: everything that needs the team, grouped (orders, stock, reviews, finance, setup), with a
  * chip per group to narrow the list. Each line opens the page where it gets done.
  */
 export function NotificationsButton({ groups, placement }: { groups: AlertGroup[]; placement: Placement }) {

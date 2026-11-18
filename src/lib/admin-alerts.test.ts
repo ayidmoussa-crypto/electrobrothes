@@ -10,9 +10,6 @@ const calm: AlertCounts = {
   outOfStock: 0,
   lowStock: 0,
   stockList: [],
-  unreadMessages: 0,
-  unreadChats: 0,
-  whatsappConnected: true,
   pendingReviews: 0,
   negativeReviews: 0,
   externalPending: 0,
@@ -62,9 +59,9 @@ test("delivered orders waiting for a review request show to the owner and the te
   }
 });
 
-test("the confirmation team sees orders, messages and WhatsApp only", () => {
-  const busy: AlertCounts = { ...calm, newOrders: 1, unreadMessages: 4, unreadChats: 2, outOfStock: 1, negativeReviews: 1, pendingReviews: 1, variantsWithoutCost: 3, whatsappConnected: false, emailReady: false };
-  assert.deepEqual(buildAlerts(busy, "AGENT", tr).map((g) => g.id), ["orders", "messages", "system"]);
-  assert.deepEqual(buildAlerts(busy, "AGENT", tr).at(-1)!.items.map((i) => i.id), ["whatsapp"]);
-  assert.deepEqual(buildAlerts(busy, "OWNER", tr).map((g) => g.id), ["orders", "messages", "stock", "reviews", "finance", "system"]);
+test("the confirmation team sees orders only; stock, reviews, finance and setup stay with the owner", () => {
+  const busy: AlertCounts = { ...calm, newOrders: 1, outOfStock: 1, negativeReviews: 1, pendingReviews: 1, variantsWithoutCost: 3, emailReady: false };
+  assert.deepEqual(buildAlerts(busy, "AGENT", tr).map((g) => g.id), ["orders"]);
+  assert.deepEqual(buildAlerts(busy, "OWNER", tr).map((g) => g.id), ["orders", "stock", "reviews", "finance", "system"]);
+  assert.deepEqual(buildAlerts(busy, "OWNER", tr).at(-1)!.items.map((i) => i.id), ["email"]);
 });
