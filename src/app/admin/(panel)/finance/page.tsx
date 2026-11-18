@@ -294,7 +294,7 @@ export default async function FinancePage({ searchParams }: PageProps<"/admin/fi
         l={l}
         stages={[
           { label: tr("السلعة فالمخزون", "Goods in stock"), value: c.inventoryValue, hint: tr("رأس مال السلعة بثمن الشراء", "Stock capital at purchase price"), pill: "border-ink bg-white" },
-          { label: tr("السلعة فالطريق", "Goods on the way"), value: c.goodsInTransit, hint: tr("خرجات وجاري التسليم", "Shipped, being delivered"), pill: "border-yellow-500 bg-yellow-50" },
+          { label: tr("السلعة فالطريق", "Goods on the way"), value: c.goodsInTransit, hint: tr(`خارجة ${mad(c.goodsInTransit - c.goodsReturning)} · راجعة ليك ${mad(c.goodsReturning)}`, `Going out ${mad(c.goodsInTransit - c.goodsReturning)} · coming back ${mad(c.goodsReturning)}`), pill: "border-yellow-500 bg-yellow-50" },
           {
             label: tr(`صافي الربح · ${span}`, `Net profit · ${span}`),
             value: p.netProfit,
@@ -448,7 +448,7 @@ export default async function FinancePage({ searchParams }: PageProps<"/admin/fi
           <dl className="text-sm">
             <Line l={l} label={tr("الكاش", "Cash")} value={c.cash} hint={tr("اللي دخلتي + تحويلات التوصيل − المشتريات − كل المصاريف", "Money put in + carrier transfers − purchases − all expenses")} />
             <Line l={l} label={tr("السلعة فالمخزون", "Goods in stock")} value={c.inventoryValue} hint={tr("بثمن الشراء", "At purchase price")} />
-            <Line l={l} label={tr("سلعة فالطريق", "Goods on the way")} value={c.goodsInTransit} hint={tr("طلبات مأكدة ولا فالشحن، مازال ما توصلوش. بثمن الشراء.", "Confirmed or shipping orders not delivered yet. At purchase price.")} />
+            <Line l={l} label={tr("سلعة فالطريق", "Goods on the way")} value={c.goodsInTransit} hint={tr(`طلبات مأكدة ولا فالشحن، والسلعة المرفوضة اللي راجعة ليك (${mad(c.goodsReturning)}). بثمن الشراء.`, `Confirmed or shipping orders, and refused goods coming back to you (${mad(c.goodsReturning)}). At purchase price.`)} />
             <Line l={l} label={tr("فلوس عند شركة التوصيل", "Money held by the carrier")} value={c.owedByCarrier} hint={tr("طلبات تسلمات للزبون، والفلوس مازال ما حولتهاش ليك الشركة. بثمن البيع ناقص الرسوم.", "Orders delivered to the customer that the carrier has not paid you yet. Sale price minus fees.")} />
             <Line l={l} label={tr("المجموع اليوم", "Total today")} value={c.position} total />
             <Line l={l} label={tr("اللي استثمرتي", "Invested")} value={c.invested} hint={tr(`دخلتي ${mad(c.injections)} + سلعة البداية ${mad(c.openingStockValue)} − سحبتي ${mad(c.withdrawals)}`, `Put in ${mad(c.injections)} + opening stock ${mad(c.openingStockValue)} − taken out ${mad(c.withdrawals)}`)} />

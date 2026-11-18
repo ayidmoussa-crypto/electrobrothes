@@ -1,6 +1,16 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { changePct, computeCapital, computeProfit, expectedFromCarrier, profitTrend, trendBuckets, type ProfitInput } from "./finance";
+import { changePct, computeCapital, computeProfit, expectedFromCarrier, goodsOnTheRoad, profitTrend, trendBuckets, type ProfitInput } from "./finance";
+
+test("goods coming back are shown apart but counted once in the goods on the road", () => {
+  const road = goodsOnTheRoad([
+    { unitCost: 100, quantity: 2, status: "SHIPPING" },
+    { unitCost: 50, quantity: 1, status: "CONFIRMED" },
+    { unitCost: 30, quantity: 3, status: "RETURNING" },
+    { unitCost: null, quantity: 4, status: "RETURNING" },
+  ]);
+  assert.deepEqual(road, { total: 340, returning: 90 });
+});
 
 const base: ProfitInput = { delivered: [], returned: [], expenses: [], stockAdjustmentValue: 0 };
 // An order under the free-delivery threshold (customer paid 30) and one above it (shop pays the city's 30).

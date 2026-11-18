@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "./db";
-import { computeCapital, computeProfit, expectedFromCarrier, profitTrend, trendBuckets } from "./finance";
+import { computeCapital, computeProfit, expectedFromCarrier, goodsOnTheRoad, profitTrend, trendBuckets } from "./finance";
 import type { Period } from "./period";
 import { effectiveCost } from "./stock";
 
@@ -76,7 +76,7 @@ export async function loadCapital() {
     }),
     db.order.aggregate({ _sum: { codReceivedAmount: true } }),
     db.variant.findMany({ where: { stock: { gt: 0 } }, select: { stock: true, costPrice: true, product: { select: { costPrice: true, isActive: true } } } }),
-    db.orderItem.findMany({ where: { order: { status: { in: ["CONFIRMED", "SHIPPING", "RETURNING"] }, stockDeducted: true } }, select: { unitCost: true, quantity: true } }),
+    db.orderItem.findMany({ where: { order: { status: { in: ["CONFIRMED", "SHIPPING", "RETURNING"] }, stockDeducted: true } }, select: { unitCost: true, quantity: true, order: { select: { status: true } } } }),
     db.order.findMany({ where: { status: "DELIVERED", codReceivedAt: null }, select: feeFields }),
     // A cancelled or refused prepaid order (returning or returned) is taken as refunded.
     db.order.aggregate({ where: { prepaidAt: { not: null }, status: { in: ["NEW", "CONFIRMED", "SHIPPING", "DELIVERED"] } }, _sum: { total: true } }),
@@ -105,7 +105,7 @@ export async function loadCapital() {
     if (cost === null) unitsWithoutCost += v.stock;
     else inventoryValue += cost * v.stock;
   }
-  const goodsInTransit = inTransit.reduce((s, i) => s + (i.unitCost ?? 0) * i.quantity, 0);
+  const { total: goodsInTransit, returning: goodsReturning } = goodsOnTheRoad(inTransit.map((i) => ({ unitCost: i.unitCost, quantity: i.quantity, status: i.order.status })));
   const owedByCarrier = owed.reduce((s, o) => s + expectedFromCarrier(toFeeOrder(o)), 0);
 
   const input = {
@@ -121,5 +121,5 @@ export async function loadCapital() {
     goodsInTransit,
     owedByCarrier,
   };
-  return { ...input, ...computeCapital(input), gaps: { unitsWithoutCost, movesWithoutCost }, hiddenUnits };
+  return { ...input, ...computeCapital(input), goodsReturning, gaps: { unitsWithoutCost, movesWithoutCost }, hiddenUnits };
 }

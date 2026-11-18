@@ -209,11 +209,23 @@ export type CapitalInput = {
   personalExpenses: number;
   /** Stock on the shelf now, at cost. */
   inventoryValue: number;
-  /** Goods on their way to customers, at cost. */
+  /** Goods out of the shop on the road, to customers or back from a refusal, at cost. */
   goodsInTransit: number;
   /** Delivered orders the carrier has not paid for yet. */
   owedByCarrier: number;
 };
+
+/** The goods on the road at cost, and the part of them coming back to the shop. `returning` is inside `total`. */
+export function goodsOnTheRoad(items: { unitCost: number | null; quantity: number; status: string }[]) {
+  let total = 0;
+  let returning = 0;
+  for (const i of items) {
+    const value = (i.unitCost ?? 0) * i.quantity;
+    total += value;
+    if (i.status === "RETURNING") returning += value;
+  }
+  return { total, returning };
+}
 
 /**
  * Where the money is. `invested` is what the owner put in; `position` is what exists today (cash, goods,
