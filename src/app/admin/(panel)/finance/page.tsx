@@ -6,6 +6,7 @@ import {
   CalendarRange,
   ChartColumnBig,
   ChartPie,
+  ChevronDown,
   ChevronLeft,
   Landmark,
   Lightbulb,
@@ -125,6 +126,8 @@ function ValueStrip({ stages, total, l }: { stages: Stage[]; total: number; l: L
 
 function Line({ l, label, value, minus, total, hint }: { l: L; label: string; value: number; minus?: boolean; total?: boolean; hint?: string }) {
   const { mad } = l;
+  // Nothing to say about an empty line; the totals always stay.
+  if (!value && !total) return null;
   return (
     <div className={`flex items-baseline justify-between gap-3 ${total ? "my-2 rounded-xl border-s-4 border-yellow-500 bg-yellow-50 px-4 py-3 text-base font-extrabold" : "border-t border-warm-200 py-2.5"}`}>
       <dt className={total ? "text-ink" : "text-warm-600"}>
@@ -136,6 +139,44 @@ function Line({ l, label, value, minus, total, hint }: { l: L; label: string; va
         {mad(value)}
       </dd>
     </div>
+  );
+}
+
+type SummaryRow = { label: string; value: number; minus?: boolean };
+
+/** The answer first, the few lines behind it next, and the full account one tap away. */
+function SummaryCard({ l, icon: Icon, label, value, note, noteBad, rows, children }: { l: L; icon: LucideIcon; label: string; value: number; note?: string; noteBad?: boolean; rows: SummaryRow[]; children: ReactNode }) {
+  const { tr, mad } = l;
+  const signed = (v: number, minus?: boolean) => (minus || v < 0 ? `− ${mad(Math.abs(v))}` : mad(v));
+  return (
+    <section className={card}>
+      <h2 className="flex items-center gap-2 text-sm font-semibold text-warm-600">
+        <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-ink text-yellow-500">
+          <Icon className="size-4" aria-hidden="true" />
+        </span>
+        {label}
+      </h2>
+      <p className={`mt-3 text-3xl font-extrabold ${value < 0 ? "text-danger" : "text-ink"}`}>{signed(value)}</p>
+      {note ? <p className={`mt-1 text-sm font-semibold ${noteBad ? "text-danger" : "text-success"}`}>{note}</p> : null}
+      <dl className="mt-3 text-sm">
+        {rows
+          .filter((r) => r.value)
+          .map((r) => (
+            <div key={r.label} className="flex items-baseline justify-between gap-3 border-t border-warm-200 py-2.5">
+              <dt className="text-warm-600">{r.label}</dt>
+              <dd className={`shrink-0 font-semibold ${r.minus || r.value < 0 ? "text-danger" : "text-ink"}`}>{signed(r.value, r.minus)}</dd>
+            </div>
+          ))}
+      </dl>
+      <details className="group border-t border-warm-200">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1 rounded-md text-sm font-bold text-yellow-800 [&::-webkit-details-marker]:hidden">
+          <span className="group-open:hidden">{tr("شوف التفاصيل", "Show details")}</span>
+          <span className="hidden group-open:inline">{tr("خبي التفاصيل", "Hide details")}</span>
+          <ChevronDown className="size-4 transition-transform duration-200 group-open:rotate-180" aria-hidden="true" />
+        </summary>
+        <dl className="text-sm">{children}</dl>
+      </details>
+    </section>
   );
 }
 
@@ -354,8 +395,8 @@ export default async function FinancePage({ searchParams }: PageProps<"/admin/fi
         </section>
       </div>
 
-      <div className="mt-3 grid gap-3 lg:grid-cols-3">
-        <section className="flex flex-col justify-between gap-4 rounded-3xl bg-yellow-50 p-5 ring-1 ring-yellow-300" aria-labelledby="insight-title">
+      <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-3">
+        <section className="flex min-w-0 flex-col justify-between gap-4 rounded-3xl bg-yellow-50 p-5 ring-1 ring-yellow-300" aria-labelledby="insight-title">
           <div>
             <h2 id="insight-title" className="flex items-center gap-2 text-lg text-ink">
               <Lightbulb className="size-5 text-yellow-800" aria-hidden="true" />
@@ -369,7 +410,7 @@ export default async function FinancePage({ searchParams }: PageProps<"/admin/fi
           </a>
         </section>
 
-        <section className={`${card} lg:col-span-2`} aria-labelledby="moves-title">
+        <section className={`${card} min-w-0 lg:col-span-2`} aria-labelledby="moves-title">
           <CardTitle icon={Receipt}>
             <span id="moves-title">{tr("أحدث المعاملات", "Latest transactions")}</span>
           </CardTitle>
@@ -426,10 +467,21 @@ export default async function FinancePage({ searchParams }: PageProps<"/admin/fi
         </section>
       </div>
 
-      <div id="details" className="mt-3 grid scroll-mt-28 gap-3 lg:grid-cols-2">
-        <section className={card}>
-          <CardTitle icon={TrendingUp}>{tr(`حساب الربح (${span})`, `Profit (${span})`)}</CardTitle>
-          <dl className="text-sm">
+      <div id="details" className="mt-3 grid scroll-mt-28 gap-3 lg:grid-cols-2 lg:items-start">
+        <SummaryCard
+          l={l}
+          icon={p.netProfit < 0 ? TrendingDown : TrendingUp}
+          label={tr(`صافي الربح · ${span}`, `Net profit · ${span}`)}
+          value={p.netProfit}
+          note={p.margin === null ? undefined : tr(`الهامش ${p.margin}%`, `Margin ${p.margin}%`)}
+          noteBad={p.netProfit < 0}
+          rows={[
+            { label: tr("المبيعات المسلَّمة", "Delivered sales"), value: p.revenue },
+            { label: tr("السلعة", "Goods"), value: p.cogs, minus: true },
+            // Whatever else stands between the sales and the net profit, so the three lines always add up.
+            { label: tr("التوصيل والمصاريف", "Delivery and expenses"), value: p.revenue - p.cogs - p.netProfit, minus: true },
+          ]}
+        >
             <Line l={l} label={tr("المبيعات المسلَّمة", "Delivered sales")} value={p.revenue} />
             <Line l={l} label={tr("تكلفة السلعة", "Cost of goods")} value={p.cogs} minus />
             <Line l={l} label={tr("رسوم التوصيل", "Delivery fees")} value={p.deliveryCost} minus hint={tr("ثمن المدينة على الطلبات اللي التوصيل فيها مجاني ولا خلصو الزبون.", "The city price on orders with free delivery or paid by the customer.")} />
@@ -439,13 +491,26 @@ export default async function FinancePage({ searchParams }: PageProps<"/admin/fi
             <Line l={l} label={tr("نقص فالمخزون", "Stock loss")} value={p.stockLoss} minus hint={tr("التعديلات بالناقص من صفحة المنتج.", "Downward corrections from the product page.")} />
             <Line l={l} label={tr("صافي الربح", "Net profit")} value={p.netProfit} total />
             <Line l={l} label={tr("مصاريفك الشخصية", "Your personal spending")} value={p.personalExpenses} minus />
-            <Line l={l} label={tr("اللي بقا بعد مصاريفك", "Left after your spending")} value={p.afterPersonal} total />
-          </dl>
-        </section>
+            {p.personalExpenses ? <Line l={l} label={tr("اللي بقا بعد مصاريفك", "Left after your spending")} value={p.afterPersonal} total /> : null}
+        </SummaryCard>
 
-        <section className={card}>
-          <CardTitle icon={Landmark}>{tr("رأس المال: فين كاينين الفلوس (من البداية)", "Capital: where the money is (since the start)")}</CardTitle>
-          <dl className="text-sm">
+        <SummaryCard
+          l={l}
+          icon={Landmark}
+          label={tr("رأس المال ديالك اليوم", "Your capital today")}
+          value={c.position}
+          note={tr(
+            `${c.result < 0 ? "خسارة" : "ربح"} ${mad(Math.abs(c.result))} منذ البداية${c.resultPct === null ? "" : ` · ${Math.abs(c.resultPct)}%`}`,
+            `${c.result < 0 ? "Loss" : "Profit"} of ${mad(Math.abs(c.result))} since the start${c.resultPct === null ? "" : ` · ${Math.abs(c.resultPct)}%`}`,
+          )}
+          noteBad={c.result < 0}
+          rows={[
+            { label: tr("السلعة فالمخزون", "Goods in stock"), value: c.inventoryValue },
+            { label: tr("السلعة فالطريق", "Goods on the way"), value: c.goodsInTransit },
+            { label: tr("عند شركة التوصيل", "Held by the carrier"), value: c.owedByCarrier },
+            { label: tr("الكاش", "Cash"), value: c.cash },
+          ]}
+        >
             <Line l={l} label={tr("الكاش", "Cash")} value={c.cash} hint={tr("اللي دخلتي + تحويلات التوصيل − المشتريات − كل المصاريف", "Money put in + carrier transfers − purchases − all expenses")} />
             <Line l={l} label={tr("السلعة فالمخزون", "Goods in stock")} value={c.inventoryValue} hint={tr("بثمن الشراء", "At purchase price")} />
             <Line l={l} label={tr("سلعة فالطريق", "Goods on the way")} value={c.goodsInTransit} hint={tr(`طلبات مأكدة ولا فالشحن، والسلعة المرفوضة اللي راجعة ليك (${mad(c.goodsReturning)}). بثمن الشراء.`, `Confirmed or shipping orders, and refused goods coming back to you (${mad(c.goodsReturning)}). At purchase price.`)} />
@@ -453,8 +518,7 @@ export default async function FinancePage({ searchParams }: PageProps<"/admin/fi
             <Line l={l} label={tr("المجموع اليوم", "Total today")} value={c.position} total />
             <Line l={l} label={tr("اللي استثمرتي", "Invested")} value={c.invested} hint={tr(`دخلتي ${mad(c.injections)} + سلعة البداية ${mad(c.openingStockValue)} − سحبتي ${mad(c.withdrawals)}`, `Put in ${mad(c.injections)} + opening stock ${mad(c.openingStockValue)} − taken out ${mad(c.withdrawals)}`)} />
             <Line l={l} label={c.result < 0 ? tr("الخسارة منذ البداية", "Loss since the start") : tr("الربح منذ البداية", "Profit since the start")} value={c.result} total hint={c.resultPct === null ? undefined : tr(`${c.resultPct}% من اللي استثمرتي، والمصاريف الشخصية محسوبة`, `${c.resultPct}% of what you invested, personal spending included`)} />
-          </dl>
-        </section>
+        </SummaryCard>
       </div>
 
       <section className={`${card} mt-3`} aria-labelledby="cod-title">
