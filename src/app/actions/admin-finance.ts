@@ -40,6 +40,9 @@ export async function deleteExpense(fd: FormData) {
   if (!id.success) return;
   await db.expense.delete({ where: { id: id.data } }).catch(() => null);
   refresh();
+  // The expense may have been an agent's pay: their balance comes back.
+  revalidatePath("/admin/staff");
+  revalidatePath("/admin/me");
 }
 
 const capitalInput = z.object({ type: z.enum(["INJECTION", "WITHDRAWAL"]), amount, occurredOn: day, note });

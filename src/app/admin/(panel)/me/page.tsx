@@ -9,7 +9,7 @@ import { adminTr } from "@/lib/admin-lang";
 import { adminLocale } from "@/lib/admin-tr";
 import { db } from "@/lib/db";
 import { formatMAD } from "@/lib/money";
-import { handledOrders } from "@/lib/staff";
+import { handledOrders, loadBalances, recentPayments } from "@/lib/staff";
 import { agentStats, monthRange } from "@/lib/staff-rules";
 import { TIME_ZONE } from "@/lib/time";
 
@@ -20,8 +20,10 @@ export default async function MyFigures({ searchParams }: PageProps<"/admin/me">
   if (user.role === "OWNER") redirect("/admin/staff");
   const q = await searchParams;
   const { start, end, key } = monthRange(typeof q.month === "string" ? q.month : undefined);
-  const [rows, waiting] = await Promise.all([handledOrders(user.id, start, end), db.order.count({ where: { status: "NEW" } })]);
+  const [rows, waiting, balanceOf, payments] = await Promise.all([handledOrders(user.id, start, end), db.order.count({ where: { status: "NEW" } }), loadBalances(undefined, user.id), recentPayments(user.id)]);
   const s = agentStats(rows, user);
+  const due = Math.max(0, balanceOf(user).amount);
+  const lastPayment = payments[0];
   const mad = (v: number) => formatMAD(v, lang);
   const dateFmt = new Intl.DateTimeFormat(adminLocale(lang), { dateStyle: "short", timeStyle: "short", timeZone: TIME_ZONE });
   const pct = (v: number | null) => (v === null ? tr("لا توجد بيانات بعد", "No data yet") : `${v}%`);
@@ -40,10 +42,16 @@ export default async function MyFigures({ searchParams }: PageProps<"/admin/me">
         </div>
       ) : null}
 
+      <div className="mb-3 admin-card p-4">
+        <p className="text-xs font-semibold text-warm-600">{tr("اللي مازال ما تخلص ليك", "Still to be paid to you")}</p>
+        <p className="text-3xl font-extrabold text-ink">{mad(due)}</p>
+        {lastPayment ? <p className="mt-1 text-xs text-warm-600">{tr(`آخر خلصة: ${mad(lastPayment.amount)} · ${dateFmt.format(lastPayment.paidAt)}`, `Last payment: ${mad(lastPayment.amount)} · ${dateFmt.format(lastPayment.paidAt)}`)}</p> : null}
+      </div>
+
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat
           icon={Wallet}
-          label={tr("الأرباح ديالك", "Your earnings")}
+          label={tr("ربح هاد الشهر", "This month's earnings")}
           value={mad(s.earnings)}
           hint={tr(`${s.confirmed} تأكيد × ${user.payPerConfirmed} + ${s.delivered} توصيل × ${user.payPerDelivered}`, `${s.confirmed} confirmed × ${user.payPerConfirmed} + ${s.delivered} delivered × ${user.payPerDelivered}`)}
         />

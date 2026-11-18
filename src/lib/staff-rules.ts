@@ -49,6 +49,19 @@ export function agentStats(rows: HandledOrder[], pay: Pay) {
   };
 }
 
+export type PayCounts = { confirmed: number; delivered: number };
+
+/**
+ * What an agent is owed now: the orders earned and not yet settled, at today's rates. Paying settles them,
+ * so the balance is back at 0 and only new work raises it. A count below 0 (an order sent back to NEW after
+ * it was paid) comes off the next payment.
+ */
+export function agentBalance(earned: PayCounts, paid: PayCounts, pay: Pay) {
+  const confirmed = earned.confirmed - paid.confirmed;
+  const delivered = earned.delivered - paid.delivered;
+  return { confirmed, delivered, amount: confirmed * pay.payPerConfirmed + delivered * pay.payPerDelivered };
+}
+
 /** "YYYY-MM" (or anything else → the current month) → that month's first instant and the next month's. */
 export function monthRange(ym: string | undefined, now = new Date()) {
   const m = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(ym ?? "");

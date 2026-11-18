@@ -7,9 +7,68 @@ import { logSecurity } from "@/lib/security-log";
 import { requireAdmin } from "@/lib/admin";
 import { adminTr } from "@/lib/admin-lang";
 import { db } from "@/lib/db";
+import { formatMAD } from "@/lib/money";
 import { hashPassword } from "@/lib/password";
+import { loadBalances } from "@/lib/staff";
+import { moroccanDate, toMoroccanInput } from "@/lib/time";
 
 type State = { ok?: boolean; message?: string };
+
+const refreshPay = () => {
+  for (const path of ["/admin/staff", "/admin/me", "/admin/finance", "/admin"]) revalidatePath(path);
+};
+
+const payInput = z.object({ id: z.string().min(1).max(40), amount: z.coerce.number().int().min(1).max(100_000_000) });
+
+/**
+ * The owner paid an agent all that is due: the balance goes back to 0 and the money becomes a salary expense
+ * today, so it comes off this month's profit. The amount on the owner's screen must still be the balance.
+ */
+export async function payAgent(_: State, fd: FormData): Promise<State> {
+  const owner = await requireAdmin();
+  const { tr, lang } = await adminTr();
+  const parsed = payInput.safeParse(Object.fromEntries(fd));
+  if (!parsed.success) return { ok: false, message: tr("ما كاين ما يتخلص.", "Nothing to pay.") };
+  const { id, amount } = parsed.data;
+  const result = await db.$transaction(async (tx) => {
+    // One payment at a time for an agent: a double click cannot pay twice.
+    const [agent] = await tx.$queryRaw<{ id: string; name: string; payPerConfirmed: number; payPerDelivered: number }[]>`
+      SELECT "id", "name", "payPerConfirmed", "payPerDelivered" FROM "AdminUser" WHERE "id" = ${id} AND "role" = 'AGENT' FOR UPDATE`;
+    if (!agent) return "missing" as const;
+    const balance = (await loadBalances(tx, id))(agent);
+    if (balance.amount !== amount) return "changed" as const;
+    const expense = await tx.expense.create({
+      data: {
+        scope: "BUSINESS",
+        category: "SALARY",
+        amount,
+        spentOn: moroccanDate(toMoroccanInput(new Date(), 10)),
+        note: tr(`خلصة ${agent.name}`, `${agent.name}'s pay`).slice(0, 200),
+        actor: owner.email,
+      },
+      select: { id: true },
+    });
+    await tx.agentPayment.create({
+      data: { agentId: id, expenseId: expense.id, amount, confirmedCount: balance.confirmed, deliveredCount: balance.delivered, actor: owner.email },
+    });
+    return "paid" as const;
+  });
+  if (result === "missing") return { ok: false, message: tr("هاد الموظف ما بقاش.", "This agent no longer exists.") };
+  refreshPay();
+  if (result === "changed") return { ok: false, message: tr("الرصيد تبدل. شوف المبلغ الجديد وعاود.", "The balance changed. Check the new amount and try again.") };
+  return { ok: true, message: tr(`تسجل الخلاص ديال ${formatMAD(amount, lang)}.`, `Payment of ${formatMAD(amount, lang)} recorded.`) };
+}
+
+/** A payment recorded by mistake: its expense goes, and the balance comes back. */
+export async function cancelAgentPayment(_: State, fd: FormData): Promise<State> {
+  await requireAdmin();
+  const { tr } = await adminTr();
+  const id = z.string().min(1).max(40).safeParse(fd.get("id"));
+  const payment = id.success ? await db.agentPayment.findUnique({ where: { id: id.data }, select: { expenseId: true } }) : null;
+  if (payment) await db.expense.delete({ where: { id: payment.expenseId } }).catch(() => null);
+  refreshPay();
+  return { ok: true, message: tr("تلغى الخلاص.", "Payment cancelled.") };
+}
 
 const MIN_PASSWORD = 10;
 const pay = z.coerce.number().int().min(0).max(10_000);

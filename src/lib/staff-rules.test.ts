@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { agentMayMove, agentStats, handledUpdate, monthRange, previousMonth } from "./staff-rules";
+import { agentBalance, agentMayMove, agentStats, handledUpdate, monthRange, previousMonth } from "./staff-rules";
 
 test("an agent only confirms or cancels new orders", () => {
   assert.equal(agentMayMove("NEW", "CONFIRMED"), true);
@@ -48,6 +48,26 @@ test("no orders: no rates, no pay", () => {
   assert.equal(s.confirmation, null);
   assert.equal(s.delivery, null);
   assert.equal(s.earnings, 0);
+});
+
+test("paying brings the balance to zero and new work raises it again", () => {
+  const pay = { payPerConfirmed: 2, payPerDelivered: 10 };
+  const before = agentBalance({ confirmed: 4, delivered: 2 }, { confirmed: 0, delivered: 0 }, pay);
+  assert.deepEqual(before, { confirmed: 4, delivered: 2, amount: 28 });
+  assert.equal(agentBalance({ confirmed: 4, delivered: 2 }, before, pay).amount, 0);
+  // One of the paid orders is delivered later, and one new order is confirmed.
+  assert.equal(agentBalance({ confirmed: 5, delivered: 3 }, before, pay).amount, 12);
+});
+
+test("a new rate only touches what is unpaid", () => {
+  const paid = { confirmed: 4, delivered: 2 };
+  assert.equal(agentBalance({ confirmed: 5, delivered: 2 }, paid, { payPerConfirmed: 7, payPerDelivered: 50 }).amount, 7);
+});
+
+test("an order taken back after payment comes off the next one", () => {
+  const pay = { payPerConfirmed: 5, payPerDelivered: 0 };
+  assert.equal(agentBalance({ confirmed: 3, delivered: 0 }, { confirmed: 4, delivered: 0 }, pay).amount, -5);
+  assert.equal(agentBalance({ confirmed: 5, delivered: 0 }, { confirmed: 4, delivered: 0 }, pay).amount, 5);
 });
 
 test("months", () => {

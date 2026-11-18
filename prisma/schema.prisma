@@ -699,8 +699,27 @@ model Expense {
   note      String?
   actor     String
   createdAt DateTime     @default(now())
+  // Set when this expense is an agent's pay (AgentPayment).
+  agentPayment AgentPayment?
 
   @@index([scope, spentOn])
+}
+
+// The owner paid an agent everything due. The counts are the orders this settled, so a later change of
+// rate only touches what is still unpaid. Deleting the expense cancels the payment.
+model AgentPayment {
+  id             String    @id @default(cuid())
+  agentId        String
+  agent          AdminUser @relation(fields: [agentId], references: [id], onDelete: Restrict)
+  expenseId      String    @unique
+  expense        Expense   @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  amount         Int
+  confirmedCount Int
+  deliveredCount Int
+  actor          String
+  paidAt         DateTime  @default(now())
+
+  @@index([agentId, paidAt])
 }
 
 enum CapitalType {
@@ -868,6 +887,7 @@ model AdminUser {
   // scrypt hashes of the unused backup codes; a used one is removed.
   totpBackupCodes String[]  @default([])
   handledOrders   Order[]
+  payments        AgentPayment[]
   createdAt       DateTime  @default(now())
 }
 
