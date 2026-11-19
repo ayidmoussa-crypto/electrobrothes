@@ -86,6 +86,7 @@ model Product {
   updatedAt         DateTime         @updatedAt
   externalRatings   ExternalRating[]
   heroIn            Settings[]
+  supportLessons    SupportLesson[]
   landingPage       LandingPage?
   offers            Offer[]
 
@@ -666,6 +667,22 @@ model SupportTicket {
   @@index([orderId])
   @@index([productId])
   @@index([createdAt])
+}
+
+// The owner's correction of the support assistant: a rule it must follow from now on, for every product or one.
+model SupportLesson {
+  id        String   @id @default(cuid())
+  text      String
+  // Null: every conversation. Otherwise only conversations about this product.
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
+  // The conversation the lesson came from, when written from one (plain id: the lesson outlives it).
+  ticketId  String?
+  isActive  Boolean  @default(true)
+  actor     String
+  createdAt DateTime @default(now())
+
+  @@index([isActive, productId])
 }
 
 model SupportMessage {

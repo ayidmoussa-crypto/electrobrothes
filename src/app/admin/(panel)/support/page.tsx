@@ -1,4 +1,5 @@
-import { Bot, CheckCircle2, ChevronLeft, Droplets, LifeBuoy, RefreshCw, UserRound } from "lucide-react";
+import { buttonClass } from "@/components/ui/button";
+import { Bot, CheckCircle2, ChevronLeft, Droplets, GraduationCap, LifeBuoy, RefreshCw, UserRound } from "lucide-react";
 import Link from "next/link";
 import { PeriodPicker } from "@/components/admin/PeriodPicker";
 import { PageHeader, Panel, Stat, tdClass, thClass } from "@/components/admin/ui";
@@ -22,7 +23,7 @@ export default async function SupportAdminPage({ searchParams }: PageProps<"/adm
   const filter = FILTERS.includes(raw as SupportStatusKey) ? (raw as SupportStatusKey) : "all";
   const inPeriod = { createdAt: { gte: period.from, lte: period.until } };
 
-  const [rows, waiting, tickets] = await Promise.all([
+  const [rows, waiting, tickets, lessonCount] = await Promise.all([
     db.supportTicket.findMany({ where: inPeriod, select: { status: true, solvedByAi: true, verdict: true, category: true, productId: true, productName: true } }),
     // Whatever the period: these need the owner now.
     db.supportTicket.count({ where: { status: "ESCALATED" } }),
@@ -32,6 +33,7 @@ export default async function SupportAdminPage({ searchParams }: PageProps<"/adm
       take: 100,
       select: { id: true, status: true, verdict: true, category: true, productName: true, summary: true, solvedByAi: true, updatedAt: true, order: { select: { number: true, customerName: true } }, _count: { select: { messages: true } } },
     }),
+    db.supportLesson.count({ where: { isActive: true } }),
   ]);
   const stats = supportStats(rows);
   const t = stats.totals;
@@ -44,6 +46,12 @@ export default async function SupportAdminPage({ searchParams }: PageProps<"/adm
       <PageHeader
         title={tr("الدعم التقني", "Technical support")}
         description={tr(`مشاكل الزبناء مع المنتوجات · ${span}`, `Customers' product problems · ${span}`)}
+        actions={
+          <Link href="/admin/support/lessons" className={buttonClass({ variant: "outline" })}>
+            <GraduationCap className="size-4" aria-hidden="true" />
+            {tr(`تعليم المساعد (${lessonCount})`, `Teach the assistant (${lessonCount})`)}
+          </Link>
+        }
       />
       <div className="mb-4">
         <PeriodPicker key={period.query} basePath="/admin/support" preset={period.preset} firstDay={period.firstDay} lastDay={period.lastDay} today={toMoroccanInput(new Date(), 10)} lang={lang} label={tr("الفترة", "Period")} />

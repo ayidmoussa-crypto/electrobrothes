@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin";
 import { db } from "@/lib/db";
 import { adminTr } from "@/lib/admin-lang";
-import { MAX_MESSAGE_LENGTH, SUPPORT_GUIDE_MAX } from "@/lib/support/rules";
+import { MAX_MESSAGE_LENGTH, SUPPORT_GUIDE_MAX, SUPPORT_LESSON_MAX } from "@/lib/support/rules";
 
 const refresh = (id: string) => {
   revalidatePath("/admin/support");
@@ -51,6 +51,34 @@ export async function saveSupportGuide(_: { ok?: boolean; message?: string }, fd
   if (!done.count) return { ok: false, message: tr("المنتوج ما كاينش.", "Product not found.") };
   revalidatePath(`/admin/products/${id}`);
   return { ok: true, message: tr("تسجلات الملاحظات.", "Notes saved.") };
+}
+
+type FormState = { ok?: boolean; message?: string };
+
+/** A correction for the support assistant, for every product or only the conversation's product. */
+export async function addSupportLesson(_: FormState, fd: FormData): Promise<FormState> {
+  const admin = await requireAdmin();
+  const { tr } = await adminTr();
+  const text = String(fd.get("text") ?? "").trim();
+  if (text.length < 5) return { ok: false, message: tr("كتب التصحيح بجملة واضحة.", "Write the correction as a clear sentence.") };
+  if (text.length > SUPPORT_LESSON_MAX) return { ok: false, message: tr(`طويل بزاف (${SUPPORT_LESSON_MAX} حرف كحد أقصى).`, `Too long (${SUPPORT_LESSON_MAX} characters at most).`) };
+  const ticketId = String(fd.get("ticketId") ?? "") || null;
+  const productId = fd.get("onlyProduct") === "on" ? String(fd.get("productId") ?? "") || null : null;
+  if (productId && !(await db.product.findUnique({ where: { id: productId }, select: { id: true } }))) return { ok: false, message: tr("المنتوج ما كاينش.", "Product not found.") };
+  await db.supportLesson.create({ data: { text, productId, ticketId, actor: admin.email } });
+  revalidatePath("/admin/support/lessons");
+  if (ticketId) revalidatePath(`/admin/support/${ticketId}`);
+  return { ok: true, message: tr("تسجل. المساعد غادي يتبعو من المحادثة الجاية.", "Saved. The assistant follows it from the next conversation.") };
+}
+
+/** Switches a correction on or off, or deletes it. */
+export async function updateSupportLesson(fd: FormData) {
+  await requireAdmin();
+  const id = String(fd.get("id") ?? "");
+  const op = String(fd.get("op") ?? "");
+  if (op === "delete") await db.supportLesson.deleteMany({ where: { id } });
+  else if (op === "on" || op === "off") await db.supportLesson.updateMany({ where: { id }, data: { isActive: op === "on" } });
+  revalidatePath("/admin/support/lessons");
 }
 
 /** The owner's message in the chat. From then on the owner handles it: the AI stops answering. */

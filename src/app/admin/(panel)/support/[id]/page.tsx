@@ -1,7 +1,8 @@
 import { ChevronLeft, CircleCheck, Droplets, MessageCircle, RefreshCw, RotateCcw, SendHorizontal, XCircle } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { decideSupport, reopenSupport, replySupport } from "@/app/actions/admin-support";
+import { addSupportLesson, decideSupport, reopenSupport, replySupport } from "@/app/actions/admin-support";
+import { ActionForm } from "@/components/admin/ActionForm";
 import { PageHeader, Panel } from "@/components/admin/ui";
 import { Badge } from "@/components/ui/Badge";
 import { buttonClass } from "@/components/ui/button";
@@ -9,7 +10,7 @@ import { requireAdmin } from "@/lib/admin";
 import { adminTr } from "@/lib/admin-lang";
 import { db } from "@/lib/db";
 import { whatsappLink } from "@/lib/order-whatsapp";
-import { isActive, PROBLEM_CATEGORIES, STATUS_LABEL, STATUS_TONE, warrantyState, type ProblemCategory } from "@/lib/support/rules";
+import { isActive, PROBLEM_CATEGORIES, STATUS_LABEL, STATUS_TONE, SUPPORT_LESSON_MAX, warrantyState, type ProblemCategory } from "@/lib/support/rules";
 
 export default async function SupportTicketPage({ params }: PageProps<"/admin/support/[id]">) {
   const [, { tr, lang }] = await Promise.all([requireAdmin(), adminTr()]);
@@ -163,6 +164,35 @@ export default async function SupportTicketPage({ params }: PageProps<"/admin/su
                 </button>
               </form>
             )}
+          </Panel>
+
+          <Panel title={tr("صحح المساعد", "Correct the assistant")}>
+            <p className="mb-3 text-sm text-warm-600">{tr("غلط فشي جواب؟ كتب الصحيح، وغادي يتبعو فالمحادثات الجاية.", "Got an answer wrong? Write what is right, and it follows it in the next conversations.")}</p>
+            <ActionForm action={addSupportLesson} submitLabel={tr("حفظ التصحيح", "Save correction")} variant="dark">
+              <input type="hidden" name="ticketId" value={ticket.id} />
+              {product ? <input type="hidden" name="productId" value={product.id} /> : null}
+              <label htmlFor="lesson" className="sr-only">
+                {tr("التصحيح", "Correction")}
+              </label>
+              <textarea
+                id="lesson"
+                name="text"
+                rows={4}
+                required
+                maxLength={SUPPORT_LESSON_MAX}
+                placeholder={tr("مثلا: هاد البوشيط ما فيهش بلوتوث، ما تسولش على الربط.", "e.g. This case has no Bluetooth: don't ask about pairing.")}
+                className="admin-field w-full rounded-lg px-3 py-2.5 text-base text-warm-800"
+              />
+              {product ? (
+                <label className="flex cursor-pointer items-center gap-2 text-sm text-warm-800">
+                  <input type="checkbox" name="onlyProduct" defaultChecked className="size-4 accent-ink" />
+                  {tr(`غير لهاد المنتوج (${ticket.productName})`, `Only for this product (${ticket.productName})`)}
+                </label>
+              ) : null}
+            </ActionForm>
+            <Link href="/admin/support/lessons" className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-ink underline underline-offset-4">
+              {tr("كل التصحيحات", "All corrections")}
+            </Link>
           </Panel>
 
           {product ? (

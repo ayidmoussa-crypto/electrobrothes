@@ -28,14 +28,27 @@ export type SupportView = {
   }[];
 };
 
-/** Everything the support page shows for a link, or null: a wrong link, or an order not delivered. */
-export async function supportPageData(token: string, ar: boolean): Promise<SupportView | null> {
+/**
+ * Who may use the support chat: a customer who has received at least one order. The link's order gives the phone;
+ * every delivered order of that phone is theirs to ask about. A cancelled or undelivered order alone opens nothing.
+ */
+export async function supportAccess(token: string) {
   const orderId = orderFromSupportToken(token);
   if (!orderId) return null;
-  const order = await db.order.findUnique({
-    where: { id: orderId },
+  const order = await db.order.findUnique({ where: { id: orderId }, select: { phone: true } });
+  if (!order) return null;
+  const delivered = await db.order.findMany({ where: { phone: order.phone, status: "DELIVERED" }, select: { id: true } });
+  return delivered.length ? { phone: order.phone, orderIds: delivered.map((o) => o.id) } : null;
+}
+
+/** Everything the support page shows for a link, or null: a wrong link, or a customer who has received nothing yet. */
+export async function supportPageData(token: string, ar: boolean): Promise<SupportView | null> {
+  const access = await supportAccess(token);
+  if (!access) return null;
+  const orders = await db.order.findMany({
+    where: { id: { in: access.orderIds } },
+    orderBy: { deliveredAt: "desc" },
     select: {
-      status: true,
       customerName: true,
       items: {
         select: {
@@ -60,15 +73,21 @@ export async function supportPageData(token: string, ar: boolean): Promise<Suppo
       },
     },
   });
-  if (!order || order.status !== "DELIVERED") return null;
-  const code = order.supportTickets.find((t) => t.rewardCode)?.rewardCode;
-  const coupon = code ? await db.coupon.findUnique({ where: { code }, select: { code: true, value: true, expiresAt: true, usedCount: true, maxUses: true, isActive: true } }) : null;
-  const usable = coupon && coupon.isActive && (coupon.maxUses === null || coupon.usedCount < coupon.maxUses) && (!coupon.expiresAt || coupon.expiresAt > new Date());
+  if (!orders.length) return null;
+  const tickets = orders.flatMap((o) => o.supportTickets).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  // The newest thank-you code still usable.
+  const codes = tickets.flatMap((t) => (t.rewardCode ? [t.rewardCode] : []));
+  const coupons = codes.length ? await db.coupon.findMany({ where: { code: { in: codes } }, select: { code: true, value: true, expiresAt: true, usedCount: true, maxUses: true, isActive: true } }) : [];
+  const now = new Date();
+  const coupon = codes
+    .map((c) => coupons.find((x) => x.code === c))
+    .find((c) => c && c.isActive && (c.maxUses === null || c.usedCount < c.maxUses) && (!c.expiresAt || c.expiresAt > now));
   return {
-    firstName: order.customerName.trim().split(/\s+/)[0] ?? "",
-    reward: usable ? { code: coupon.code, percent: coupon.value, expiresAt: (coupon.expiresAt ?? new Date()).toISOString() } : null,
-    items: order.items.map((i) => ({ id: i.id, name: ar ? i.nameAr : i.nameEn, option: i.variantLabel, image: i.variant?.product.images[0]?.url ?? null })),
-    tickets: order.supportTickets.map((t) => ({
+    firstName: orders[0].customerName.trim().split(/\s+/)[0] ?? "",
+    reward: coupon ? { code: coupon.code, percent: coupon.value, expiresAt: (coupon.expiresAt ?? now).toISOString() } : null,
+    // Newest order first; the same product bought twice shows twice (each purchase has its own date and warranty).
+    items: orders.flatMap((o) => o.items).map((i) => ({ id: i.id, name: ar ? i.nameAr : i.nameEn, option: i.variantLabel, image: i.variant?.product.images[0]?.url ?? null })),
+    tickets: tickets.map((t) => ({
       id: t.id,
       itemId: t.orderItemId,
       productName: t.productName,

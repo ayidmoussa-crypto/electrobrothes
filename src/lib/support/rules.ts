@@ -30,6 +30,8 @@ export const MAX_MESSAGE_LENGTH = 800;
 export const MAX_CUSTOMER_MESSAGES = 25;
 /** Longest troubleshooting notes per product. */
 export const SUPPORT_GUIDE_MAX = 6000;
+/** Longest correction the owner can give the assistant. */
+export const SUPPORT_LESSON_MAX = 500;
 /** Messages per order per hour, against scripts and loops. */
 export const MAX_MESSAGES_PER_HOUR = 30;
 

@@ -77,6 +77,24 @@ const TOOLS: Anthropic.Tool[] = [
   },
 ];
 
+/** The owner's lessons read per conversation: the newest, a bounded number so the prompt stays small. */
+const MAX_LESSONS = 60;
+
+/**
+ * The owner's corrections come after the rules, as the owner's own instructions (they are written in the admin panel,
+ * never by customers). They win over general knowledge; they can never lift the safety and no-promise rules.
+ */
+function withLessons(system: string, lessons: { text: string; productId: string | null }[]) {
+  if (!lessons.length) return system;
+  const lines = lessons.map((l) => `- ${l.productId ? "(this product) " : ""}${l.text.replace(/\s+/g, " ").slice(0, 500)}`);
+  return `${system}
+
+The shop owner reviewed past conversations and corrected you. Follow these corrections: they come before your general knowledge and the product texts. They never allow a promise of a replacement or refund, or anything unsafe.
+<owner_corrections>
+${lines.join("\n")}
+</owner_corrections>`;
+}
+
 /** This month's support spend against its own ceiling. */
 async function supportBudgetLeft() {
   const [spent, settings] = await Promise.all([
@@ -116,6 +134,7 @@ async function purchaseContext(ticketId: string) {
   const delivered = ticket.order.deliveredAt ?? ticket.order.createdAt;
   const warranty = product ? warrantyState(delivered, product.warrantyMonths) : null;
   return {
+    productId: ticket.productId,
     product: product ? `${product.nameAr} / ${product.nameEn}` : ticket.productName,
     option: item?.variantLabel ?? null,
     brand: product?.brand.name ?? null,
@@ -156,10 +175,16 @@ export async function runSupportTurn(ticketId: string): Promise<{ escalated: boo
   try {
     if (!process.env.ANTHROPIC_API_KEY || !(await supportBudgetLeft())) return await escalate({ verdict: "help" }, FALLBACK.handedOver);
 
-    const [purchase, history] = await Promise.all([
+    const [{ productId, ...purchase }, history] = await Promise.all([
       purchaseContext(ticketId),
       db.supportMessage.findMany({ where: { ticketId }, orderBy: { createdAt: "asc" }, select: { role: true, text: true } }),
     ]);
+    const lessons = await db.supportLesson.findMany({
+      where: { isActive: true, OR: [{ productId: null }, ...(productId ? [{ productId }] : [])] },
+      orderBy: { createdAt: "desc" },
+      take: MAX_LESSONS,
+      select: { text: true, productId: true },
+    });
     const lastCustomer = history.findLast((m) => m.role === "customer")?.text ?? "";
     const script = replyScript(lastCustomer) === "latin" ? "Latin letters only (Darija the way Moroccans text it, or French if they wrote French)" : "Arabic letters only";
 
@@ -180,7 +205,7 @@ export async function runSupportTurn(ticketId: string): Promise<{ escalated: boo
     let handOver: { verdict: string; category: string; summary: string } | null = null;
 
     for (let round = 0; round < MAX_ROUNDS; round++) {
-      const response = await anthropic().messages.create({ model: HAIKU, max_tokens: 1500, system: SYSTEM, tools: TOOLS, messages });
+      const response = await anthropic().messages.create({ model: HAIKU, max_tokens: 1500, system: withLessons(SYSTEM, lessons), tools: TOOLS, messages });
       await recordUsage(response.model, { input: response.usage.input_tokens, output: response.usage.output_tokens, cacheRead: response.usage.cache_read_input_tokens ?? 0, cacheWrite: response.usage.cache_creation_input_tokens ?? 0 }, SUPPORT_ACTOR);
       if (response.stop_reason === "refusal" || response.stop_reason === "max_tokens") return await escalate({ verdict: "help" }, FALLBACK.handedOver);
 
