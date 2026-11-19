@@ -1,7 +1,19 @@
 import assert from "node:assert/strict";
 import { ageLabel, filterQuery, parseOrderFilters } from "./admin-orders";
 import { test } from "node:test";
-import { assessRisk, canSetPrepaid, deleteBlock, deliveredByHand, undoesDelivery, cashToCollect, orderNumberAfter, ORDER_NUMBER, paymentState, shipBlock, transitionPlan } from "./order-rules";
+import { assessRisk, canSetPrepaid, couponUseChange, deleteBlock, deliveredByHand, holdsCouponUse, undoesDelivery, cashToCollect, orderNumberAfter, ORDER_NUMBER, paymentState, shipBlock, transitionPlan } from "./order-rules";
+
+test("a cancelled or returned order gives its coupon use back, and reopening takes it again", () => {
+  assert.equal(couponUseChange("NEW", "CANCELLED"), -1);
+  assert.equal(couponUseChange("CONFIRMED", "CANCELLED"), -1);
+  assert.equal(couponUseChange("RETURNING", "RETURNED"), -1);
+  assert.equal(couponUseChange("CANCELLED", "NEW"), 1);
+  assert.equal(couponUseChange("NEW", "CONFIRMED"), 0);
+  assert.equal(couponUseChange("CANCELLED", "RETURNED"), 0);
+  // Deleting an order that already gave its use back must not give it back twice.
+  assert.equal(holdsCouponUse("CANCELLED"), false);
+  assert.equal(holdsCouponUse("NEW"), true);
+});
 
 test("board cards: age in minutes, hours, days, then the date; the view stays in links", () => {
   const now = new Date("2026-11-13T12:00:00Z");

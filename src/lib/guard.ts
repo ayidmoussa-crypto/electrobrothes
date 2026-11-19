@@ -1,11 +1,12 @@
 import "server-only";
 import { headers } from "next/headers";
+import { pickClientIp } from "./client-ip";
 import { db } from "./db";
 
-/** Client IP behind Vercel / a reverse proxy; "unknown" when not available. */
+/** The visitor rate limits count (lib/client-ip.ts): the edge-set address first, IPv6 grouped by /64. */
 export async function clientIp() {
   const h = await headers();
-  return h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "unknown";
+  return pickClientIp((name) => h.get(name));
 }
 
 /**

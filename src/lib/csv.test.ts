@@ -19,6 +19,11 @@ test("neutralises spreadsheet formulas typed by customers", () => {
   assert.equal(csvCell(-5), "-5");
 });
 
+test("a formula after a comma stays inside one quoted cell, whatever separator the sheet uses", () => {
+  assert.equal(csvCell("Rue 12 Bloc A,=1+1"), '"Rue 12 Bloc A,=1+1"');
+  assert.equal(csvCell("x\t=1+1"), '"x\t=1+1"');
+});
+
 test("starts with a BOM and uses CRLF rows", () => {
   assert.equal(toCsv([["a", "b"], [1, 2]]), "﻿a;b\r\n1;2");
 });

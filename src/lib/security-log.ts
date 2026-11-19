@@ -1,6 +1,8 @@
 import "server-only";
 import { db } from "./db";
+import { hit } from "./guard";
 import { notifySecurityAlert } from "./notify";
+import { LOGIN_LIMITS } from "./security-limits";
 
 export type SecurityEventType =
   | "login_ok"
@@ -28,8 +30,13 @@ export async function logSecurity(type: SecurityEventType, who: Who = {}) {
   }
 }
 
-/** The first attempt over a login limit: logged, and the shop gets one email per 15-minute window. */
+/**
+ * The first attempt over a login limit: logged, and the shop gets one email per 15-minute window. The per-email
+ * counters are keyed on whatever email an attacker types, so each new string crosses its own limit: one shared key
+ * keeps it to a single email (and a single log line) per window, whatever the number of strings.
+ */
 export async function alertRepeatedFailures(email: string, ip: string) {
+  if ((await hit("login:alert", LOGIN_LIMITS.windowSeconds)) !== 1) return;
   await logSecurity("login_blocked", { email, ip });
   await notifySecurityAlert(
     "محاولات دخول فاشلة متكررة",

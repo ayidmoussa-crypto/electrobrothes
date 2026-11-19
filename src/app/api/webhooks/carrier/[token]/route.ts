@@ -51,8 +51,10 @@ export async function POST(request: NextRequest, { params }: RouteContext<"/api/
       unknown.add(e.raw);
       continue;
     }
+    // Only parcels handed to THIS company: a tracking number saved without a company is moved by hand, never by
+    // whichever carrier's token names it first.
     const order = await db.order.findFirst({
-      where: { trackingNumber: e.tracking, OR: [{ carrier: carrier.id }, { carrier: null }] },
+      where: { trackingNumber: e.tracking, carrier: carrier.id },
       orderBy: { createdAt: "desc" },
       select: { id: true, carrierStatus: true },
     });

@@ -426,7 +426,7 @@
     "errors": {
       "invalid": "Check the order number and phone number.",
       "not_found": "We couldn't find an order with these details.",
-      "not_delivered": "Technical support opens once your order is delivered.",
+      "not_delivered": "This order hasn't been delivered yet. Use the number of an order you already received; support will show every product you received.",
       "rate_limited": "Too many attempts. Try again shortly.",
       "closed": "This link doesn't work, or the order isn't delivered yet.",
       "send": "The message wasn't sent. Try again.",

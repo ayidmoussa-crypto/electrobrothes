@@ -10,13 +10,15 @@ import { normalizeMoroccanPhone } from "@/lib/phone";
 import { runSupportTurn } from "@/lib/support/chat";
 import { orderFromSupportToken, supportAccess, supportPath } from "@/lib/support/customer";
 import { randomInt } from "node:crypto";
-import { MAX_CUSTOMER_MESSAGES, MAX_MESSAGE_LENGTH, MAX_MESSAGES_PER_HOUR, rewardCode, rewardExpiry } from "@/lib/support/rules";
+import { MAX_CUSTOMER_MESSAGES, MAX_MESSAGE_LENGTH, MAX_MESSAGES_PER_HOUR, rewardCode, rewardExpiry, SUPPORT_AI_PER_PHONE_PER_DAY, SUPPORT_FIND_PER_PHONE } from "@/lib/support/rules";
 
 export type FindSupportState = { error?: "invalid" | "not_found" | "not_delivered" | "rate_limited"; values?: { number: string; phone: string } };
 
 /**
- * Order number + phone → the private support page. A customer who has received at least one order gets in, even
- * with the number of a newer order still on its way; a cancelled or undelivered order alone does not open it.
+ * Order number + phone → the private support page of THAT order, which must have been delivered. The phone is never
+ * verified (no OTP), so any order that merely carries it proves nothing: someone could place one with a stranger's
+ * number. A delivered order does, as only its real buyer received it. From there the page shows every delivered order
+ * of that phone (lib/support/customer supportAccess).
  */
 export async function findSupport(locale: string, _prev: FindSupportState, fd: FormData): Promise<FindSupportState> {
   const values = { number: String(fd.get("number") ?? "").slice(0, 20), phone: String(fd.get("phone") ?? "").slice(0, 20) };
@@ -24,12 +26,13 @@ export async function findSupport(locale: string, _prev: FindSupportState, fd: F
   const phone = normalizeMoroccanPhone(values.phone);
   if (!ORDER_NUMBER.test(number) || !phone) return { error: "invalid", values };
   if ((await hit(`support-find:ip:${await clientIp()}`, 3600)) > 20) return { error: "rate_limited", values };
+  // Order numbers follow each other: without this, one phone could be paired with every number from many IPs.
+  if ((await hit(`support-find:phone:${phone}`, 3600)) > SUPPORT_FIND_PER_PHONE) return { error: "rate_limited", values };
 
-  const order = await db.order.findFirst({ where: { number, phone }, select: { id: true } });
+  const order = await db.order.findFirst({ where: { number, phone }, select: { id: true, status: true } });
   if (!order) return { error: "not_found", values };
-  const received = await db.order.findFirst({ where: { phone, status: "DELIVERED" }, orderBy: { deliveredAt: "desc" }, select: { id: true } });
-  if (!received) return { error: "not_delivered", values };
-  redirect(`/${locale === "en" ? "en" : "ar"}${supportPath(received.id)}`);
+  if (order.status !== "DELIVERED") return { error: "not_delivered", values };
+  redirect(`/${locale === "en" ? "en" : "ar"}${supportPath(order.id)}`);
 }
 
 /** The customer's delivered order ids for a link (lib/support/customer supportAccess), or null. */
@@ -47,8 +50,11 @@ export async function sendSupportMessage(token: string, input: { itemId: string;
   const text = String(input.text ?? "").trim();
   if (!text || text.length > MAX_MESSAGE_LENGTH) return { error: "invalid" };
   if ((await hit(`support:order:${linkOrder}`, 3600)) > MAX_MESSAGES_PER_HOUR) return { error: "rate_limited" };
-  const orderIds = await deliveredOrders(token);
-  if (!orderIds) return { error: "closed" };
+  const access = await supportAccess(token);
+  if (!access) return { error: "closed" };
+  const orderIds = access.orderIds;
+  // The AI budget is one pool for the whole shop: one customer gets a daily share, whatever their links or tickets.
+  if ((await hit(`support:phone:${access.phone}`, 86400)) > SUPPORT_AI_PER_PHONE_PER_DAY) return { error: "rate_limited" };
 
   // Any product of any order this customer received; the conversation belongs to that order.
   const item = await db.orderItem.findFirst({

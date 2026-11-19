@@ -6,7 +6,9 @@ const FORMULA_START = /^[=+\-@\t\r]/;
 export function csvCell(value: string | number | null | undefined) {
   let s = value === null || value === undefined ? "" : String(value);
   if (typeof value === "string" && FORMULA_START.test(s)) s = `'${s}`;
-  return /[;"\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  // Quoted on "," and TAB too: a sheet opened with a comma or tab separator must still read the value as one cell,
+  // or "x,=1+1" would start a new cell with a formula the prefix above never saw.
+  return /[;,"\n\r\t]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
 export function toCsv(rows: (string | number | null | undefined)[][]) {

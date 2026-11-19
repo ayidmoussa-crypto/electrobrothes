@@ -215,7 +215,8 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
                   <input type="hidden" name="orderId" value={order.id} />
                   <L label={tr("شركة التوصيل", "Delivery company")}>
                     <select name="carrierId" defaultValue={carrier?.id ?? ""} className={inputClass}>
-                      <option value="">{tr("— بلا شركة —", "— No company —")}</option>
+                      {/* A parcel with no company only moves by hand: no carrier's updates can reach it. */}
+                      <option value="">{tr("— بلا شركة (الحالة كتبدلها بيدك) —", "— No company (status updated by hand) —")}</option>
                       {carriers.map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.name}

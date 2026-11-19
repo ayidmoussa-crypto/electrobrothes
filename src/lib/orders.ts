@@ -7,7 +7,7 @@ import { channelOfManualSource, SHOP_CHANNEL, type Touch } from "./attribution";
 import { manualTotals, type ManualOrderInput } from "./manual-order";
 import { bundleDiscount } from "./bundles";
 import { bundleRulesFor } from "./bundles-data";
-import { assessRisk, cashToCollect, deleteBlock, deliveredByHand, orderNumberAfter, transitionPlan, undoesDelivery, type OrderStatus } from "./order-rules";
+import { assessRisk, cashToCollect, couponUseChange, deleteBlock, deliveredByHand, holdsCouponUse, orderNumberAfter, transitionPlan, undoesDelivery, type OrderStatus } from "./order-rules";
 import { normalizeMoroccanPhone } from "./phone";
 import { computeTotals } from "./pricing";
 import { agentMayMove, handledUpdate } from "./staff-rules";
@@ -305,8 +305,8 @@ export class OrderTransitionError extends Error {
  */
 export async function changeOrderStatus(orderId: string, to: OrderStatus, actor: string, note?: string, opts: { manual?: boolean; byId?: string; agent?: boolean } = {}) {
   const stockMoved = await db.$transaction(async (tx) => {
-    const [order] = await tx.$queryRaw<{ status: OrderStatus; stockDeducted: boolean; number: string; total: number; prepaidAt: Date | null; carrierFee: number | null }[]>`
-      SELECT "status", "stockDeducted", "number", "total", "prepaidAt", "carrierFee" FROM "Order" WHERE "id" = ${orderId} FOR UPDATE`;
+    const [order] = await tx.$queryRaw<{ status: OrderStatus; stockDeducted: boolean; number: string; total: number; prepaidAt: Date | null; carrierFee: number | null; couponCode: string | null }[]>`
+      SELECT "status", "stockDeducted", "number", "total", "prepaidAt", "carrierFee", "couponCode" FROM "Order" WHERE "id" = ${orderId} FOR UPDATE`;
     if (!order) throw new OrderTransitionError("not_found");
 
     // Checked here, on the locked row, so an order another person just moved cannot be moved again.
@@ -335,6 +335,11 @@ export async function changeOrderStatus(orderId: string, to: OrderStatus, actor:
         }
       }
     }
+
+    // A cancelled or returned order gives its coupon use back; reopening it takes the use again.
+    const couponDelta = order.couponCode ? couponUseChange(order.status, to) : 0;
+    if (couponDelta < 0) await tx.coupon.updateMany({ where: { code: order.couponCode!, usedCount: { gt: 0 } }, data: { usedCount: { decrement: 1 } } });
+    if (couponDelta > 0) await tx.coupon.updateMany({ where: { code: order.couponCode! }, data: { usedCount: { increment: 1 } } });
 
     await tx.order.update({
       where: { id: orderId },
@@ -378,7 +383,8 @@ export async function deleteOrder(orderId: string, actor: string): Promise<"ok" 
         await moveStock(tx, { variantId: item.variantId!, delta: item.quantity, reason: "ORDER_CANCELLED", actor, note: "حذف الطلب", order: { id: orderId, number: order.number } });
       }
     }
-    if (order.couponCode) await tx.coupon.updateMany({ where: { code: order.couponCode, usedCount: { gt: 0 } }, data: { usedCount: { decrement: 1 } } });
+    // A cancelled or returned order already gave its use back.
+    if (order.couponCode && holdsCouponUse(order.status)) await tx.coupon.updateMany({ where: { code: order.couponCode, usedCount: { gt: 0 } }, data: { usedCount: { decrement: 1 } } });
     await tx.order.delete({ where: { id: orderId } });
     return order.stockDeducted ? ("ok-stock" as const) : ("ok" as const);
   });

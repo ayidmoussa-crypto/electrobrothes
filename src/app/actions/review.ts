@@ -17,7 +17,9 @@ const MAX_PER_HOUR = 20;
 
 /** A customer's review from their private link. It stays hidden until the owner approves it. */
 export async function submitReview(token: string, itemId: string, locale: string, _: ReviewFormState, fd: FormData): Promise<ReviewFormState> {
+  // Like every other token reader: no weak or missing key, ever (an empty key would make links forgeable).
   const secret = process.env.SESSION_SECRET ?? "";
+  if (secret.length < 32) return { error: "closed" };
   const orderId = readReviewToken(token, secret);
   if (!orderId) return { error: "closed" };
   if ((await hit(`review:${await clientIp()}`, 3600)) > MAX_PER_HOUR) return { error: "tooMany" };

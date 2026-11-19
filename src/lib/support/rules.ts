@@ -32,6 +32,10 @@ export const MAX_CUSTOMER_MESSAGES = 25;
 export const SUPPORT_GUIDE_MAX = 6000;
 /** Longest correction the owner can give the assistant. */
 export const SUPPORT_LESSON_MAX = 500;
+/** Support look-ups (order number + phone) per phone per hour: order numbers are sequential, so guessing is cheap. */
+export const SUPPORT_FIND_PER_PHONE = 5;
+/** AI-answered customer messages per phone per day: one customer cannot spend the whole month's support budget. */
+export const SUPPORT_AI_PER_PHONE_PER_DAY = 40;
 /** Messages per order per hour, against scripts and loops. */
 export const MAX_MESSAGES_PER_HOUR = 30;
 

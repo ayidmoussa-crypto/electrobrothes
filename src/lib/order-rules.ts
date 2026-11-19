@@ -45,6 +45,15 @@ export const deliveredByHand = (from: OrderStatus, to: OrderStatus) => to === "D
 export const undoesDelivery = (from: OrderStatus, to: OrderStatus) =>
   from === "DELIVERED" && (to === "NEW" || to === "CONFIRMED" || to === "SHIPPING" || to === "CANCELLED");
 
+/**
+ * The order still holds a use of its coupon. A cancelled or returned order gives it back, so fake orders cannot use
+ * up a limited code or a customer's single-use reward, and reopening takes the use again.
+ */
+export const holdsCouponUse = (s: OrderStatus) => s !== "CANCELLED" && s !== "RETURNED";
+
+/** How a status change moves the coupon's usedCount: -1 given back, +1 taken again, 0 unchanged. */
+export const couponUseChange = (from: OrderStatus, to: OrderStatus) => Number(holdsCouponUse(to)) - Number(holdsCouponUse(from));
+
 /** The order's goods are out of the stock in this status. A parcel on its way back still is: it returns on RETURNED. */
 export const holdsStock = (s: OrderStatus) => s === "CONFIRMED" || s === "SHIPPING" || s === "DELIVERED" || s === "RETURNING";
 
