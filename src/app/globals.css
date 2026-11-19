@@ -106,6 +106,105 @@
   --glass-card-shadow: 0 18px 40px -24px rgb(17 17 17 / 0.28), inset 0 1px 0 rgb(255 255 255 / 0.7);
 }
 
+/*
+ * ── Admin themes ─────────────────────────────────────────────────────────────
+ * Normal: a pure white page, warm off-white cards, a black bar on top. Night: the same brand colours turned
+ * round (ink page, warm-900 cards, light text). Night works by giving the palette tokens their dark-side values
+ * inside `.admin-dark`, so every component follows without its own dark classes. Solid yellow, black and status
+ * surfaces get the original palette back, so text on yellow stays ink. No new colour: only brand values.
+ */
+.admin-theme {
+  --admin-page-bg: #FFFFFF;
+}
+.admin-dark {
+  color-scheme: dark;
+  --admin-page-bg: #111111;
+  --color-white: #1C1B18;
+  --color-ink: #FFFFFF;
+  --color-logo-dark: #FFFFFF;
+  --color-warm-50: #1C1B18;
+  --color-warm-100: #2A2925;
+  --color-warm-200: #3D3B36;
+  --color-warm-300: #57544D;
+  --color-warm-400: #75716A;
+  --color-warm-500: #9C988F;
+  --color-warm-600: #C9C5BC;
+  --color-warm-700: #E4E1DA;
+  --color-warm-800: #F2F0EB;
+  --color-warm-900: #FAF9F6;
+  --color-warm-950: #FFFFFF;
+  --color-yellow-50: color-mix(in srgb, #FFD000 8%, #1C1B18);
+  --color-yellow-100: color-mix(in srgb, #FFD000 16%, #1C1B18);
+  --color-yellow-200: color-mix(in srgb, #FFD000 30%, #1C1B18);
+  --color-yellow-800: #FFD000;
+  --color-yellow-900: #FFE580;
+  --color-success: color-mix(in srgb, #187A43 55%, #FFFFFF);
+  --color-success-soft: color-mix(in srgb, #187A43 24%, #1C1B18);
+  --color-warning-text: color-mix(in srgb, #E8710A 70%, #FFFFFF);
+  --color-warning-soft: color-mix(in srgb, #E8710A 20%, #1C1B18);
+  --color-danger: color-mix(in srgb, #C62828 60%, #FFFFFF);
+  --color-danger-soft: color-mix(in srgb, #C62828 24%, #1C1B18);
+  --glass-header-bg: rgb(17 17 17 / 0.92);
+  --glass-header-border: rgb(255 255 255 / 0.1);
+  --admin-card-shadow: none;
+}
+/* Declared again in each theme scope so they take that scope's colours. */
+.admin-theme,
+.admin-dark {
+  color: var(--color-warm-800);
+  --admin-card-bg: var(--color-warm-50);
+  --admin-card-border: var(--color-warm-200);
+  --admin-field-bg: var(--color-white);
+  --glass-card-bg: var(--color-warm-50);
+  --glass-card-border: var(--color-warm-200);
+  --glass-card-shadow: var(--admin-card-shadow);
+}
+/* Solid surfaces keep the normal palette (ink text on yellow, white text on black or red). `on-yellow` marks a
+   label whose yellow is a separate layer behind it (the sliding nav pill). */
+.admin-dark
+  :is(
+    .bg-ink, .bg-deep, .bg-warm-700, .bg-warm-800, .bg-warm-900,
+    .bg-yellow-300, .bg-yellow-500, .bg-yellow-600, .bg-yellow-700,
+    .bg-success, .bg-warning, .bg-danger, .bg-whatsapp, .on-yellow,
+    .hover\:bg-yellow-600:hover, .hover\:bg-ink:hover, .hover\:bg-danger:hover, .has-checked\:bg-yellow-500:has(:checked)
+  ) {
+  color-scheme: light;
+  --color-white: #FFFFFF;
+  --color-ink: #111111;
+  --color-logo-dark: #191214;
+  --color-warm-50: #FAF9F6;
+  --color-warm-100: #F2F0EB;
+  --color-warm-200: #E4E1DA;
+  --color-warm-300: #C9C5BC;
+  --color-warm-400: #9C988F;
+  --color-warm-500: #75716A;
+  --color-warm-600: #57544D;
+  --color-warm-700: #3D3B36;
+  --color-warm-800: #2A2925;
+  --color-warm-900: #1C1B18;
+  --color-warm-950: #111111;
+  --color-yellow-50: #FFFBE6;
+  --color-yellow-100: #FFF3BF;
+  --color-yellow-200: #FFE580;
+  --color-yellow-800: #806600;
+  --color-yellow-900: #4D3D00;
+  --color-success: #187A43;
+  --color-success-soft: #E7F4EC;
+  --color-warning-text: #A34E00;
+  --color-warning-soft: #FDF0E4;
+  --color-danger: #C62828;
+  --color-danger-soft: #FBEAEA;
+}
+/* Scrims behind sheets and dialogs stay dark at night (ink is white there). */
+.admin-dark :is(.bg-ink\/40, .bg-ink\/50),
+.admin-dark .backdrop\:bg-ink\/50::backdrop {
+  background-color: rgb(0 0 0 / 0.6);
+}
+/* A black chip on a black page would vanish: at night it is a step lighter. */
+.admin-dark :is(.bg-ink, .hover\:bg-ink:hover) {
+  --color-ink: #3D3B36;
+}
+
 /* Phones: lighter blur, cheaper to render while scrolling. */
 @media (max-width: 767px) {
   :root {
@@ -122,7 +221,7 @@
 }
 /* Rows of a long list (cities): same look as admin-card without a per-row blur, which would make scrolling heavy. */
 @utility admin-row {
-  background: rgb(255 255 255 / 0.72);
+  background: color-mix(in srgb, var(--color-white) 72%, transparent);
   border: 1px solid var(--admin-card-border);
   border-radius: 1rem;
   box-shadow: 0 6px 18px -12px rgb(17 17 17 / 0.2);

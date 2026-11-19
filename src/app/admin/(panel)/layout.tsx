@@ -1,10 +1,10 @@
-import { ExternalLink, LogOut } from "lucide-react";
+import { ExternalLink, LogOut, Moon, Sun } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Suspense } from "react";
 import { logout } from "@/app/actions/admin-auth";
-import { setAdminLang } from "@/app/actions/admin-lang";
-import { adminTr } from "@/lib/admin-lang";
+import { setAdminLang, setAdminTheme } from "@/app/actions/admin-lang";
+import { ADMIN_THEME_COOKIE, adminTheme, adminTr } from "@/lib/admin-lang";
 import { AdminBackdrop } from "@/components/admin/AdminBackdrop";
 import { AdminLangProvider } from "@/components/admin/AdminLang";
 import { AdminBottomNav, AdminTopNav } from "@/components/admin/AdminNav";
@@ -21,8 +21,9 @@ import { after } from "next/server";
 const iconLink = "grid size-10 cursor-pointer place-items-center rounded-full text-warm-800 transition-colors hover:bg-ink/5 hover:text-ink";
 
 async function Shell({ children }: { children: ReactNode }) {
-  const [admin, { lang, ar, tr }, ip] = await Promise.all([requireStaff(), adminTr(), clientIp()]);
+  const [admin, { lang, ar, tr }, ip, theme] = await Promise.all([requireStaff(), adminTr(), clientIp(), adminTheme()]);
   const agent = admin.role === "AGENT";
+  const night = theme === "dark";
   // One "admin visit" line per person per hour in the security log, written after the page is sent.
   after(async () => {
     if ((await hit(`seclog:visit:${admin.id}`, 3600)) === 1) await logSecurity("admin_visit", { userId: admin.id, email: admin.email, ip });
@@ -31,13 +32,14 @@ async function Shell({ children }: { children: ReactNode }) {
 
   return (
     // The whole panel follows the chosen language: direction, lang tag and every text below.
-    <div dir={ar ? "rtl" : "ltr"} lang={lang}>
+    // Normal mode: white page under a black bar. Night mode: the whole panel turns dark (globals.css).
+    <div dir={ar ? "rtl" : "ltr"} lang={lang} className={`admin-theme min-h-dvh ${night ? "admin-dark" : ""}`}>
       <AdminLangProvider lang={lang}>
         <AdminBackdrop />
 
-        {/* The shop's floating frosted-glass bar, clear of the screen edges. Desktop: brand + account row, then
+        {/* The floating black bar, clear of the screen edges, in both modes. Desktop: brand + account row, then
             the sections row. Phones: brand row only. */}
-        <header className="sticky top-3 z-30 mx-3 mt-3 rounded-3xl text-ink lg:mx-4">
+        <header className="admin-dark sticky top-3 z-30 mx-3 mt-3 rounded-3xl text-ink lg:mx-4">
           {/* The glass sits on its own layer: a blur on the header itself would stop its menus from blurring the page. */}
           <div aria-hidden="true" className="glass-frost absolute inset-0 -z-10 rounded-[inherit] border shadow-lg shadow-ink/10" />
           <div className="mx-auto flex max-w-[110rem] items-center justify-between gap-3 px-4 py-2.5 lg:px-6">
@@ -51,6 +53,18 @@ async function Shell({ children }: { children: ReactNode }) {
               </span>
             </Link>
             <div className="flex items-center gap-1">
+              {/* Phones: in "المزيد", the bar is full there. */}
+              <form action={setAdminTheme} className="max-lg:hidden">
+                <input type="hidden" name="theme" value={night ? "light" : "dark"} />
+                <button
+                  type="submit"
+                  className={iconLink}
+                  aria-label={night ? tr("الوضع العادي", "Normal mode") : tr("الوضع الليلي", "Night mode")}
+                  title={night ? tr("الوضع العادي", "Normal mode") : tr("الوضع الليلي", "Night mode")}
+                >
+                  {night ? <Sun className="size-5" aria-hidden="true" /> : <Moon className="size-5" aria-hidden="true" />}
+                </button>
+              </form>
               {/* Panel language, in the header so every admin page has it. */}
               <form action={setAdminLang} aria-label={tr("لغة اللوحة", "Panel language")} className="flex rounded-full bg-ink/5 p-1 lg:me-1">
                 {(["ar", "en"] as const).map((l) => (
@@ -117,7 +131,7 @@ async function Shell({ children }: { children: ReactNode }) {
             clears the side rail. */}
         <main className="mx-auto min-w-0 max-w-[110rem] px-4 pt-6 pb-32 md:pt-8 lg:ps-6 lg:pe-24 lg:pb-12">{children}</main>
 
-        <AdminBottomNav email={admin.email} role={admin.role} />
+        <AdminBottomNav email={admin.email} role={admin.role} night={night} />
       </AdminLangProvider>
     </div>
   );
@@ -125,7 +139,15 @@ async function Shell({ children }: { children: ReactNode }) {
 
 export default function PanelLayout({ children }: { children: ReactNode }) {
   return (
-    <Suspense fallback={<Skeleton className="m-8 h-96" />}>
+    <Suspense
+      fallback={
+        <div id="admin-fallback" className="admin-theme min-h-dvh bg-(--admin-page-bg) p-8">
+          <Skeleton className="h-96" />
+          {/* Night mode while the page loads, so a reload does not flash white first. */}
+          <script dangerouslySetInnerHTML={{ __html: `document.cookie.indexOf("${ADMIN_THEME_COOKIE}=dark")>-1&&document.getElementById("admin-fallback").classList.add("admin-dark")` }} />
+        </div>
+      }
+    >
       <Shell>{children}</Shell>
     </Suspense>
   );

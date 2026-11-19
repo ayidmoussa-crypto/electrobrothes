@@ -15,6 +15,7 @@ import {
   LayoutTemplate,
   LogOut,
   MapPin,
+  Moon,
   Package,
   Plus,
   Settings,
@@ -22,6 +23,7 @@ import {
   Sparkles,
   Star,
   Store,
+  Sun,
   Tags,
   TicketPercent,
   Trophy,
@@ -35,6 +37,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { logout } from "@/app/actions/admin-auth";
+import { setAdminTheme } from "@/app/actions/admin-lang";
 import { useAdminTr } from "./AdminLang";
 
 type Item = { href: string; label: [ar: string, en: string]; icon: LucideIcon; children?: Item[] };
@@ -155,7 +158,7 @@ function NavGroup({ item, children, pathname }: { item: Item; children: Item[]; 
         }
       }}
     >
-      <div className={`relative isolate flex items-center rounded-full text-sm font-semibold transition-colors ${current ? "text-ink" : "text-warm-800 hover:bg-ink/5 hover:text-ink"}`}>
+      <div className={`relative isolate flex items-center rounded-full text-sm font-semibold transition-colors ${current ? "on-yellow text-ink" : "text-warm-800 hover:bg-ink/5 hover:text-ink"}`}>
         {current ? <motion.span layoutId="admin-top-pill" transition={spring} aria-hidden="true" className="absolute inset-0 -z-10 rounded-full bg-yellow-500 shadow-md shadow-yellow-500/25" /> : null}
         <Link href={item.href} aria-current={current?.href === item.href ? "page" : current ? "true" : undefined} className="flex min-h-10 items-center gap-2 rounded-s-full ps-3.5 pe-1">
           <Icon className="size-4.5" aria-hidden="true" />
@@ -221,7 +224,7 @@ export function AdminTopNav({ role }: { role: Role }) {
                   href={href}
                   aria-current={active ? "page" : undefined}
                   className={`relative isolate flex min-h-10 items-center gap-2 rounded-full px-3.5 text-sm font-semibold transition-colors ${
-                    active ? "text-ink" : "text-warm-800 hover:bg-ink/5 hover:text-ink"
+                    active ? "on-yellow text-ink" : "text-warm-800 hover:bg-ink/5 hover:text-ink"
                   }`}
                 >
                   {active ? (
@@ -243,7 +246,7 @@ export function AdminTopNav({ role }: { role: Role }) {
  * Phones and tablets: a floating dark-glass bar at the bottom (thumb reach) with the daily
  * sections and "المزيد", which slides up a sheet with the other sections, the shop link and logout.
  */
-export function AdminBottomNav({ email, role }: { email: string; role: Role }) {
+export function AdminBottomNav({ email, role, night }: { email: string; role: Role; night: boolean }) {
   const pathname = usePathname();
   const { tr } = useAdminTr();
   // Remembers the page the sheet was opened on, so following a link closes it.
@@ -291,7 +294,7 @@ export function AdminBottomNav({ email, role }: { email: string; role: Role }) {
 
   const tab = (active: boolean) =>
     `relative isolate flex min-h-14 flex-1 flex-col items-center justify-center gap-1 rounded-2xl text-[0.6875rem] font-semibold transition-colors ${
-      active ? "text-ink" : "text-warm-800"
+      active ? "on-yellow text-ink" : "text-warm-800"
     }`;
   const pill = <motion.span layoutId="admin-bottom-pill" transition={spring} aria-hidden="true" className="absolute inset-1 -z-10 rounded-xl bg-yellow-500" />;
 
@@ -348,15 +351,23 @@ export function AdminBottomNav({ email, role }: { email: string; role: Role }) {
                   {sheetGrid(others)}
                 </>
               ) : null}
-              <div className="mt-2.5 grid grid-cols-2 gap-2 border-t border-warm-200 pt-1.5 text-sm">
+              <div className="mt-2.5 grid grid-cols-3 gap-1 border-t border-warm-200 pt-1.5 text-sm">
                 <Link href="/" target="_blank" className="flex min-h-11 items-center justify-center gap-2 rounded-xl text-warm-800 hover:bg-ink/5 hover:text-ink">
                   <ExternalLink className="size-4.5" aria-hidden="true" />
-                  {tr("عرض المتجر", "View shop")}
+                  {tr("المتجر", "Shop")}
                 </Link>
+                {/* On phones the night switch lives here: the top bar has no room left. */}
+                <form action={setAdminTheme}>
+                  <input type="hidden" name="theme" value={night ? "light" : "dark"} />
+                  <button type="submit" className="flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl text-warm-800 hover:bg-ink/5 hover:text-ink">
+                    {night ? <Sun className="size-4.5" aria-hidden="true" /> : <Moon className="size-4.5" aria-hidden="true" />}
+                    {night ? tr("عادي", "Normal") : tr("ليلي", "Night")}
+                  </button>
+                </form>
                 <form action={logout}>
                   <button type="submit" className="flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl text-warm-800 hover:bg-ink/5 hover:text-ink">
                     <LogOut className="size-4.5" aria-hidden="true" />
-                    {tr("تسجيل الخروج", "Log out")}
+                    {tr("خروج", "Log out")}
                   </button>
                 </form>
               </div>
