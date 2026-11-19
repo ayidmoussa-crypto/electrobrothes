@@ -59,6 +59,8 @@ export const productInput = z
           // Stock when the editor was opened: the server applies (stock − stockBase) as a move, so an
           // order confirmed meanwhile is not overwritten.
           stockBase: z.coerce.number().int().min(0).max(100_000),
+          // A lower quantity that only cancels units entered by mistake: never counted as a loss.
+          stockMistake: z.boolean().optional().default(false),
           lowStockAt: z.coerce.number().int().min(0).max(1_000),
         }),
       )
@@ -123,6 +125,8 @@ export type ProductInput = {
     costPrice: number | string;
     stock: number | string;
     stockBase: number;
+    /** Lowering the stock: units entered by mistake (CORRECTION), not a loss. */
+    stockMistake?: boolean;
     lowStockAt: number | string;
   }[];
   specs: { key: string; valueAr: string; valueEn: string; numericValue: number | string }[];

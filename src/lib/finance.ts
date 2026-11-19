@@ -227,6 +227,63 @@ export function goodsOnTheRoad(items: { unitCost: number | null; quantity: numbe
   return { total, returning };
 }
 
+export type EntryMove = { variantId: string | null; reason: "OPENING" | "STOCK_IN" | "CORRECTION"; delta: number; unitCost: number | null; at: Date };
+
+/**
+ * The value the stock entries really stand for, once mistakes are cancelled. A CORRECTION removes units that never
+ * existed: per colour it cancels the most recent entries first (the wrong one is usually the last), at the price
+ * those entries were counted at, so neither the invested capital nor the purchases keep a value that never existed.
+ * A positive CORRECTION (an undone one) puts back what it last removed.
+ */
+export function entryValues(moves: EntryMove[]) {
+  let opening = 0;
+  let purchases = 0;
+  const byVariant = new Map<string, EntryMove[]>();
+  for (const m of moves) {
+    const value = m.delta * (m.unitCost ?? 0);
+    if (m.reason === "OPENING") opening += value;
+    else if (m.reason === "STOCK_IN") purchases += value;
+    if (m.variantId) byVariant.set(m.variantId, [...(byVariant.get(m.variantId) ?? []), m]);
+  }
+  for (const list of byVariant.values()) {
+    if (!list.some((m) => m.reason === "CORRECTION")) continue;
+    const stack: { bucket: "OPENING" | "STOCK_IN"; units: number; unitCost: number }[] = [];
+    const removed: typeof stack = [];
+    for (const m of [...list].sort((a, b) => a.at.getTime() - b.at.getTime())) {
+      if (m.reason !== "CORRECTION") {
+        if (m.delta > 0) stack.push({ bucket: m.reason, units: m.delta, unitCost: m.unitCost ?? 0 });
+        continue;
+      }
+      if (m.delta < 0) {
+        let left = -m.delta;
+        while (left > 0 && stack.length) {
+          const top = stack[stack.length - 1];
+          const take = Math.min(left, top.units);
+          top.units -= take;
+          left -= take;
+          if (!top.units) stack.pop();
+          removed.push({ bucket: top.bucket, units: take, unitCost: top.unitCost });
+          if (top.bucket === "OPENING") opening -= take * top.unitCost;
+          else purchases -= take * top.unitCost;
+        }
+      } else {
+        let left = m.delta;
+        while (left > 0 && removed.length) {
+          const last = removed[removed.length - 1];
+          const back = Math.min(left, last.units);
+          last.units -= back;
+          left -= back;
+          if (!last.units) removed.pop();
+          stack.push({ bucket: last.bucket, units: back, unitCost: last.unitCost });
+          if (last.bucket === "OPENING") opening += back * last.unitCost;
+          else purchases += back * last.unitCost;
+        }
+      }
+    }
+  }
+  return { opening, purchases };
+}
+
 /**
  * Where the money is. `invested` is what the owner put in; `position` is what exists today (cash, goods,
  * money owed). The difference is the real result of the whole business since the start, personal spending included.

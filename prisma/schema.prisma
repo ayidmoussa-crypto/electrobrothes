@@ -136,7 +136,8 @@ model Variant {
 enum StockReason {
   OPENING // quantity that existed before the log started
   STOCK_IN // added from the product editor (purchase / restock)
-  ADJUSTMENT // removed or corrected from the product editor, or a colour deleted with stock left
+  ADJUSTMENT // removed or corrected from the product editor, or a colour deleted with stock left: a real loss when negative
+  CORRECTION // removes units entered by mistake (fake or test stock): never a loss, it cancels the wrong entry's value
   ORDER_CONFIRMED
   ORDER_CANCELLED
   ORDER_RETURNED

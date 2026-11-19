@@ -367,6 +367,29 @@ export function ProductEditor({
                       <input className={input} dir="ltr" placeholder="128GB" value={v.storage ?? ""} onChange={(e) => setVariant(i, { storage: e.target.value })} />
                     </label>
                   </div>
+                  {/* A real loss lowers the profit; a mistaken entry only cancels units that never existed. */}
+                  {v.id && changed < 0 ? (
+                    <fieldset className="mt-3 rounded-xl bg-warm-50 p-3 ring-1 ring-warm-200">
+                      <legend className="sr-only">{tr("علاش نقص المخزون؟", "Why is the stock going down?")}</legend>
+                      <p className="mb-2 text-sm font-semibold text-ink">{tr(`علاش نقصتي ${-changed} قطعة؟`, `Why remove ${-changed} units?`)}</p>
+                      <div className="flex flex-col gap-2 sm:flex-row sm:gap-4">
+                        <label className="flex cursor-pointer items-start gap-2 text-sm text-warm-800">
+                          <input type="radio" name={`stock-why-${i}`} checked={!v.stockMistake} onChange={() => setVariant(i, { stockMistake: false })} className="mt-1 size-4 accent-ink" />
+                          <span>
+                            {tr("تخسرات، تهرسات ولا ضاعت", "Lost, broken or gone")}
+                            <span className="block text-xs text-warm-600">{tr("خسارة حقيقية: كتنقص من صافي الربح.", "A real loss: comes off the net profit.")}</span>
+                          </span>
+                        </label>
+                        <label className="flex cursor-pointer items-start gap-2 text-sm text-warm-800">
+                          <input type="radio" name={`stock-why-${i}`} checked={!!v.stockMistake} onChange={() => setVariant(i, { stockMistake: true })} className="mt-1 size-4 accent-ink" />
+                          <span>
+                            {tr("غلطة فالإدخال، ماشي حقيقية", "Entered by mistake, never real")}
+                            <span className="block text-xs text-warm-600">{tr("ماشي خسارة: كتلغي السلعة الغالطة من رأس المال.", "Not a loss: cancels the wrong stock from the capital.")}</span>
+                          </span>
+                        </label>
+                      </div>
+                    </fieldset>
+                  ) : null}
                 </li>
               );
             })}

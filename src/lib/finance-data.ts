@@ -2,7 +2,7 @@ import "server-only";
 import { SHOP_CHANNEL } from "./attribution";
 import { db } from "./db";
 import { compareSales } from "./sales-compare";
-import { computeCapital, computeProfit, expectedFromCarrier, goodsOnTheRoad, profitTrend, trendBuckets } from "./finance";
+import { computeCapital, computeProfit, entryValues, expectedFromCarrier, goodsOnTheRoad, profitTrend, trendBuckets } from "./finance";
 import type { Period } from "./period";
 import { effectiveCost } from "./stock";
 
@@ -88,8 +88,8 @@ export async function loadCapital() {
     db.expense.groupBy({ by: ["scope"], _sum: { amount: true } }),
     // Products hidden from the shop (the old demo catalogue) stay out of the money; a deleted product's moves stay in.
     db.stockMovement.findMany({
-      where: { reason: { in: ["OPENING", "STOCK_IN"] }, OR: [{ productId: null }, { product: { isActive: true } }] },
-      select: { reason: true, delta: true, unitCost: true },
+      where: { reason: { in: ["OPENING", "STOCK_IN", "CORRECTION"] }, OR: [{ productId: null }, { product: { isActive: true } }] },
+      select: { reason: true, delta: true, unitCost: true, variantId: true, createdAt: true },
     }),
     db.order.aggregate({ _sum: { codReceivedAmount: true } }),
     db.variant.findMany({ where: { stock: { gt: 0 } }, select: { stock: true, costPrice: true, product: { select: { costPrice: true, isActive: true } } } }),
@@ -101,15 +101,12 @@ export async function loadCapital() {
 
   const sum = (type: string) => capital.find((c) => c.type === type)?._sum.amount ?? 0;
   const spent = (scope: string) => expenses.find((e) => e.scope === scope)?._sum.amount ?? 0;
-  let openingStockValue = 0;
-  let purchases = 0;
   let movesWithoutCost = 0;
-  for (const m of movements) {
-    if (m.delta > 0 && m.unitCost === null) movesWithoutCost += m.delta;
-    const value = m.delta * (m.unitCost ?? 0);
-    if (m.reason === "OPENING") openingStockValue += value;
-    else purchases += value;
-  }
+  for (const m of movements) if (m.reason !== "CORRECTION" && m.delta > 0 && m.unitCost === null) movesWithoutCost += m.delta;
+  // Corrections cancel the value of stock entered by mistake (never a loss, never in the profit).
+  const { opening: openingStockValue, purchases } = entryValues(
+    movements.map((m) => ({ variantId: m.variantId, reason: m.reason as "OPENING" | "STOCK_IN" | "CORRECTION", delta: m.delta, unitCost: m.unitCost, at: m.createdAt })),
+  );
   let inventoryValue = 0;
   let unitsWithoutCost = 0;
   let hiddenUnits = 0;

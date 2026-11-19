@@ -28,6 +28,8 @@ export const stockProposal = z.object({
   mode: z.enum(["add", "remove", "set"]),
   quantity: z.number().int().min(0).max(100_000),
   unit_cost_mad: money.nullable(),
+  // A decrease of units that never existed (lib/stock CORRECTION): not a loss. Older proposals have none.
+  mistake: z.boolean().optional().default(false),
 });
 
 export const draftProposal = z.object({
@@ -87,7 +89,7 @@ type UpdateUndo = {
 };
 type DraftPayload = z.infer<typeof draftProposal> & { card: Card };
 type Card = Pick<AssistantCard, "title" | "image" | "rows" | "warning">;
-type StockUndo = { variantId: string; delta: number; unitCost: number | null; slug: string };
+type StockUndo = { variantId: string; delta: number; unitCost: number | null; slug: string; reason?: "STOCK_IN" | "ADJUSTMENT" | "CORRECTION" };
 type DraftUndo = { productId: string; slug: string; updatedAt: string; newBrandId: string | null };
 
 const toCard = (row: { id: string; kind: AssistantCard["kind"]; status: AssistantCard["status"]; summary: string; payload: unknown }): AssistantCard => ({
@@ -138,6 +140,7 @@ export async function proposeStockChange(input: z.infer<typeof stockProposal>, c
       ...(color ? [{ label: "اللون", value: color }] : []),
       { label: "المخزون", value: `من ${v.stock} إلى ${v.stock + delta}` },
       ...(input.unit_cost_mad !== null ? [{ label: "سعر الشراء", value: formatMAD(input.unit_cost_mad, "ar") }] : []),
+      ...(delta < 0 ? [{ label: "السبب", value: input.mistake ? "غلطة فالإدخال: ماشي خسارة" : "تخسرات ولا خرجات: خسارة كتنقص من الربح" }] : []),
     ],
     warning: await duplicateWarning({ kind: "STOCK_CHANGE", variant_id: input.variant_id, mode: input.mode, quantity: input.quantity }),
   };
@@ -402,7 +405,7 @@ async function undoUpdate(id: string, admin: string, u: UpdateUndo, data: Prisma
       }
       // New colours go away with their stock, written to the ledger like a deleted colour.
       for (const v of product.variants) {
-        if (v.stock > 0) await moveStock(tx, { variantId: v.id, delta: -v.stock, reason: "ADJUSTMENT", actor: admin, note: "تراجع عن عملية المساعد" });
+        if (v.stock > 0) await moveStock(tx, { variantId: v.id, delta: -v.stock, reason: "CORRECTION", actor: admin, note: "تراجع عن عملية المساعد" });
       }
       await tx.variant.deleteMany({ where: { id: { in: u.newVariantIds } } });
       for (const pr of u.prices) await tx.variant.updateMany({ where: { id: pr.id }, data: { price: pr.price, compareAtPrice: pr.compareAtPrice } });
@@ -443,9 +446,10 @@ export async function applyAction(id: string, admin: string) {
         if (!current) throw new AssistantActionError("هاد اللون تمسح من المنتج.");
         const delta = stockDelta(p.mode, p.quantity, current.stock);
         if (!delta) throw new AssistantActionError(`المخزون ديجا ${current.stock}، ما كاين ما يتبدل.`);
-        await moveStock(tx, { variantId: p.variant_id, delta, reason: p.mode === "add" ? "STOCK_IN" : "ADJUSTMENT", actor: admin, note: NOTE, unitCost: p.unit_cost_mad });
+        const reason = p.mode === "add" ? "STOCK_IN" : delta < 0 && p.mistake ? "CORRECTION" : "ADJUSTMENT";
+        await moveStock(tx, { variantId: p.variant_id, delta, reason, actor: admin, note: NOTE, unitCost: p.unit_cost_mad });
         const { product } = await tx.variant.findUniqueOrThrow({ where: { id: p.variant_id }, select: { product: { select: { slug: true } } } });
-        const undo: StockUndo = { variantId: p.variant_id, delta, unitCost: p.unit_cost_mad, slug: product.slug };
+        const undo: StockUndo = { variantId: p.variant_id, delta, unitCost: p.unit_cost_mad, slug: product.slug, reason };
         await tx.assistantAction.update({ where: { id }, data: { undo } });
         return [product.slug];
       })
@@ -522,7 +526,9 @@ export async function undoAction(id: string, admin: string) {
         // Reverses the amount, not the old total: orders confirmed since then stay counted.
         const variant = await tx.variant.findUnique({ where: { id: u.variantId }, select: { id: true } });
         if (!variant) throw new AssistantActionError("هاد اللون تمسح من المنتج.");
-        await moveStock(tx, { variantId: u.variantId, delta: -u.delta, reason: "ADJUSTMENT", actor: admin, note: "تراجع عن عملية المساعد", unitCost: u.unitCost });
+        // Undoing a stock entry or a correction cancels a record, it is no loss; undoing a loss is an adjustment back.
+        const reason = u.reason === "STOCK_IN" || u.reason === "CORRECTION" || (!u.reason && u.delta > 0) ? "CORRECTION" : "ADJUSTMENT";
+        await moveStock(tx, { variantId: u.variantId, delta: -u.delta, reason, actor: admin, note: "تراجع عن عملية المساعد", unitCost: u.unitCost });
         return [u.slug];
       })
       .catch((e) => insufficient(e, "ما يمكنش: جزء من هاد الكمية تباع من بعد، والمخزون الحالي قليل."));
@@ -543,7 +549,7 @@ export async function undoAction(id: string, admin: string) {
     }
     // The ledger keeps its snapshot rows, like deleting a colour in the product editor.
     for (const v of product.variants.filter((v) => v.stock > 0)) {
-      await moveStock(tx, { variantId: v.id, delta: -v.stock, reason: "ADJUSTMENT", actor: admin, note: "تراجع عن عملية المساعد" });
+      await moveStock(tx, { variantId: v.id, delta: -v.stock, reason: "CORRECTION", actor: admin, note: "تراجع عن عملية المساعد" });
     }
     await tx.product.delete({ where: { id: u.productId } });
     if (u.newBrandId) await tx.brand.deleteMany({ where: { id: u.newBrandId, products: { none: {} } } });

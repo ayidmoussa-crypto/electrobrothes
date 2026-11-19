@@ -1,6 +1,37 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { changePct, computeCapital, computeProfit, expectedFromCarrier, goodsOnTheRoad, profitTrend, trendBuckets, type ProfitInput } from "./finance";
+import { changePct, computeCapital, computeProfit, entryValues, expectedFromCarrier, goodsOnTheRoad, profitTrend, trendBuckets, type ProfitInput } from "./finance";
+
+test("a mistaken entry is cancelled from the capital at its own price, the latest entry first", () => {
+  const at = (d: number) => new Date(Date.UTC(2026, 10, d));
+  // Fake opening stock of 10 at 290, 7 removed as a mistake: only 3 stay invested.
+  assert.deepEqual(
+    entryValues([
+      { variantId: "a", reason: "OPENING", delta: 10, unitCost: 290, at: at(1) },
+      { variantId: "a", reason: "CORRECTION", delta: -7, unitCost: 290, at: at(19) },
+    ]),
+    { opening: 870, purchases: 0 },
+  );
+  // A purchase typed by mistake after the opening: the purchase goes first, the opening stays.
+  assert.deepEqual(
+    entryValues([
+      { variantId: "b", reason: "OPENING", delta: 5, unitCost: 100, at: at(1) },
+      { variantId: "b", reason: "STOCK_IN", delta: 4, unitCost: 120, at: at(5) },
+      { variantId: "b", reason: "CORRECTION", delta: -6, unitCost: 120, at: at(6) },
+    ]),
+    { opening: 300, purchases: 0 },
+  );
+  // An undone correction puts back exactly what it removed; other colours are untouched.
+  assert.deepEqual(
+    entryValues([
+      { variantId: "c", reason: "STOCK_IN", delta: 3, unitCost: 50, at: at(1) },
+      { variantId: "c", reason: "CORRECTION", delta: -3, unitCost: 50, at: at(2) },
+      { variantId: "c", reason: "CORRECTION", delta: 3, unitCost: 50, at: at(3) },
+      { variantId: "d", reason: "OPENING", delta: 2, unitCost: 10, at: at(1) },
+    ]),
+    { opening: 20, purchases: 150 },
+  );
+});
 
 test("goods coming back are shown apart but counted once in the goods on the road", () => {
   const road = goodsOnTheRoad([

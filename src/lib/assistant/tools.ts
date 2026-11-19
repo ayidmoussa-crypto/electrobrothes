@@ -51,6 +51,11 @@ const SHARED_TOOLS: Tool[] = [
       mode: { type: "string", enum: ["add", "remove", "set"] },
       quantity: { type: "integer" },
       unit_cost_mad: nullable("integer", "Purchase price per unit in dirhams, only if the admin stated it; else null"),
+      mistake: {
+        type: "boolean",
+        description:
+          "Only for a decrease: true when the admin says the units never really existed (entered by mistake, fake, test or demo stock, «غلط», «وهمي», «ماشي حقيقي»): not a loss. false for goods sold outside the shop, lost, broken or given away, and for every increase.",
+      },
     }),
   },
   {

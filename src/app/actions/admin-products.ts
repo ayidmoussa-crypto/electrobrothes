@@ -76,13 +76,14 @@ export async function saveProduct(_prev: ProductFormState, formData: FormData): 
       }
       await tx.variant.deleteMany({ where: { id: { in: removed.map((r) => r.id) } } });
 
-      for (const [i, { id: variantId, stock, stockBase, ...v }] of p.variants.entries()) {
+      for (const [i, { id: variantId, stock, stockBase, stockMistake, ...v }] of p.variants.entries()) {
         const row = { ...v, productId: id!, isDefault: i === 0, sortOrder: i };
         const saved = variantId
           ? await tx.variant.update({ where: { id: variantId, productId: id }, data: row })
           : await tx.variant.create({ data: { ...row, stock: 0 } });
         const delta = stock - (variantId ? stockBase : 0);
-        if (delta) await moveStock(tx, { variantId: saved.id, delta, reason: delta > 0 ? "STOCK_IN" : "ADJUSTMENT", actor: admin.email });
+        const reason = delta > 0 ? "STOCK_IN" : stockMistake ? "CORRECTION" : "ADJUSTMENT";
+        if (delta) await moveStock(tx, { variantId: saved.id, delta, reason, actor: admin.email, ...(reason === "CORRECTION" ? { note: "غلطة فالإدخال" } : {}) });
       }
     });
   } catch (e) {
