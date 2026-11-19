@@ -5,7 +5,7 @@ import { smoothPath } from "@/lib/chart-path";
 
 type Point = { key: string; label: string; value: number };
 
-// Area chart in SVG: a soft curve in Yellow 700 (≥3:1 on white) over a brand-yellow glow, an optional dashed line
+// Area chart in SVG: a clean curve in Yellow 700 (≥3:1 on white) over a faint yellow wash, an optional dashed line
 // for the period before, recessive grid, a crosshair + tooltip on hover and with the arrow keys, and a table view
 // for screen readers. Time runs right to left (Arabic): the oldest day is on the right.
 const PAD_TOP = 12;
@@ -152,7 +152,7 @@ export function AreaChart({
           <svg viewBox={`0 0 100 ${H}`} preserveAspectRatio="none" className="absolute inset-0 size-full overflow-visible" aria-hidden="true">
             <defs>
               <linearGradient id={`${id}-fill`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="var(--color-yellow-500)" stopOpacity="0.6" />
+                <stop offset="0%" stopColor="var(--color-yellow-500)" stopOpacity="0.16" />
                 <stop offset="100%" stopColor="var(--color-yellow-500)" stopOpacity="0" />
               </linearGradient>
             </defs>
@@ -164,9 +164,9 @@ export function AreaChart({
               <line x1={x(active)} x2={x(active)} y1={PAD_TOP} y2={H} stroke="var(--color-ink)" strokeOpacity="0.3" strokeWidth="1" vectorEffect="non-scaling-stroke" />
             ) : null}
           </svg>
-          {/* The line on its own layer, so its soft yellow glow is not stretched with the drawing. */}
-          <svg viewBox={`0 0 100 ${H}`} preserveAspectRatio="none" className="pointer-events-none absolute inset-0 size-full overflow-visible drop-shadow-[0_6px_8px_var(--color-yellow-300)]" aria-hidden="true">
-            <path d={line} fill="none" stroke="var(--color-yellow-700)" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+          {/* The line on its own layer: a clean stroke, no glow. */}
+          <svg viewBox={`0 0 100 ${H}`} preserveAspectRatio="none" className="pointer-events-none absolute inset-0 size-full overflow-visible" aria-hidden="true">
+            <path d={line} fill="none" stroke="var(--color-yellow-700)" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
           </svg>
 
           {cur && active !== null ? (

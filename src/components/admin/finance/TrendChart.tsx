@@ -83,7 +83,7 @@ export function TrendChart({ data, metric, label, total }: { data: TrendPoint[];
         <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label={label} onPointerLeave={() => setActive(n - 1)}>
           <defs>
             <linearGradient id={gradient} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" style={{ stopColor: "var(--color-yellow-500)", stopOpacity: 0.4 }} />
+              <stop offset="0%" style={{ stopColor: "var(--color-yellow-500)", stopOpacity: 0.16 }} />
               <stop offset="100%" style={{ stopColor: "var(--color-yellow-500)", stopOpacity: 0 }} />
             </linearGradient>
           </defs>

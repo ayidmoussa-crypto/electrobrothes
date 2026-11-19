@@ -200,6 +200,11 @@
 .admin-dark .backdrop\:bg-ink\/50::backdrop {
   background-color: rgb(0 0 0 / 0.6);
 }
+/* Shadows tinted with ink turn into a white glow at night (ink is white there): they stay dark, so they simply
+   disappear into the page instead of lighting it. */
+.admin-dark [class*="shadow-ink"] {
+  --tw-shadow-color: rgb(0 0 0 / 0.4);
+}
 /* A black chip on a black page would vanish: at night it is a step lighter. */
 .admin-dark :is(.bg-ink, .hover\:bg-ink:hover) {
   --color-ink: #3D3B36;
