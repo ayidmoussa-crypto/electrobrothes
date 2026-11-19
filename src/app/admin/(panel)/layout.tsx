@@ -119,7 +119,7 @@ async function Shell({ children }: { children: ReactNode }) {
         </header>
 
         {/* Desktop: a floating glass rail on the side with the bell and the assistant, always in reach. */}
-        <aside aria-label={tr("الإشعارات والمساعد", "Notifications and assistant")} className="fixed inset-y-0 end-4 z-40 my-auto hidden h-fit flex-col items-center gap-2 rounded-full p-2 lg:flex">
+        <aside aria-label={tr("الإشعارات والمساعد", "Notifications and assistant")} className="fixed top-56 end-4 z-40 hidden h-fit flex-col items-center gap-2 rounded-full p-2 lg:flex">
           <div aria-hidden="true" className="glass-frost absolute inset-0 -z-10 rounded-[inherit] border shadow-lg shadow-ink/10" />
           <NotificationsButton groups={alerts} placement="rail" />
           {/* The assistant changes stock and products, and spends the API budget: the owner's alone. */}
