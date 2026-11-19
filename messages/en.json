@@ -419,6 +419,50 @@
       "rate_limited": "Too many attempts. Try again shortly."
     }
   },
+  "support": {
+    "title": "Technical support",
+    "subtitle": "A technical problem with a product you bought from us? Enter your order number and phone number, and we'll help you fix it.",
+    "submit": "Open support",
+    "errors": {
+      "invalid": "Check the order number and phone number.",
+      "not_found": "We couldn't find an order with these details.",
+      "not_delivered": "Technical support opens once your order is delivered.",
+      "rate_limited": "Too many attempts. Try again shortly.",
+      "closed": "This link doesn't work, or the order isn't delivered yet.",
+      "send": "The message wasn't sent. Try again.",
+      "too_long_conversation": "This conversation is long: our team will contact you on WhatsApp."
+    },
+    "hello": "Hello {name} 👋",
+    "intro": "Pick the product with the problem and describe what happens. Our assistant will help you step by step.",
+    "pick": "Which product has the problem?",
+    "product": "Your product",
+    "placeholder": "Describe your problem here...",
+    "send": "Send",
+    "thinking": "Typing...",
+    "solved": "Problem solved",
+    "solvedAsk": "Is your problem fixed? Let us know here.",
+    "escalatedTitle": "This conversation is now with the ElectroBrothers team",
+    "solvedDone": "We're really glad it's fixed! Thanks for working through it with us. If it comes back, just write to us again.",
+    "rewardTitle": "Thank you for your help 🎉",
+    "rewardText": "To thank you for helping us fix it, here is a personal {percent}% discount code for your next order.",
+    "rewardCopy": "Copy code",
+    "rewardCopied": "Copied",
+    "rewardTerms": "Enter it in the coupon field when you order. One use, valid until {date}.",
+    "escalated": "They'll review it and contact you on WhatsApp soon. You can add any detail here.",
+    "you": "You",
+    "ai": "Assistant",
+    "owner": "ElectroBrothers team",
+    "history": "Past conversations",
+    "status": {
+      "OPEN": "Open",
+      "ESCALATED": "With our team",
+      "SOLVED": "Solved",
+      "REPLACED": "Product replaced",
+      "UNSOLVED": "Closed"
+    },
+    "newProblem": "New problem",
+    "note": "The assistant uses AI and can make mistakes. Replacement decisions are always made by our team."
+  },
   "brands": {
     "brand": "{name} products"
   },
@@ -460,6 +504,7 @@
     "help": "Help",
     "company": "Company",
     "track": "Track your order",
+    "support": "Technical support",
     "faq": "FAQ",
     "contact": "Contact us",
     "warranty": "Replacement & warranty policy",

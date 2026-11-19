@@ -14,9 +14,18 @@ const calm: AlertCounts = {
   negativeReviews: 0,
   externalPending: 0,
   reviewAsks: 0,
+  supportWaiting: 0,
+  supportDefects: 0,
   variantsWithoutCost: 0,
   emailReady: true,
 };
+
+test("support problems waiting for the owner: red when one looks like a defect, owner only", () => {
+  const item = (c: AlertCounts) => buildAlerts(c, "OWNER", tr).flatMap((g) => g.items).find((i) => i.id === "support");
+  assert.equal(item({ ...calm, supportWaiting: 2 })?.tone, "warning");
+  assert.equal(item({ ...calm, supportWaiting: 2, supportDefects: 1 })?.tone, "danger");
+  assert.deepEqual(buildAlerts({ ...calm, supportWaiting: 2 }, "AGENT", tr), []);
+});
 
 test("nothing to do: no groups, so the bell stays quiet", () => {
   assert.deepEqual(buildAlerts(calm, "OWNER", tr), []);

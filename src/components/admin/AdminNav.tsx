@@ -13,6 +13,7 @@ import {
   Landmark,
   LayoutGrid,
   LayoutTemplate,
+  LifeBuoy,
   LogOut,
   MapPin,
   Moon,
@@ -62,6 +63,7 @@ const items: Item[] = [
     icon: Users,
     children: [
       { href: "/admin/customers", label: ["كل الزبناء", "All customers"], icon: Users },
+      { href: "/admin/support", label: ["الدعم التقني", "Technical support"], icon: LifeBuoy },
       { href: "/admin/reviews", label: ["التقييمات", "Reviews"], icon: Star },
       { href: "/admin/giveaways", label: ["السحوبات", "Giveaways"], icon: Trophy },
       { href: "/admin/blacklist", label: ["القائمة السوداء", "Blacklist"], icon: Ban },

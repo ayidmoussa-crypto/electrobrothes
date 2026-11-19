@@ -46,6 +46,8 @@ model Product {
   brandId           String
   brand             Brand            @relation(fields: [brandId], references: [id])
   warrantyMonths    Int              @default(12)
+  // The owner's troubleshooting notes for the support chat (lib/support): known faults and their fixes. Never shown in the shop.
+  supportGuide      String?
   isActive          Boolean          @default(true)
   isFeatured        Boolean          @default(false)
   isBestSeller      Boolean          @default(false)
@@ -360,6 +362,12 @@ model Settings {
   notifyEmail           String  @default("")
   // Hard monthly ceiling for the admin assistant's Claude API calls, in US cents. 0 turns it off.
   assistantBudgetCents  Int     @default(500)
+  // Separate monthly ceiling for the customers' support chat, in US cents. 0 turns the chat's AI off.
+  supportBudgetCents    Int     @default(300)
+  // Thank-you discount when a customer confirms the support chat fixed their problem: one personal code per order.
+  // 0 turns it off.
+  supportRewardPercent  Int     @default(10)
+  supportRewardDays     Int     @default(30)
   // Generated content goes live with an undo button, except what needsApproval() keeps back.
   seoAutoApply          Boolean @default(true)
   // The shop's promises to customers. Generated text may only repeat these, word for word.
@@ -518,6 +526,7 @@ model Order {
   userAgent         String?
   items             OrderItem[]
   logs              OrderStatusLog[]
+  supportTickets    SupportTicket[]
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
 
@@ -609,6 +618,65 @@ model OrderStatusLog {
   createdAt  DateTime     @default(now())
 
   @@index([orderId, createdAt])
+}
+
+// ───────────────────────── After-sales support chat ─────────────────────────
+
+enum SupportStatus {
+  // The customer is talking with the AI.
+  OPEN
+  // Handed to the owner: a likely defect, or the AI could not help.
+  ESCALATED
+  // Fixed: by the AI (solvedByAi) or by the owner.
+  SOLVED
+  // A real defect: the owner replaced the product.
+  REPLACED
+  // Closed without a fix and without a replacement (not a defect, out of warranty, no answer...).
+  UNSOLVED
+}
+
+// One technical problem with one product of a delivered order, opened from the customer's private link.
+model SupportTicket {
+  id          String           @id @default(cuid())
+  orderId     String
+  order       Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  // Snapshot of the product concerned: the figures stay readable after the catalog changes.
+  orderItemId String?
+  productId   String?
+  productName String
+  status      SupportStatus    @default(OPEN)
+  // Key from lib/support/rules.ts PROBLEM_CATEGORIES, set by the AI once it understands the problem.
+  category    String?
+  // The AI's short summary for the owner, and its judgement: "defect" or "help".
+  summary     String?
+  verdict     String?
+  solvedByAi  Boolean          @default(false)
+  escalatedAt DateTime?
+  closedAt    DateTime?
+  // Admin email, or "customer".
+  closedBy    String?
+  // The personal thank-you coupon given when the customer confirmed it was fixed (Coupon.code).
+  rewardCode  String?
+  messages    SupportMessage[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([status, updatedAt])
+  @@index([orderId])
+  @@index([productId])
+  @@index([createdAt])
+}
+
+model SupportMessage {
+  id        String        @id @default(cuid())
+  ticketId  String
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  // "customer", "ai" or "owner".
+  role      String
+  text      String
+  createdAt DateTime      @default(now())
+
+  @@index([ticketId, createdAt])
 }
 
 model Blacklist {

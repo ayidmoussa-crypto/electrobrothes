@@ -48,6 +48,7 @@ export async function Footer({ locale }: { locale: Locale }) {
   const shop = categories.map((c) => [`/category/${c.slug}`, locale === "ar" ? c.nameAr : c.nameEn] as const);
   const help = [
     ["/track", t("track")],
+    ["/support", t("support")],
     ["/faq", t("faq")],
     ["/contact", t("contact")],
     ["/warranty", t("warranty")],

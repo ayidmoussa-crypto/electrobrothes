@@ -1,4 +1,4 @@
-import { ArrowRight, Phone, ShieldAlert, Truck } from "lucide-react";
+import { ArrowRight, MessageCircle, Phone, ShieldAlert, Truck } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { setCodReceived } from "@/app/actions/admin-finance";
@@ -25,6 +25,10 @@ import { formatMAD } from "@/lib/money";
 import { allowedNext, cashToCollect, type OrderStatus } from "@/lib/order-rules";
 import { formatMoroccanPhone } from "@/lib/phone";
 import { reviewLink } from "@/lib/reviews/customer";
+import { whatsappLink } from "@/lib/order-whatsapp";
+import { supportLink } from "@/lib/support/customer";
+import { supportWhatsappMessage } from "@/lib/support/rules";
+import { buttonClass } from "@/components/ui/button";
 import { TIME_ZONE } from "@/lib/time";
 
 const VARIANT: Record<OrderStatus, StatusOption["variant"]> = {
@@ -329,6 +333,24 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
               </div>
               <a href={reviewLink(order.id)} target="_blank" rel="noopener noreferrer" className="mt-2 block text-xs text-warm-600 underline underline-offset-2">
                 {tr("الرابط الخاص بهذا الطلب", "This order's own link")}
+              </a>
+            </Panel>
+          ) : null}
+
+          {order.status === "DELIVERED" && !agent ? (
+            <Panel title={tr("الدعم التقني", "Technical support")}>
+              <p className="text-sm text-warm-600">{tr("صيفط للزبون الرابط ديال الدعم: يكتب المشكل والمساعد يعاونو يحلو.", "Send the customer their support link: they describe the problem and the assistant helps them fix it.")}</p>
+              <a
+                href={whatsappLink(order.phone, supportWhatsappMessage(order.customerName, supportLink(order.id)))}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={buttonClass({ variant: "outline", className: "mt-2 w-full" })}
+              >
+                <MessageCircle className="size-4 text-whatsapp" aria-hidden="true" />
+                {tr("صيفط رابط الدعم فواتساب", "Send the support link on WhatsApp")}
+              </a>
+              <a href={supportLink(order.id)} target="_blank" rel="noopener noreferrer" className="mt-2 block text-xs text-warm-600 underline underline-offset-2">
+                {tr("رابط الدعم ديال هاد الطلب", "This order's support link")}
               </a>
             </Panel>
           ) : null}

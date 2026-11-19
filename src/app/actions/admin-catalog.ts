@@ -149,6 +149,9 @@ const settingsInput = z.object({
   notifyEmail: z.union([z.literal(""), z.string().trim().email().max(120)]),
   // Entered in dollars, stored in cents.
   assistantBudgetCents: z.coerce.number().min(0).max(1000).transform((d) => Math.round(d * 100)),
+  supportBudgetCents: z.coerce.number().min(0).max(1000).transform((d) => Math.round(d * 100)),
+  supportRewardPercent: z.coerce.number().int().min(0).max(50),
+  supportRewardDays: z.coerce.number().int().min(1).max(365),
   seoAutoApply: bool,
   deliveryTimeAr: z.string().trim().min(1).max(60),
   deliveryTimeEn: z.string().trim().min(1).max(60),

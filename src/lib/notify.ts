@@ -46,6 +46,27 @@ export async function notifyNegativeReview(reviewId: string) {
   }
 }
 
+/** Tells the shop a support conversation needs them (likely defect, or the customer needs a human). Plain text. */
+export async function notifySupportEscalated(ticketId: string) {
+  const mailer = transport();
+  const [ticket, settings] = await Promise.all([
+    db.supportTicket.findUnique({ where: { id: ticketId }, select: { productName: true, verdict: true, summary: true, order: { select: { number: true, phone: true, customerName: true } } } }),
+    db.settings.findUnique({ where: { id: 1 }, select: { notifyEmail: true } }),
+  ]);
+  const to = settings?.notifyEmail || process.env.NOTIFY_EMAIL;
+  if (!ticket || !mailer || !to) return;
+  try {
+    await mailer.sendMail({
+      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+      to,
+      subject: `${ticket.verdict === "defect" ? "عطب محتمل" : ticket.verdict === "misuse" ? "عطب، السبب غالباً من الاستعمال" : "زبون محتاجك"}: ${ticket.productName}`.replace(/[\r\n]+/g, " "),
+      text: `${ticket.order.customerName} · ${ticket.order.number} · ${ticket.order.phone}\n\n${ticket.summary ?? ""}\n\nشوف المحادثة فلوحة التحكم: /admin/support/${ticketId}`,
+    });
+  } catch (error) {
+    console.error("[notify] support: email failed", error instanceof Error ? error.message : "");
+  }
+}
+
 /**
  * Emails the shop about a new order. Runs after the response (next/server `after`), so a slow
  * or failing mail server never delays or breaks the customer's checkout.

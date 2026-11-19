@@ -7,11 +7,18 @@ import { inputClass, L, PageHeader, Panel } from "@/components/admin/ui";
 import { requireAdmin } from "@/lib/admin";
 import { adminTr } from "@/lib/admin-lang";
 import { usageSummary } from "@/lib/assistant/usage";
+import { budgetMonth } from "@/lib/assistant/rules";
+import { SUPPORT_ACTOR } from "@/lib/support/rules";
 import { db } from "@/lib/db";
 
 export default async function SettingsPage() {
   const [, { tr, lang }] = await Promise.all([requireAdmin(), adminTr()]);
-  const [s, usage] = await Promise.all([db.settings.findUnique({ where: { id: 1 } }), usageSummary()]);
+  const [s, usage, support] = await Promise.all([
+    db.settings.findUnique({ where: { id: 1 } }),
+    usageSummary(),
+    db.assistantUsage.aggregate({ where: { month: budgetMonth(), actor: SUPPORT_ACTOR }, _sum: { costMicros: true } }),
+  ]);
+  const supportSpent = support._sum.costMicros ?? 0;
 
   return (
     <>
@@ -53,6 +60,22 @@ export default async function SettingsPage() {
             {tr("استهلاك هذا الشهر:", "Spent this month:")} <span dir="ltr">${(usage.spentMicros / 1_000_000).toFixed(2)}</span>.{" "}
             {tr("عند بلوغ السقف يتوقف المساعد ومهمة السيو حتى بداية الشهر الموالي أو رفع السقف.", "At the cap, the assistant and the SEO job stop until next month or until you raise the cap.")}
           </p>
+          <L label={tr("السقف الشهري لشات الدعم التقني ديال الزبناء (بالدولار، 0 يوقفو)", "Customer support chat monthly cap (USD, 0 turns it off)")}>
+            <input name="supportBudgetCents" type="number" min={0} max={1000} step={0.5} dir="ltr" defaultValue={(s?.supportBudgetCents ?? 300) / 100} required className={inputClass} />
+          </L>
+          <p className="text-xs text-warm-600">
+            {tr("استهلاك هذا الشهر:", "Spent this month:")} <span dir="ltr">${(supportSpent / 1_000_000).toFixed(2)}</span>.{" "}
+            {tr("عند بلوغ السقف، كل محادثة جديدة كتحول ليك مباشرة بلا ذكاء اصطناعي.", "At the cap, every new conversation goes straight to you, without AI.")}
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <L label={tr("تخفيض الشكر ملي يتحل المشكل (%، 0 يوقفو)", "Thank-you discount when solved (%, 0 turns it off)")}>
+              <input name="supportRewardPercent" type="number" min={0} max={50} dir="ltr" defaultValue={s?.supportRewardPercent ?? 10} required className={inputClass} />
+            </L>
+            <L label={tr("صالح لمدة (أيام)", "Valid for (days)")}>
+              <input name="supportRewardDays" type="number" min={1} max={365} dir="ltr" defaultValue={s?.supportRewardDays ?? 30} required className={inputClass} />
+            </L>
+          </div>
+          <p className="text-xs text-warm-600">{tr("ملي الزبون يأكد بلي تحل المشكل، كياخد كود خاص بيه (MERCI-...) كيخدم مرة وحدة. كود واحد لكل طلبية. كيبانو فصفحة الكوبونات.", "When a customer confirms the problem is fixed, they get a personal one-use code (MERCI-...). One code per order. They appear on the coupons page.")}</p>
           <label className="flex cursor-pointer items-start gap-2 text-sm font-semibold text-ink">
             <input name="seoAutoApply" type="checkbox" defaultChecked={s?.seoAutoApply ?? true} className="mt-1 size-4" />
             <span>

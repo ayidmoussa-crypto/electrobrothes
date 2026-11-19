@@ -23,6 +23,9 @@ export type AlertCounts = {
   externalPending: number;
   /** Delivered orders still waiting for their review request on WhatsApp (lib/reviews/ask.ts). */
   reviewAsks: number;
+  /** Support conversations handed to the owner, and how many of them look like a real defect. */
+  supportWaiting: number;
+  supportDefects: number;
   /** Active colours in stock with no purchase price, so profit is guessed. */
   variantsWithoutCost: number;
   emailReady: boolean;
@@ -91,6 +94,13 @@ export function buildAlerts(c: AlertCounts, role: "OWNER" | "AGENT", tr: Tr): Al
         },
         ...(owner
           ? ([
+              c.supportWaiting && {
+                id: "support",
+                tone: c.supportDefects ? "danger" : "warning",
+                title: tr(`${c.supportWaiting} مشكل تقني كيتسنى قرارك`, `${c.supportWaiting} technical problems waiting for you`),
+                detail: c.supportDefects ? tr(`${c.supportDefects} فيهم عطب محتمل.`, `${c.supportDefects} look like a real defect.`) : undefined,
+                href: "/admin/support?status=ESCALATED",
+              },
               c.negativeReviews && {
                 id: "negative",
                 tone: "danger",
