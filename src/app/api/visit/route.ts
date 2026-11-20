@@ -2,7 +2,7 @@ import { after, NextResponse, type NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { clientIp, hit } from "@/lib/guard";
 import { recordVisit, visitContext } from "@/lib/visit-record";
-import { VISIT_EVENTS_PER_HOUR, visitInput } from "@/lib/visitors";
+import { LEGACY_VISIT_COOKIES, VISIT_EVENTS_PER_HOUR, visitInput } from "@/lib/visitors";
 
 const MAX_BODY = 2000;
 
@@ -28,7 +28,8 @@ export async function POST(request: NextRequest) {
   const parsed = visitInput.safeParse(body);
   if (!parsed.success) return done;
 
-  const ctx = visitContext(done.cookies, request.headers);
+  for (const name of LEGACY_VISIT_COOKIES) if (request.cookies.has(name)) done.cookies.delete(name);
+  const ctx = visitContext(request.cookies, request.headers);
   if (!ctx) return done;
   const e = parsed.data;
   const ip = await clientIp();

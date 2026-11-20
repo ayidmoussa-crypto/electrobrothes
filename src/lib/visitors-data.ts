@@ -18,7 +18,8 @@ export async function loadVisitors(period: Pick<Period, "from" | "until">) {
     db.$queryRaw<{ visitors: bigint; sessions: bigint; views: bigint; fresh: bigint; buyers: bigint }[]>`
       SELECT COUNT(DISTINCT "visitorId") AS visitors, COUNT(DISTINCT "sessionId") AS sessions,
              COUNT(*) FILTER (WHERE "type" = 'page_view') AS views,
-             COUNT(DISTINCT "visitorId") FILTER (WHERE "isNew") AS fresh,
+             -- New: never seen before this period (looked up over all kept events).
+             COUNT(DISTINCT "visitorId") FILTER (WHERE "visitorId" NOT IN (SELECT "visitorId" FROM "VisitEvent" WHERE "createdAt" < ${from})) AS fresh,
              COUNT(DISTINCT "visitorId") FILTER (WHERE "type" = 'order_placed') AS buyers
       FROM "VisitEvent" WHERE ${inRange}`,
     db.$queryRaw<{ type: string; sessions: bigint }[]>`

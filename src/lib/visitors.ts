@@ -2,10 +2,7 @@ import { z } from "zod";
 
 // Visitor analytics: pure rules (no database, no request), so they can be tested directly.
 
-export const VISITOR_COOKIE = "eb_vid";
-export const VISIT_SESSION_COOKIE = "eb_sid";
-/** A visit ends after this much inactivity. */
-export const SESSION_MINUTES = 30;
+export { isVisitId, LEGACY_VISIT_COOKIES, SESSION_MINUTES, VISIT_SESSION_COOKIE, VISITOR_COOKIE } from "./visit-ids";
 /** Detailed events are deleted after this many days; the visitors page cannot look further back. */
 export const VISIT_RETENTION_DAYS = 90;
 /** Events accepted per address per hour: a normal visit sends a few dozen at most. */
@@ -45,8 +42,6 @@ export function cityOf(raw: string | null | undefined) {
   }
 }
 
-/** A random id for the visitor or session cookies: never derived from anything about the person. */
-export const isVisitId = (v: string | undefined | null): v is string => !!v && /^[A-Za-z0-9_-]{16,40}$/.test(v);
 
 /** Shop paths only, without the query string: "/en/products/x?utm=..." becomes "/en/products/x". */
 export const cleanPath = (path: string) => path.split(/[?#]/)[0].slice(0, 200) || "/";
