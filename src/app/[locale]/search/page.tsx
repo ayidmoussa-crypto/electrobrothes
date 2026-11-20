@@ -8,6 +8,7 @@ import { ProductGridSkeleton } from "@/components/ui/Skeleton";
 import { StatePanel } from "@/components/ui/States";
 import type { Locale } from "@/i18n/routing";
 import { getProductCards, searchProducts } from "@/lib/catalog";
+import { VisitEvent } from "@/components/analytics/VisitTracker";
 
 // Result pages are useful for shoppers, not as search-engine landing pages.
 export const metadata: Metadata = { robots: { index: false, follow: true } };
@@ -24,6 +25,8 @@ async function Results({ locale, searchParams }: { locale: Locale; searchParams:
   return (
     <>
       <h1 className="mb-6 text-3xl md:text-4xl">{q ? t("resultsFor", { q }) : t("title")}</h1>
+      {/* What shoppers look for, and what they do not find: stock ideas for the owner (visitors page). */}
+      {q ? <VisitEvent event={{ type: "search", query: q, results: Math.min(items.length, 1000) }} /> : null}
       <Listing
         locale={locale}
         basePath="/search"

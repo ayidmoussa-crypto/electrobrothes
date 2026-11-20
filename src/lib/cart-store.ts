@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { sendVisit } from "@/components/analytics/VisitTracker";
 
 // Guest cart in localStorage: only variant ids + quantities. Prices, names and stock are always
 // re-read from the server, and the order action re-prices everything again.
@@ -66,6 +67,7 @@ function write(items: CartItem[]) {
 
 export const cart = {
   add(variantId: string, qty = 1) {
+    sendVisit({ type: "add_to_cart", variantId, qty: Math.min(Math.max(qty, 1), MAX_QTY) });
     const items = snapshot();
     const existing = items.find((i) => i.variantId === variantId);
     write(

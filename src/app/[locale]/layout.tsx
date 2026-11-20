@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
 import { Pixels } from "@/components/analytics/Pixels";
+import { VisitTracker } from "@/components/analytics/VisitTracker";
 import { Footer } from "@/components/store/Footer";
 import { WhatsAppButton } from "@/components/store/WhatsAppButton";
 import { Header } from "@/components/store/Header";
@@ -62,6 +63,7 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
           <Footer locale={locale} />
           <WhatsAppButton locale={locale} />
           <Pixels />
+          <VisitTracker />
         </NextIntlClientProvider>
       </body>
     </html>

@@ -8,6 +8,7 @@ import { ProductGallery } from "@/components/store/ProductGallery";
 import { ProductGrid, SectionHeader } from "@/components/store/ProductGrid";
 import { Rating } from "@/components/store/Rating";
 import { ProductPurchase } from "@/components/store/ProductPurchase";
+import { VisitEvent } from "@/components/analytics/VisitTracker";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { getProduct, getProductCards, getProductSlugs, getSlugRedirect } from "@/lib/catalog";
@@ -138,6 +139,7 @@ export default async function ProductPage({ params }: PageProps<"/[locale]/produ
             ) : null}
           </div>
 
+          <VisitEvent event={{ type: "product_view", productId: product.id }} />
           <ProductPurchase
             locale={locale}
             name={name}

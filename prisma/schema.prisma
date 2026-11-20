@@ -922,6 +922,39 @@ model AutomationJob {
   @@index([createdAt])
 }
 
+// ───────────────────────── Visitor analytics ─────────────────────────
+
+// One thing a shopper did in the shop (lib/visitors.ts). First-party and anonymous: a random visitor id (one-year
+// cookie) and a session id (30 minutes of inactivity), never an IP, a name or a phone. Kept 90 days, then deleted.
+model VisitEvent {
+  id        String   @id @default(cuid())
+  visitorId String
+  sessionId String
+  // page_view, product_view, add_to_cart, checkout_start, search, order_placed
+  type      String
+  path      String?
+  productId String?
+  // Search text (cut to 80) and how many products it found.
+  query     String?
+  results   Int?
+  // MAD: the line added to the cart, or the order total.
+  value     Int?
+  orderId   String?
+  // Where the visitor came from (lib/attribution.ts), device kind, and Vercel's city/country.
+  channel   String?
+  device    String?
+  city      String?
+  country   String?
+  // First event ever of this visitor (no visitor cookie yet).
+  isNew     Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([type, createdAt])
+  @@index([sessionId])
+  @@index([productId, type])
+}
+
 // Fixed-window counter keyed by e.g. "order:ip:1.2.3.4".
 model RateLimit {
   key     String   @id

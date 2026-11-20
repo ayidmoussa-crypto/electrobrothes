@@ -12,6 +12,7 @@ import { TrackOnce } from "@/components/analytics/TrackOnce";
 import { OrderForm } from "./OrderForm";
 import { TopUpProducts } from "./TopUpProducts";
 import { packSaving, useCartLines } from "./useCartLines";
+import { VisitEvent } from "@/components/analytics/VisitTracker";
 
 export function CheckoutView({ locale, config }: { locale: Locale; config: CheckoutConfig }) {
   const t = useTranslations("cart");
@@ -53,6 +54,8 @@ export function CheckoutView({ locale, config }: { locale: Locale; config: Check
 
   return (
     <div className="flex max-w-6xl flex-col gap-5">
+      {/* A checkout with something in it: the step between the cart and the order (visitors page). */}
+      <VisitEvent event={{ type: "checkout_start" }} />
       <TrackOnce event={{ name: "InitiateCheckout", items: lines.map((l) => ({ id: l.variantId, name: l.name, price: l.price, quantity: l.qty })) }} />
       <TopUpProducts spent={lines.reduce((sum, l) => sum + l.price * l.qty, 0) - packSaving(lines, bundles, ar).discount} threshold={config.freeShippingThreshold} locale={locale} />
       <OrderForm source="cart" title={tc("formTitle")} lines={lines} bundles={bundles} config={config} locale={locale} />

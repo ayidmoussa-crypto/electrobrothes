@@ -14,6 +14,7 @@ import { isTemplate } from "@/lib/landing";
 import { OFFER_COOKIE } from "@/lib/offers";
 import { normalizeMoroccanPhone } from "@/lib/phone";
 import { computeTotals } from "@/lib/pricing";
+import { recordVisit, visitContext } from "@/lib/visit-record";
 
 const MAX_ORDERS_PER_IP_HOUR = 5;
 
@@ -66,8 +67,14 @@ async function processOrder(raw: Record<string, string>): Promise<{ state: Order
 
   // Email the shop after the response is sent; a re-submitted duplicate is not announced twice.
   if (!result.duplicate) {
+    // The purchase step of the visitor analytics, tied to this browser's visit (lib/visit-record.ts).
+    const visit = visitContext(jar, await headers());
     after(async () => {
       await notifyNewOrder(result.orderId);
+      if (visit) {
+        const placed = await db.order.findUnique({ where: { id: result.orderId }, select: { total: true } });
+        await recordVisit(visit, { type: "order_placed", path: "/checkout", orderId: result.orderId, value: placed?.total ?? null });
+      }
     });
   }
 
