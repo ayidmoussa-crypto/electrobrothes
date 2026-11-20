@@ -211,7 +211,8 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
   const lang = await adminLang();
   const t = T[lang];
   const ar = lang === "ar";
-  const period = resolvePeriod(await searchParams);
+  // The dashboard opens on the current month; the other pages keep the last 30 days.
+  const period = resolvePeriod(await searchParams, new Date(), "month");
   const span = periodLabel(period, lang);
   const { from: since, until, prevFrom } = period;
   const inPeriod = { gte: since, lte: until };

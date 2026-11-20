@@ -46,8 +46,8 @@ function build(preset: Preset | null, from: number, until: number, query: string
   };
 }
 
-/** Reads ?p=30d, ?from=2024-01-01&to=2026-11-13, or the older ?days=30. Anything else: the last 30 days. */
-export function resolvePeriod(params: Params, now = new Date()): Period {
+/** Reads ?p=30d, ?from=2024-01-01&to=2026-11-13, or the older ?days=30. Anything else: `fallback` (the last 30 days). */
+export function resolvePeriod(params: Params, now = new Date(), fallback: Preset = "30d"): Period {
   const nowMs = now.getTime();
   const today = startOfDay(nowMs);
   const from = one(params.from);
@@ -64,7 +64,7 @@ export function resolvePeriod(params: Params, now = new Date()): Period {
   }
 
   const asked = one(params.p) ?? (one(params.days) ? `${one(params.days)}d` : undefined);
-  const preset: Preset = (PRESETS as readonly string[]).includes(asked ?? "") ? (asked as Preset) : "30d";
+  const preset: Preset = (PRESETS as readonly string[]).includes(asked ?? "") ? (asked as Preset) : fallback;
   const d = new Date(today);
   const query = `p=${preset}`;
   if (preset === "month") return build(preset, Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1), nowMs, query);

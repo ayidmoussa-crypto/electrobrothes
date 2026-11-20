@@ -102,3 +102,11 @@ test("chart slots: days up to a quarter, then months", () => {
   assert.equal(years.points.length, 25);
   assert.deepEqual(years.points.find((s) => s.key === "2025-01-01"), { key: "2025-01-01", count: 3 });
 });
+
+test("a page can open on another period when none is asked; an asked one always wins", () => {
+  const now = new Date("2026-11-20T10:00:00Z");
+  assert.equal(resolvePeriod({}, now).preset, "30d");
+  assert.equal(resolvePeriod({}, now, "month").preset, "month");
+  assert.equal(resolvePeriod({}, now, "month").firstDay, "2026-11-01");
+  assert.equal(resolvePeriod({ p: "30d" }, now, "month").preset, "30d");
+});
