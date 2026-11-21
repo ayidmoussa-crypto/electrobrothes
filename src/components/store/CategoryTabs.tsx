@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import { ScrollRail } from "./ScrollRail";
 
 type Tab = { slug: string; label: string; panel: ReactNode };
 
@@ -14,12 +13,12 @@ export function CategoryTabs({ tabs, label }: { tabs: Tab[]; label: string }) {
   const id = useId();
   const [active, setActive] = useState(0);
   const buttons = useRef<(HTMLButtonElement | null)[]>([]);
-  const [thumb, setThumb] = useState({ x: 0, w: 0 });
+  const [thumb, setThumb] = useState({ x: 0, y: 0, w: 0, h: 0 });
 
   const measure = useCallback(() => {
     const el = buttons.current[active];
     if (!el) return;
-    setThumb({ x: el.offsetLeft, w: el.offsetWidth });
+    setThumb({ x: el.offsetLeft, y: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight });
   }, [active]);
 
   useLayoutEffect(() => {
@@ -40,34 +39,24 @@ export function CategoryTabs({ tabs, label }: { tabs: Tab[]; label: string }) {
     buttons.current[next]?.focus();
   };
 
-  // On phones the track scrolls: bring the chosen tab to its middle, so the next ones show on both sides.
-  const select = (i: number) => {
-    setActive(i);
-    const tab = buttons.current[i];
-    const track = tab?.parentElement;
-    if (!tab || !track) return;
-    // Moves the track only, never the page. A physical distance, so it holds in RTL too.
-    const a = tab.getBoundingClientRect();
-    const b = track.getBoundingClientRect();
-    track.scrollBy({ left: a.left + a.width / 2 - (b.left + b.width / 2), behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
-  };
+  const select = (i: number) => setActive(i);
 
   return (
     <>
-      {/* Phones: full names at a readable size, in a track you swipe, cut off by its own rounded end; from sm it hugs its tabs. */}
+      {/* The tabs wrap onto as many rows as the screen needs, centred: nothing is cut off or swiped. */}
       <div className="py-1">
         <div
           role="tablist"
           aria-label={label}
           onKeyDown={onKey}
-          className="relative isolate flex w-full overflow-x-auto rounded-full bg-yellow-500 p-1 shadow-md shadow-ink/10 [scrollbar-width:none] sm:inline-flex sm:w-auto sm:overflow-visible [&::-webkit-scrollbar]:hidden"
+          className="relative isolate flex w-full flex-wrap justify-center gap-y-1 rounded-3xl bg-yellow-500 p-1 shadow-md shadow-ink/10 sm:inline-flex sm:w-auto sm:rounded-full"
         >
           <span
             aria-hidden="true"
-            style={{ transform: `translateX(${thumb.x}px)`, width: thumb.w }}
+            style={{ transform: `translate(${thumb.x}px, ${thumb.y}px)`, width: thumb.w, height: thumb.h }}
             // Physical left-0: offsetLeft is measured from the left in both directions.
             // The same frosted glass as the floating header.
-            className="absolute inset-y-1 left-0 -z-10 glass-frost rounded-full border shadow-md shadow-ink/10 transition-[transform,width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
+            className="absolute top-0 left-0 -z-10 glass-frost rounded-full border shadow-md shadow-ink/10 transition-[transform,width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
           />
           {tabs.map((tab, i) => (
             <button
@@ -82,7 +71,7 @@ export function CategoryTabs({ tabs, label }: { tabs: Tab[]; label: string }) {
               aria-controls={`${id}-panel-${i}`}
               tabIndex={i === active ? 0 : -1}
               onClick={() => select(i)}
-              className={`min-h-12 shrink-0 cursor-pointer rounded-full px-5 text-[0.9375rem] font-extrabold whitespace-nowrap text-ink transition-opacity duration-300 sm:min-h-11 sm:px-6 sm:text-base ${
+              className={`min-h-12 grow cursor-pointer rounded-full px-4 text-[0.9375rem] font-extrabold whitespace-nowrap text-ink transition-opacity duration-300 sm:min-h-11 sm:grow-0 sm:px-6 sm:text-base ${
                 i === active ? "" : "opacity-75 hover:opacity-100"
               }`}
             >
@@ -90,7 +79,6 @@ export function CategoryTabs({ tabs, label }: { tabs: Tab[]; label: string }) {
             </button>
           ))}
         </div>
-        <ScrollRail className="mx-auto mt-3 w-1/2 sm:hidden" />
       </div>
 
       {tabs.map((tab, i) => (

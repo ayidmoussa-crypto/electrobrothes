@@ -15,7 +15,10 @@ async function currentYear() {
   return new Date().getFullYear();
 }
 
-const linkClass = "inline-flex min-h-10 items-center text-sm text-warm-300 transition-colors hover:text-yellow-500";
+const linkClass = "group inline-flex min-h-10 items-center text-sm text-warm-300 transition-colors hover:text-white focus-visible:text-white";
+// A yellow underline that draws in from the start edge on hover or focus.
+const underline =
+  "bg-linear-to-r from-yellow-500 to-yellow-500 bg-size-[0%_2px] bg-position-[0_100%] bg-no-repeat pb-0.5 transition-[background-size] duration-300 ease-out group-hover:bg-size-[100%_2px] group-focus-visible:bg-size-[100%_2px] rtl:bg-position-[100%_100%]";
 
 function Column({ title, links }: { title: string; links: (readonly [string, string])[] }) {
   return (
@@ -27,7 +30,7 @@ function Column({ title, links }: { title: string; links: (readonly [string, str
         {links.map(([href, label]) => (
           <li key={href}>
             <Link href={href} className={linkClass}>
-              {label}
+              <span className={underline}>{label}</span>
             </Link>
           </li>
         ))}

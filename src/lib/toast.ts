@@ -16,7 +16,9 @@ export const subscribeToasts = (listener: () => void) => {
   return () => void listeners.delete(listener);
 };
 export const getToasts = () => items;
-export const getServerToasts = (): ToastItem[] => [];
+// One fixed array: React compares snapshots by identity, a new [] on every call loops forever.
+const NO_TOASTS: ToastItem[] = [];
+export const getServerToasts = () => NO_TOASTS;
 
 export function dismissToast(id: number) {
   items = items.filter((t) => t.id !== id);

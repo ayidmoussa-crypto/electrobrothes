@@ -94,7 +94,7 @@ export function SearchBox({ action }: { action: string }) {
       // Phones: folded to nothing beside the search icon, it grows sideways between the menu button and the
       // icons. Not positioned there, so the suggestions open at the full width of the header, not of this box.
       // Visible at once when opening (a hidden field cannot take the cursor), and only after folding when closing.
-      className={`flex min-w-0 duration-300 max-md:order-1 md:relative md:mx-6 md:flex-1 ${toggle.open ? "transition-[flex-grow] max-md:flex-[1_1_0%]" : "transition-[flex-grow,visibility] max-md:invisible max-md:flex-[0_0_0%]"}`}
+      className={`flex min-w-0 duration-300 max-md:order-2 md:relative md:mx-6 md:flex-1 md:items-center md:gap-2 ${toggle.open ? "transition-[flex-grow] max-md:flex-[1_1_0%]" : "transition-[flex-grow,visibility] max-md:invisible max-md:flex-[0_0_0%]"}`}
       onSubmit={(e) => {
         if (active >= 0 && items[active]) {
           e.preventDefault();
@@ -137,10 +137,10 @@ export function SearchBox({ action }: { action: string }) {
         aria-autocomplete="list"
         aria-activedescendant={showList && active >= 0 ? optionId(active) : undefined}
         placeholder={t("searchPlaceholder")}
-        className="min-h-11 w-full min-w-0 rounded-s-lg border-0 bg-white px-4 text-base text-warm-800 text-ellipsis placeholder:text-warm-400 [&::-webkit-search-cancel-button]:appearance-none max-md:min-h-10 max-md:rounded-full max-md:px-3"
+        className="min-h-11 w-full min-w-0 bg-warm-100 px-4 focus:outline-none md:rounded-md md:border md:border-warm-200 md:transition-colors md:hover:border-warm-400 md:focus:border-ink md:ps-5 text-base text-warm-800 text-ellipsis placeholder:text-sm placeholder:text-warm-400 [&::-webkit-search-cancel-button]:appearance-none max-md:min-h-10 max-md:rounded-full max-md:px-3"
       />
       {/* Phones search from the keyboard's own key: the narrow field needs this button's width. */}
-      <button type="submit" className={buttonClass({ className: "rounded-s-none max-md:hidden" })}>
+      <button type="submit" className={buttonClass({ className: "min-h-11 shrink-0 rounded-md! px-3.5! shadow-sm shadow-yellow-500/40 max-md:hidden" })}>
         <Search className="size-5" aria-hidden="true" />
         {/* Icon only from xl, where the box shares its row with the categories and needs the width. */}
         <span className="sr-only md:not-sr-only xl:sr-only">{t("searchButton")}</span>

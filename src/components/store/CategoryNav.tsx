@@ -51,7 +51,7 @@ export function CategoryNav({ items, label }: { items: Item[]; label: string }) 
           aria-hidden="true"
           style={{ transform: `translateX(${pos.x}px)`, width: pos.w }}
           // Physical left-0: offsetLeft is measured from the left in both directions.
-          className={`pointer-events-none absolute inset-y-2 left-0 xl:inset-y-0 -z-10 rounded-full bg-yellow-500 shadow-sm shadow-ink/10 ${
+          className={`pointer-events-none absolute inset-y-2 left-0 xl:inset-y-0 -z-10 rounded-full bg-yellow-500 shadow-md shadow-yellow-500/40 ring-1 ring-yellow-700/20 ${
             pos.animate ? "transition-[transform,width,opacity] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]" : "transition-opacity duration-200"
           } ${pos.visible ? "opacity-100" : "opacity-0"}`}
         />
@@ -68,9 +68,7 @@ export function CategoryNav({ items, label }: { items: Item[]; label: string }) 
                 aria-current={active ? "page" : undefined}
                 onMouseEnter={() => moveTo(item.href)}
                 onFocus={() => moveTo(item.href)}
-                className={`relative inline-flex min-h-11 items-center justify-center rounded-full px-6 text-sm xl:px-4 font-semibold transition-colors duration-300 hover:text-ink focus-visible:text-ink ${
-                  active ? "text-ink" : "text-warm-600"
-                }`}
+                className="relative inline-flex min-h-11 items-center justify-center rounded-full px-6 text-sm xl:px-4 font-semibold text-ink transition-[color,translate] duration-300 hover:-translate-y-px"
               >
                 {item.label}
                 {active ? <span aria-hidden="true" className="absolute bottom-1 h-1 w-5 rounded-full bg-ink" /> : null}

@@ -1,3 +1,4 @@
+import { Truck } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
@@ -56,7 +57,16 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
           >
             {a11y("skipToContent")}
           </a>
-          <p className="relative z-10 bg-deep px-4 py-2 text-center text-xs font-medium text-warm-300">{t("cod")}</p>
+          <div className="relative z-10 bg-deep px-4 py-2 text-white">
+            <p className="mx-auto flex items-center justify-center gap-2 text-xs font-semibold tracking-wide sm:text-[13px]">
+              <span className="grid size-5 shrink-0 place-items-center rounded-full bg-yellow-500 text-ink">
+                <Truck className="size-3" aria-hidden="true" />
+              </span>
+              <span>{t("cod")}</span>
+            </p>
+            {/* A thin yellow glow along the bottom edge: the brand's energy line above the header. */}
+            <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-yellow-500 to-transparent" />
+          </div>
           <Header />
           <main id="main" className="flex-1">
             {children}
