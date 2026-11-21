@@ -7,7 +7,7 @@ import "../globals.css";
 // The back office is Arabic-only and never indexed.
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl()),
-  title: { default: "لوحة التحكم | ElectroBrothers", template: "%s | لوحة التحكم" },
+  title: { default: "ElectroBrothers Admin", template: "%s | ElectroBrothers" },
   robots: { index: false, follow: false },
 };
 

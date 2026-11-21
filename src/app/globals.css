@@ -391,6 +391,19 @@
  * drawer-end = the other one. Reduced motion is handled by the global rule below.
  */
 /* A newly shown tab panel rises in softly. */
+/* Admin pages: slide only, never fade from transparent (that flashed the bare backdrop between loading and page). */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    translate: 0 0.75rem;
+    scale: 0.97;
+  }
+}
+@keyframes panel-in {
+  from {
+    translate: 0 0.5rem;
+  }
+}
 @keyframes tab-in {
   from {
     opacity: 0;

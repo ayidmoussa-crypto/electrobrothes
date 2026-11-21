@@ -6,10 +6,13 @@ import { requireAdmin } from "@/lib/admin";
 import { adminTr } from "@/lib/admin-lang";
 import { channelLabel } from "@/lib/attribution";
 import { formatMAD } from "@/lib/money";
-import { chartSlots, periodLabel, resolvePeriod } from "@/lib/period";
+import { chartSlots, periodLabel, resolveAdminPeriod } from "@/lib/period";
 import { toMoroccanInput } from "@/lib/time";
 import { funnelSteps, pct, VISIT_RETENTION_DAYS } from "@/lib/visitors";
-import { loadVisitors } from "@/lib/visitors-data";
+import { visitorsStats } from "@/lib/finance-stats";
+import { adminTitle } from "@/lib/admin-title";
+
+export const generateMetadata = () => adminTitle("الزوار والسلوك", "Visitors & behaviour");
 
 const STEP_LABEL = {
   sessions: ["زيارات", "Visits"],
@@ -27,9 +30,9 @@ const DEVICE_LABEL: Record<string, [string, string]> = { mobile: ["تيليفو�
 export default async function VisitorsPage({ searchParams }: PageProps<"/admin/visitors">) {
   const [, { tr, lang }] = await Promise.all([requireAdmin(), adminTr()]);
   const ar = lang === "ar";
-  const period = resolvePeriod(await searchParams, new Date(), "30d");
+  const period = resolveAdminPeriod(await searchParams, "30d");
   const span = periodLabel(period, lang);
-  const v = await loadVisitors(period);
+  const v = await visitorsStats(period.from.getTime(), period.until.getTime());
   const steps = funnelSteps(v.funnel);
   const series = chartSlots(v.daily.map((d) => ({ day: d.day, count: d.visitors })), period);
   const dayFmt = new Intl.DateTimeFormat(ar ? "ar-MA" : "en-GB", { day: "numeric", month: "short", timeZone: "UTC" });

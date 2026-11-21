@@ -10,6 +10,9 @@ import { usageSummary } from "@/lib/assistant/usage";
 import { budgetMonth } from "@/lib/assistant/rules";
 import { SUPPORT_ACTOR } from "@/lib/support/rules";
 import { db } from "@/lib/db";
+import { adminTitle } from "@/lib/admin-title";
+
+export const generateMetadata = () => adminTitle("إعدادات المتجر", "Shop settings");
 
 export default async function SettingsPage() {
   const [, { tr, lang }] = await Promise.all([requireAdmin(), adminTr()]);

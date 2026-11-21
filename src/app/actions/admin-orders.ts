@@ -1,5 +1,6 @@
 "use server";
 
+import { expireAdminStats } from "@/lib/admin-stats-tag";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -126,6 +127,7 @@ export async function setPrepaid(_prev: ActionState, formData: FormData): Promis
   await db.orderStatusLog.create({
     data: { orderId: parsed.data.orderId, fromStatus: order.status, toStatus: order.status, actor: admin.email, note: paid ? "تخلّص قبل الإرسال: شركة التوصيل ما تجمع والو" : "رجع للدفع عند الاستلام" },
   });
+  expireAdminStats();
   revalidatePath("/admin/orders");
   revalidatePath(`/admin/orders/${parsed.data.orderId}`);
   revalidatePath("/admin/finance");
@@ -208,6 +210,7 @@ export async function saveShipment(_prev: ActionState, formData: FormData): Prom
   const carrier = carrierId ? await db.carrier.findUnique({ where: { id: carrierId }, select: { id: true } }) : null;
   const updated = await db.order.updateMany({ where: { id: orderId }, data: { trackingNumber, carrierFee, carrier: carrier?.id ?? null } });
   if (!updated.count) return { ok: false, message: tr("الطلب غير موجود.", "Order not found.") };
+  expireAdminStats();
   revalidatePath(`/admin/orders/${orderId}`);
   revalidatePath("/admin/orders");
   revalidatePath("/admin/finance");

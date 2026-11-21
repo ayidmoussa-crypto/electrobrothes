@@ -1,3 +1,4 @@
+import { Select } from "@/components/ui/Select";
 import { ChevronDown, UserPlus } from "lucide-react";
 import { cancelAgentPayment, createAgent, payAgent, updateAgent } from "@/app/actions/admin-staff";
 import { ActionForm } from "@/components/admin/ActionForm";
@@ -11,6 +12,9 @@ import { formatMAD } from "@/lib/money";
 import { loadBalances, recentPayments, teamMonth } from "@/lib/staff";
 import { agentStats, monthRange } from "@/lib/staff-rules";
 import { TIME_ZONE } from "@/lib/time";
+import { adminTitle } from "@/lib/admin-title";
+
+export const generateMetadata = () => adminTitle("فريق التأكيد", "Confirmation team");
 
 /** The owner's view of the confirmation team: each agent's month, their pay, and their accounts. */
 export default async function StaffPage({ searchParams }: PageProps<"/admin/staff">) {
@@ -196,10 +200,10 @@ export default async function StaffPage({ searchParams }: PageProps<"/admin/staf
                         <input name="name" required minLength={2} maxLength={80} defaultValue={a.name} className={inputClass} />
                       </L>
                       <L label={tr("الحساب", "Account")}>
-                        <select name="active" defaultValue={a.isActive ? "1" : "0"} className={inputClass}>
+                        <Select name="active" defaultValue={a.isActive ? "1" : "0"} className={inputClass}>
                           <option value="1">{tr("خدام", "Active")}</option>
                           <option value="0">{tr("موقوف (ما يقدرش يدخل)", "Off (cannot sign in)")}</option>
-                        </select>
+                        </Select>
                       </L>
                       <L label={tr("على كل تأكيد (درهم)", "Per confirmation (MAD)")}>
                         <input name="payPerConfirmed" type="number" min={0} max={10000} defaultValue={a.payPerConfirmed} className={inputClass} />

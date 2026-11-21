@@ -45,7 +45,8 @@ export function Input({ className = "", ...props }: ComponentProps<"input">) {
   return <input {...props} className={`${control} min-h-12 border-warm-200 ${className}`} />;
 }
 
-export function Select({ className = "", children, ...props }: ComponentProps<"select">) {
+/** The browser's own dropdown: only for the page before it is live (no JavaScript yet). Everything else uses ui/Select. */
+export function NativeSelect({ className = "", children, ...props }: ComponentProps<"select">) {
   return (
     <select {...props} className={`${control} min-h-12 cursor-pointer border-warm-200 ${className}`}>
       {children}

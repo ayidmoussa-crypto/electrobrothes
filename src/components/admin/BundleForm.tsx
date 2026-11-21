@@ -1,5 +1,6 @@
 "use client";
 
+import { Select } from "@/components/ui/Select";
 import { ImagePlus, LoaderCircle, Plus, Trash2 } from "lucide-react";
 import Image from "next/image";
 import { useActionState, useState } from "react";
@@ -75,7 +76,7 @@ export function BundleForm({ initial, products, uploadsEnabled }: { initial: Bun
       <section className="admin-card relative z-10 p-4 md:p-5">
         <h2 className="mb-3 text-base">{tr("المنتجات ديال الباك", "Bundle products")}</h2>
         <div className="flex flex-wrap gap-2">
-          <select value={pick} onChange={(e) => setPick(e.target.value)} className={`${inputClass} flex-1 sm:max-w-md`} aria-label={tr("اختار منتج", "Pick a product")}>
+          <Select value={pick} onChange={(e) => setPick(e.target.value)} className={`${inputClass} flex-1 sm:max-w-md`} aria-label={tr("اختار منتج", "Pick a product")}>
             <option value="">{tr("اختار منتج…", "Pick a product…")}</option>
             {products.map((p) => (
               <option key={p.id} value={p.id} disabled={items.some((i) => i.productId === p.id)}>
@@ -83,7 +84,7 @@ export function BundleForm({ initial, products, uploadsEnabled }: { initial: Bun
                 {p.stock ? "" : tr(" · نفد", " · sold out")}
               </option>
             ))}
-          </select>
+          </Select>
           <button type="button" onClick={add} disabled={!pick} className={buttonClass({ variant: "outline" })}>
             <Plus className="size-4" aria-hidden="true" />
             {tr("زيد", "Add")}
@@ -192,6 +193,12 @@ export function BundleForm({ initial, products, uploadsEnabled }: { initial: Bun
                 {tr("رفع صورة", "Upload image")}
                 <input type="file" accept="image/*" className="sr-only" onChange={(e) => upload(e.target.files?.[0])} disabled={uploading} />
               </label>
+            ) : null}
+            {image ? (
+              <button type="button" onClick={() => setImage("")} className={buttonClass({ variant: "outline", className: "w-fit cursor-pointer" })}>
+                <Trash2 className="size-4" aria-hidden="true" />
+                {tr("حيد الصورة", "Remove image")}
+              </button>
             ) : null}
             {uploadError ? <p className="text-sm text-danger">{uploadError}</p> : null}
           </div>

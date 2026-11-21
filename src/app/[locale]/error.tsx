@@ -6,13 +6,15 @@ import { useEffect } from "react";
 import { buttonClass } from "@/components/ui/button";
 import { StatePanel } from "@/components/ui/States";
 import { Link } from "@/i18n/navigation";
+import { toast } from "@/lib/toast";
 
 export default function ErrorPage({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   const t = useTranslations("states");
 
   useEffect(() => {
     console.error(error);
-  }, [error]);
+    toast.error(t("requestFailed"));
+  }, [error, t]);
 
   return (
     <StatePanel

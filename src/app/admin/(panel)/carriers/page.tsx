@@ -1,3 +1,4 @@
+import { Select } from "@/components/ui/Select";
 import { CircleAlert, Plus, Truck } from "lucide-react";
 import { deleteCarrier, renewWebhook, saveCarrier } from "@/app/actions/admin-carriers";
 import { ActionForm } from "@/components/admin/ActionForm";
@@ -15,6 +16,9 @@ import { CARRIER_LABEL, CARRIER_STATUSES, isCarrierStatus } from "@/lib/carrier/
 import { db } from "@/lib/db";
 import { siteUrl } from "@/lib/seo";
 import { TIME_ZONE } from "@/lib/time";
+import { adminTitle } from "@/lib/admin-title";
+
+export const generateMetadata = () => adminTitle("شركات التوصيل", "Delivery companies");
 
 type CarrierRow = Awaited<ReturnType<typeof db.carrier.findMany>>[number];
 
@@ -87,14 +91,14 @@ function CarrierForm({ c, tr, lang, uploads }: { c?: CarrierRow; tr: Tr; lang: A
               <span aria-hidden="true" className="text-warm-500">
                 {lang === "ar" ? "←" : "→"}
               </span>
-              <select name="mapTo" defaultValue={r.to} aria-label={tr("الحالة ديالنا", "Our status")} className={inputClass}>
+              <Select name="mapTo" defaultValue={r.to} aria-label={tr("الحالة ديالنا", "Our status")} className={inputClass}>
                 <option value="">—</option>
                 {CARRIER_STATUSES.map((s) => (
                   <option key={s} value={s}>
                     {CARRIER_LABEL[s][lang]}
                   </option>
                 ))}
-              </select>
+              </Select>
             </li>
           ))}
         </ul>

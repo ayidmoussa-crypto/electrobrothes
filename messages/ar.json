@@ -488,6 +488,14 @@
     "loading": "جارٍ تحميل المنتجات…"
   },
   "states": {
+    "closeToast": "إغلاق",
+    "requestFailed": "حدث خطأ ما. حاول مرة أخرى.",
+    "notFoundCode": "404",
+    "notFoundSearchLabel": "ابحث في المتجر",
+    "notFoundSearchPlaceholder": "ابحث عن منتج…",
+    "notFoundSearch": "بحث",
+    "notFoundBrowse": "تصفح كل المنتجات",
+    "notFoundPopular": "أو جرّب أحد هذه",
     "notFoundTitle": "الصفحة غير موجودة",
     "notFoundText": "ربما تم نقل هذه الصفحة أو حذفها. جرّب البحث أو عد إلى الصفحة الرئيسية.",
     "errorTitle": "حدث خطأ غير متوقع",

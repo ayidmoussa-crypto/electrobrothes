@@ -488,6 +488,14 @@
     "loading": "Loading products…"
   },
   "states": {
+    "closeToast": "Close",
+    "requestFailed": "Something went wrong. Please try again.",
+    "notFoundCode": "404",
+    "notFoundSearchLabel": "Search the shop",
+    "notFoundSearchPlaceholder": "Search products…",
+    "notFoundSearch": "Search",
+    "notFoundBrowse": "Browse all products",
+    "notFoundPopular": "Or try one of these",
     "notFoundTitle": "Page not found",
     "notFoundText": "This page may have moved or been removed. Try searching or head back home.",
     "errorTitle": "Something went wrong",

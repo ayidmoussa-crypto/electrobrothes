@@ -1,3 +1,4 @@
+import { expireAdminStats } from "./admin-stats-tag";
 import "server-only";
 import { carrierTransitions, type CarrierStatus } from "./carrier/status";
 import { db } from "./db";
@@ -19,4 +20,6 @@ export async function recordShipmentEvent(orderId: string, status: CarrierStatus
     data: { carrierStatus: status, events: { create: { status, note: note?.slice(0, 300) || null, actor } } },
   });
   for (const to of moves) await changeOrderStatus(orderId, to, actor, note ?? undefined);
+  // A step with no status change still moves the parcel's figures (the carrier status), so the cache is let go once here too.
+  expireAdminStats();
 }

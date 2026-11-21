@@ -1,6 +1,6 @@
 "use client";
 
-import { BadgeCheck, LoaderCircle, MessageCircle, Phone, Sparkles, Star, TriangleAlert } from "lucide-react";
+import { BadgeCheck, LoaderCircle, MessageCircle, Phone, Brain, Star, TriangleAlert } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -129,7 +129,7 @@ export function ReviewCard({ review }: { review: ReviewRow }) {
               </button>
             ) : null}
             <button type="button" disabled={pending} onClick={() => run(() => suggestReviewReply(review.id))} className={buttonClass({ variant: "ghost", className: "!min-h-10 !px-3 !text-sm" })}>
-              <Sparkles className="size-4" aria-hidden="true" />
+              <Brain className="size-4" aria-hidden="true" />
               {tr("اقترح رد", "Suggest a reply")}
             </button>
             <FormMessage state={state} />

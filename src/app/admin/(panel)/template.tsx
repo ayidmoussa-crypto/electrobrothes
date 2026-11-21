@@ -5,5 +5,5 @@ import type { ReactNode } from "react";
  * visible straight from the server HTML, before any JavaScript loads; reduced motion skips it.
  */
 export default function PanelTemplate({ children }: { children: ReactNode }) {
-  return <div className="animate-[tab-in_350ms_cubic-bezier(0.22,1,0.36,1)]">{children}</div>;
+  return <div className="animate-[panel-in_350ms_cubic-bezier(0.22,1,0.36,1)]">{children}</div>;
 }

@@ -130,12 +130,4 @@ export function L({ label, children, className = "" }: { label: string; children
 export const thClass ="px-3 py-2 text-start text-xs font-semibold text-warm-600";
 export const tdClass = "px-3 py-2 align-middle text-sm text-warm-800";
 
-/** Feedback line after an admin form action (role=status, success or error tone). */
-export function FormMessage({ state }: { state: { ok?: boolean; message?: string } }) {
-  if (!state.message) return null;
-  return (
-    <p role="status" className={`rounded-lg px-3 py-2 text-sm font-medium ${state.ok ? "bg-success-soft text-success" : "bg-danger-soft text-danger"}`}>
-      {state.message}
-    </p>
-  );
-}
+export { FormMessage } from "./FormMessage";

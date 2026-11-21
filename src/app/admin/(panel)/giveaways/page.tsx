@@ -10,6 +10,9 @@ import { adminTr } from "@/lib/admin-lang";
 import { db } from "@/lib/db";
 import { giveawayPhase, publicName, type GiveawayPhase } from "@/lib/giveaway-rules";
 import { TIME_ZONE } from "@/lib/time";
+import { adminTitle } from "@/lib/admin-title";
+
+export const generateMetadata = () => adminTitle("السحوبات", "Giveaways");
 
 const PHASE: Record<GiveawayPhase, { label: [string, string]; tone: BadgeTone }> = {
   open: { label: ["التسجيل مفتوح", "Entries open"], tone: "success" },

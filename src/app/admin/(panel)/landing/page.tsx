@@ -7,6 +7,9 @@ import { requireAdmin } from "@/lib/admin";
 import { adminTr } from "@/lib/admin-lang";
 import { db } from "@/lib/db";
 import { isTemplate, TEMPLATE_LABEL } from "@/lib/landing";
+import { adminTitle } from "@/lib/admin-title";
+
+export const generateMetadata = () => adminTitle("صفحات الهبوط", "Landing pages");
 
 /** Every product with its landing page status: none yet, draft, or live. */
 export default async function LandingPagesAdmin() {

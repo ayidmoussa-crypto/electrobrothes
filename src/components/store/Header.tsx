@@ -5,13 +5,13 @@ import { getCategories } from "@/lib/catalog";
 import { CartButton } from "./CartButton";
 import { CategoryNav } from "./CategoryNav";
 import { HeaderShell } from "./HeaderShell";
+import { LanguageLink } from "./LanguageLink";
 import { MobileMenu } from "./MobileMenu";
 import { SearchBox, SearchToggleButton } from "./SearchBox";
 
 export async function Header() {
   const [t, locale, categories] = await Promise.all([getTranslations("header"), getLocale(), getCategories()]);
   const navItems = categories.map((c) => ({ href: `/category/${c.slug}`, label: locale === "ar" ? c.nameAr : c.nameEn, image: c.image, count: c._count.products }));
-  const otherLocale = locale === "ar" ? "en" : "ar";
 
   return (
     <HeaderShell>
@@ -21,7 +21,7 @@ export async function Header() {
         <MobileMenu items={navItems} />
 
         {/* The smallest phones make room for the open search by folding the logo away. */}
-        <Link href="/" aria-label={t("home")} className="flex shrink-0 items-center gap-2 rounded-md max-md:order-3 group-data-[search=open]/header:max-[359px]:hidden">
+        <Link href="/" aria-label={t("home")} className="flex shrink-0 items-center gap-2 rounded-md max-md:order-1 group-data-[search=open]/header:max-[359px]:hidden">
           {/* Logo only: the link's aria-label carries the brand name for screen readers. */}
           <Logo className="h-10 w-auto text-logo-dark" />
         </Link>
@@ -32,14 +32,10 @@ export async function Header() {
         <SearchBox action={getPathname({ href: "/search", locale })} />
 
         {/* Phones: search icon and cart. The language switch and categories live in the side menu there. */}
-        <nav className="ms-auto flex shrink-0 items-center gap-1 max-md:order-2 md:ms-0">
-          <Link
-            href="/"
-            locale={otherLocale}
-            className="inline-flex min-h-11 items-center rounded-full px-3 text-sm font-semibold text-warm-800 transition-colors hover:bg-ink/5 hover:text-ink max-md:hidden"
-          >
+        <nav className="ms-auto flex shrink-0 items-center gap-1 max-md:order-3 md:ms-0">
+          <LanguageLink className="inline-flex min-h-11 items-center rounded-full px-3 text-sm font-semibold text-warm-800 transition-colors hover:bg-ink/5 hover:text-ink max-md:hidden">
             {t("switchLanguage")}
-          </Link>
+          </LanguageLink>
           <SearchToggleButton />
           <CartButton />
         </nav>

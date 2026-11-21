@@ -3,10 +3,11 @@
 import { CircleHelp, GitCompareArrows, Languages, Menu, PackageSearch, X } from "lucide-react";
 import { AnimatePresence, motion, MotionConfig, type Variants } from "motion/react";
 import Image from "next/image";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { Link, usePathname } from "@/i18n/navigation";
+import { LanguageLink } from "./LanguageLink";
 
 type Item = {
   href: string;
@@ -53,7 +54,6 @@ const tile = (current: boolean) =>
  */
 export function MobileMenu({ items }: { items: Item[] }) {
   const t = useTranslations("header");
-  const locale = useLocale();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [top, setTop] = useState(88);
@@ -217,14 +217,12 @@ export function MobileMenu({ items }: { items: Item[] }) {
                       </ul>
 
                       <motion.div variants={ROW} whileTap={{ scale: 0.98 }}>
-                        <Link
-                          href="/"
-                          locale={locale === "ar" ? "en" : "ar"}
+                        <LanguageLink
                           className="group mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-ink text-sm font-bold text-white transition-colors hover:bg-yellow-500 hover:text-ink active:bg-yellow-600 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-yellow-300"
                         >
                           <Languages className="size-4.5 transition-transform duration-300 group-hover:rotate-12" aria-hidden="true" />
                           {t("switchLanguage")}
-                        </Link>
+                        </LanguageLink>
                       </motion.div>
                     </motion.div>
                   </>

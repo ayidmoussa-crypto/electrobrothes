@@ -5,6 +5,9 @@ import { requireAdmin } from "@/lib/admin";
 import { adminTr } from "@/lib/admin-lang";
 import { TEMPLATE_LABEL, TEMPLATES } from "@/lib/landing";
 import { OFFER_STYLE_LABEL, OFFER_STYLES } from "@/lib/offers";
+import { adminTitle } from "@/lib/admin-title";
+
+export const generateMetadata = () => adminTitle("قوالب العروض", "Campaign templates");
 
 /** A small drawing of each layout, in brand colours, so the owner sees the shape without any brand's pictures. */
 function Sketch({ dark, cards = false }: { dark: boolean; cards?: boolean }) {

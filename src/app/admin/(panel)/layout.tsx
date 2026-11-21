@@ -1,4 +1,4 @@
-import { ExternalLink, LogOut, Moon, Sun } from "lucide-react";
+import { ExternalLink, LogOut, Moon, Sun, Zap } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Suspense } from "react";
@@ -6,13 +6,14 @@ import { logout } from "@/app/actions/admin-auth";
 import { setAdminLang, setAdminTheme } from "@/app/actions/admin-lang";
 import { ADMIN_THEME_COOKIE, adminTheme, adminTr } from "@/lib/admin-lang";
 import { AdminBackdrop } from "@/components/admin/AdminBackdrop";
+import { Toaster } from "@/components/ui/Toaster";
+import { HtmlLang } from "@/components/admin/HtmlLang";
 import { AdminLangProvider } from "@/components/admin/AdminLang";
 import { AdminBottomNav, AdminTopNav } from "@/components/admin/AdminNav";
 import { AssistantWidget } from "@/components/admin/AssistantWidget";
 import { NotificationsButton } from "@/components/admin/NotificationsButton";
 import { loadAlerts } from "@/lib/admin-alerts-data";
 import { Logo } from "@/components/brand/Logo";
-import { Skeleton } from "@/components/ui/Skeleton";
 import { requireStaff } from "@/lib/admin";
 import { clientIp, hit } from "@/lib/guard";
 import { logSecurity } from "@/lib/security-log";
@@ -35,6 +36,7 @@ async function Shell({ children }: { children: ReactNode }) {
     // Normal mode: white page under a black bar. Night mode: the whole panel turns dark (globals.css).
     <div dir={ar ? "rtl" : "ltr"} lang={lang} className={`admin-theme min-h-dvh ${night ? "admin-dark" : ""}`}>
       <AdminLangProvider lang={lang}>
+        <HtmlLang lang={lang} dir={ar ? "rtl" : "ltr"} />
         <AdminBackdrop />
 
         {/* The floating black bar, clear of the screen edges, in both modes. Desktop: brand + account row, then
@@ -132,6 +134,8 @@ async function Shell({ children }: { children: ReactNode }) {
         <main className="mx-auto min-w-0 max-w-[110rem] px-4 pt-6 pb-32 md:pt-8 lg:ps-6 lg:pe-24 lg:pb-12">{children}</main>
 
         <AdminBottomNav email={admin.email} role={admin.role} night={night} />
+        {/* Results of every form and action, clear of the phone bottom bar. */}
+        <Toaster className="max-lg:bottom-24" closeLabel={tr("إغلاق", "Close")} failed={tr("وقع خطأ. حاول مرة أخرى.", "Something went wrong. Please try again.")} />
       </AdminLangProvider>
     </div>
   );
@@ -141,9 +145,14 @@ export default function PanelLayout({ children }: { children: ReactNode }) {
   return (
     <Suspense
       fallback={
-        <div id="admin-fallback" className="admin-theme min-h-dvh bg-(--admin-page-bg) p-8">
-          <Skeleton className="h-96" />
-          {/* Night mode while the page loads, so a reload does not flash white first. */}
+        <div id="admin-fallback" role="status" aria-busy="true" className="admin-theme flex min-h-dvh items-center justify-center bg-(--admin-page-bg)">
+          <span className="sr-only">Loading…</span>
+          <div className="relative size-16">
+            <div aria-hidden="true" className="absolute inset-0 rounded-full border-4 border-warm-200" />
+            <div aria-hidden="true" className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-yellow-500" />
+            <Zap aria-hidden="true" className="absolute inset-0 m-auto size-6 fill-yellow-500 text-yellow-500" />
+          </div>
+          {/* Night mode before the first paint, so a reload does not flash white first. */}
           <script dangerouslySetInnerHTML={{ __html: `document.cookie.indexOf("${ADMIN_THEME_COOKIE}=dark")>-1&&document.getElementById("admin-fallback").classList.add("admin-dark")` }} />
         </div>
       }

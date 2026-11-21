@@ -4,6 +4,9 @@ import { inputClass, L, PageHeader, Panel } from "@/components/admin/ui";
 import { adminTr, type Tr } from "@/lib/admin-lang";
 import { requireAdmin } from "@/lib/admin";
 import { db } from "@/lib/db";
+import { adminTitle } from "@/lib/admin-title";
+
+export const generateMetadata = () => adminTitle("الأقسام", "Categories");
 
 type Cat = { id?: string; nameAr: string; nameEn: string; slug: string; image: string | null; bannerImages: string[]; sortOrder: number };
 

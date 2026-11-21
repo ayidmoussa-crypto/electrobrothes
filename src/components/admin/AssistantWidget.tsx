@@ -1,6 +1,6 @@
 "use client";
 
-import { Bot, Check, ImagePlus, LoaderCircle, RotateCcw, Send, Sparkles, TriangleAlert, X } from "lucide-react";
+import { Bot, Check, ImagePlus, LoaderCircle, RotateCcw, Send, TriangleAlert, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -286,7 +286,7 @@ export function AssistantWidget({ placement }: { placement: Placement }) {
         title={tr("المساعد الذكي", "Assistant")}
         className={`grid ${placement === "rail" ? "size-12" : "size-10"} cursor-pointer place-items-center rounded-full bg-yellow-500 text-ink shadow-md shadow-ink/15 transition-colors hover:bg-yellow-600 active:bg-yellow-700`}
       >
-        {open ? <X className="size-5" aria-hidden="true" /> : <Sparkles className="size-5" aria-hidden="true" />}
+        {open ? <X className="size-5" aria-hidden="true" /> : <Bot className="size-5" aria-hidden="true" />}
       </button>
 
       {open ? (

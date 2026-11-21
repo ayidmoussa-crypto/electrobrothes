@@ -9,6 +9,9 @@ import { separatePrice } from "@/lib/bundles";
 import { db } from "@/lib/db";
 import { formatMAD } from "@/lib/money";
 import { adminTr } from "@/lib/admin-lang";
+import { adminTitle } from "@/lib/admin-title";
+
+export const generateMetadata = () => adminTitle("الباكات", "Bundles");
 
 
 export default async function BundlesAdminPage() {

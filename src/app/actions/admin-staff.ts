@@ -1,5 +1,6 @@
 "use server";
 
+import { expireAdminStats } from "@/lib/admin-stats-tag";
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { z } from "zod";
@@ -15,6 +16,7 @@ import { moroccanDate, toMoroccanInput } from "@/lib/time";
 type State = { ok?: boolean; message?: string };
 
 const refreshPay = () => {
+  expireAdminStats();
   for (const path of ["/admin/staff", "/admin/me", "/admin/finance", "/admin"]) revalidatePath(path);
 };
 

@@ -1,5 +1,7 @@
 "use client";
 
+import { DateField } from "@/components/ui/DateField";
+import { Select } from "@/components/ui/Select";
 import { ImageUp, LoaderCircle, Trash2 } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -92,14 +94,14 @@ export function OfferEditor({ initial, products }: { initial: OfferInitial; prod
               <input name="name" defaultValue={initial.name} required maxLength={80} className={inputClass} />
             </L>
             <L label={tr("المنتج", "Product")}>
-              <select name="productId" value={productId} onChange={(e) => (setProductId(e.target.value), setImage(""))} required className={inputClass}>
+              <Select name="productId" value={productId} onChange={(e) => (setProductId(e.target.value), setImage(""))} required className={inputClass}>
                 <option value="">{tr("اختار منتج…", "Pick a product…")}</option>
                 {products.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </L>
           </div>
         </Panel>
@@ -204,6 +206,12 @@ export function OfferEditor({ initial, products }: { initial: OfferInitial; prod
                 {tr("رفع صورة خاصة بالحملة", "Upload a campaign photo")}
                 <input type="file" accept="image/*" className="sr-only" onChange={(e) => upload(e.target.files?.[0])} />
               </label>
+              {image ? (
+                <button type="button" onClick={() => setImage("")} className={buttonClass({ variant: "outline", className: "w-fit cursor-pointer" })}>
+                  <Trash2 className="size-4" aria-hidden="true" />
+                  {tr("حيد الصورة", "Remove image")}
+                </button>
+              ) : null}
               {uploadError ? <p className="text-sm text-danger">{uploadError}</p> : null}
               <p className="text-xs text-warm-600">{tr("غير الصور ديالك. ممنوع صور ولا لوغوهات ماركات أخرى.", "Your own photos only. No other brands' pictures or logos.")}</p>
             </div>
@@ -213,22 +221,22 @@ export function OfferEditor({ initial, products }: { initial: OfferInitial; prod
         <Panel title={tr("الزر والتواريخ", "Button and dates")}>
           <div className="grid gap-3 sm:grid-cols-2">
             <L label={tr("«تسوّق الآن» كيدي لـ", "“Shop now” goes to")}>
-              <select name="link" defaultValue={initial.link} className={inputClass}>
+              <Select name="link" defaultValue={initial.link} className={inputClass}>
                 <option value="product">{tr("صفحة المنتج", "The product page")}</option>
                 <option value="page" disabled={!product?.hasPage}>
                   {tr("صفحة العرض ديالو", "Its offer page")}
                   {product && !product.hasPage ? tr(" (ما منشوراش)", " (not published)") : ""}
                 </option>
-              </select>
+              </Select>
             </L>
             <L label={tr("الترتيب (الصغير هو الأول)", "Order (smallest first)")}>
               <input name="sortOrder" type="number" min={0} max={1000} defaultValue={initial.sortOrder} className={inputClass} />
             </L>
             <L label={tr("كيبدا (اختياري)", "Starts (optional)")}>
-              <input name="startsAt" type="datetime-local" dir="ltr" defaultValue={initial.startsAt} className={inputClass} />
+              <DateField name="startsAt" time lang={lang} defaultValue={initial.startsAt} className={inputClass} />
             </L>
             <L label={tr("كيسالي (اختياري، كيبان للزبون)", "Ends (optional, shown to shoppers)")}>
-              <input name="endsAt" type="datetime-local" dir="ltr" defaultValue={initial.endsAt} className={inputClass} />
+              <DateField name="endsAt" time lang={lang} defaultValue={initial.endsAt} className={inputClass} />
             </L>
           </div>
           <p className="mt-3 text-xs text-warm-600">{tr("ملي كيفوت تاريخ النهاية، العرض كيختفي من الرئيسية بوحدو.", "Once the end date passes, the offer leaves the home page on its own.")}</p>

@@ -2,7 +2,7 @@
 
 import { Check, ChevronDown, MapPin, Search } from "lucide-react";
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
-import { Select } from "@/components/ui/Field";
+import { NativeSelect } from "@/components/ui/Field";
 import type { Locale } from "@/i18n/routing";
 import { formatMAD } from "@/lib/money";
 
@@ -88,14 +88,14 @@ export function CityPicker({
 
   if (!live) {
     return (
-      <Select id={id} name={name} value={value} onChange={(e) => onChange(e.target.value)} autoComplete="address-level2" className={className} {...aria}>
+      <NativeSelect id={id} name={name} value={value} onChange={(e) => onChange(e.target.value)} autoComplete="address-level2" className={className} {...aria}>
         <option value="">{placeholder}</option>
         {cities.map((c) => (
           <option key={c.id} value={c.id}>
             {label(c)} — {formatMAD(c.shippingFee, locale)}
           </option>
         ))}
-      </Select>
+      </NativeSelect>
     );
   }
 

@@ -1,5 +1,6 @@
 "use server";
 
+import { expireAdminStats } from "@/lib/admin-stats-tag";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/admin";
@@ -17,6 +18,7 @@ const amount = z.coerce.number().int().min(1).max(100_000_000);
 const note = z.string().trim().max(200).optional().transform((v) => v || null);
 
 const refresh = () => {
+  expireAdminStats();
   revalidatePath("/admin/finance");
   revalidatePath("/admin");
 };

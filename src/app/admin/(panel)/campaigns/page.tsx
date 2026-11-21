@@ -10,6 +10,9 @@ import { campaignStats } from "@/lib/campaign-stats";
 import { db } from "@/lib/db";
 import { isLive, isOfferStyle, OFFER_STYLE_LABEL } from "@/lib/offers";
 import { TIME_ZONE } from "@/lib/time";
+import { adminTitle } from "@/lib/admin-title";
+
+export const generateMetadata = () => adminTitle("استوديو العروض", "Campaign Studio");
 
 function Tile({ href, icon: Icon, title, text }: { href: string; icon: LucideIcon; title: string; text: string }) {
   return (

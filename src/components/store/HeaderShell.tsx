@@ -8,8 +8,7 @@ const SearchToggle = createContext<{ open: boolean; setOpen: (open: boolean) => 
 export const useSearchToggle = () => useContext(SearchToggle);
 
 /**
- * Sticky floating header in pale frosted glass: the page shows through it, blurred, and tints it as it
- * scrolls under. Once scrolled it gains a soft shadow.
+ * Sticky flat white header. Once scrolled it gains a soft shadow.
  */
 export function HeaderShell({ children }: { children: ReactNode }) {
   const [scrolled, setScrolled] = useState(false);
@@ -51,9 +50,9 @@ export function HeaderShell({ children }: { children: ReactNode }) {
         ref={header}
         data-scrolled={scrolled}
         data-search={searchOpen ? "open" : "closed"}
-        // A floating bar: it never touches the screen edges, at rest or while scrolling.
+        // A flat white bar, full width, directly under the top strip.
         // While the phone menu is open the header sits above its dimmed backdrop, so it stays whole and usable.
-        className={`group/header sticky top-3 z-30 mx-3 mt-3 glass-frost rounded-3xl border text-ink md:mx-4 [html[data-menu=open]_&]:z-50 ${scrolled ? "shadow-lg shadow-ink/10" : ""}`}
+        className={`group/header sticky top-0 z-30 border-b border-warm-200 bg-white text-ink [html[data-menu=open]_&]:z-50 ${scrolled ? "shadow-md shadow-ink/10" : ""}`}
       >
         {children}
       </header>

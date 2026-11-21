@@ -7,6 +7,9 @@ import { adminTr } from "@/lib/admin-lang";
 import { db } from "@/lib/db";
 import { formatMoroccanPhone, normalizeMoroccanPhone } from "@/lib/phone";
 import { colorLabel } from "@/lib/stock";
+import { adminTitle } from "@/lib/admin-title";
+
+export const generateMetadata = () => adminTitle("إضافة طلب", "New order");
 
 export default async function NewOrderPage({ searchParams }: PageProps<"/admin/orders/new">) {
   // Agents type in orders that come by WhatsApp or phone too; the ones they confirm count for them.

@@ -9,7 +9,8 @@ import { ProductCard } from "@/components/store/ProductCard";
 import { StockStatus } from "@/components/store/StockStatus";
 import { Badge } from "@/components/ui/Badge";
 import { buttonClass } from "@/components/ui/button";
-import { Field, Input, Select, Textarea } from "@/components/ui/Field";
+import { Field, Input, Textarea } from "@/components/ui/Field";
+import { Select } from "@/components/ui/Select";
 import { ProductGridSkeleton } from "@/components/ui/Skeleton";
 import { StatePanel } from "@/components/ui/States";
 import type { Locale } from "@/i18n/routing";
@@ -94,7 +95,7 @@ export default async function StyleGuide({ params }: PageProps<"/[locale]/styleg
           </Field>
           <Field id="sg-city" label="City" required>
             {(p) => (
-              <Select {...p} defaultValue="">
+              <Select id={p.id} required={p.required} defaultValue="" className="min-h-12 w-full rounded-lg border border-warm-200 bg-warm-100 px-4 text-base text-warm-800">
                 <option value="" disabled>Choose…</option>
                 <option>Casablanca</option>
               </Select>

@@ -3,6 +3,9 @@ import { PageHeader } from "@/components/admin/ui";
 import { requireAdmin } from "@/lib/admin";
 import { adminTr } from "@/lib/admin-lang";
 import { bundleProductOptions, uploadsEnabled } from "@/lib/admin-bundles";
+import { adminTitle } from "@/lib/admin-title";
+
+export const generateMetadata = () => adminTitle("باك جديد", "New bundle");
 
 export default async function NewBundlePage() {
   const [, { tr }] = await Promise.all([requireAdmin(), adminTr()]);

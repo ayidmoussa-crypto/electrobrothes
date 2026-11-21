@@ -1,9 +1,11 @@
+import { Truck } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
 import { Pixels } from "@/components/analytics/Pixels";
 import { VisitTracker } from "@/components/analytics/VisitTracker";
+import { Toaster } from "@/components/ui/Toaster";
 import { Footer } from "@/components/store/Footer";
 import { WhatsAppButton } from "@/components/store/WhatsAppButton";
 import { Header } from "@/components/store/Header";
@@ -36,7 +38,7 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
   const { locale } = await params;
   if (!hasLocale(routing.locales, locale)) notFound();
   setRequestLocale(locale);
-  const [t, a11y, messages] = await Promise.all([getTranslations("topbar"), getTranslations("a11y"), getMessages()]);
+  const [t, a11y, states, messages] = await Promise.all([getTranslations("topbar"), getTranslations("a11y"), getTranslations("states"), getMessages()]);
   // Only the namespaces client components read are serialized into the page (smaller HTML, faster hydration).
   const clientMessages = Object.fromEntries(CLIENT_NAMESPACES.map((ns) => [ns, messages[ns]]));
 
@@ -55,7 +57,16 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
           >
             {a11y("skipToContent")}
           </a>
-          <p className="relative z-10 bg-deep px-4 py-2 text-center text-xs font-medium text-warm-300">{t("cod")}</p>
+          <div className="relative z-10 bg-deep px-4 py-2 text-white">
+            <p className="mx-auto flex items-center justify-center gap-2 text-xs font-semibold tracking-wide sm:text-[13px]">
+              <span className="grid size-5 shrink-0 place-items-center rounded-full bg-yellow-500 text-ink">
+                <Truck className="size-3" aria-hidden="true" />
+              </span>
+              <span>{t("cod")}</span>
+            </p>
+            {/* A thin yellow glow along the bottom edge: the brand's energy line above the header. */}
+            <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-yellow-500 to-transparent" />
+          </div>
           <Header />
           <main id="main" className="flex-1">
             {children}
@@ -64,6 +75,7 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
           <WhatsAppButton locale={locale} />
           <Pixels />
           <VisitTracker />
+          <Toaster closeLabel={states("closeToast")} failed={states("requestFailed")} />
         </NextIntlClientProvider>
       </body>
     </html>

@@ -1,6 +1,8 @@
 "use client";
 
-import { ImagePlus, LoaderCircle } from "lucide-react";
+import { DateField } from "@/components/ui/DateField";
+import { Select } from "@/components/ui/Select";
+import { ImagePlus, LoaderCircle, Trash2 } from "lucide-react";
 import Image from "next/image";
 import { useActionState, useState } from "react";
 import { saveGiveaway } from "@/app/actions/admin-giveaways";
@@ -48,7 +50,7 @@ export const EMPTY_GIVEAWAY: GiveawayFormValues = {
 
 export function GiveawayEditor({ initial, products, uploadsEnabled }: { initial: GiveawayFormValues; products: GiveawayProductOption[]; uploadsEnabled: boolean }) {
   const [state, action, pending] = useActionState(saveGiveaway, {});
-  const { tr } = useAdminTr();
+  const { tr, lang } = useAdminTr();
   const [productId, setProductId] = useState(initial.productId);
   const [prizeAr, setPrizeAr] = useState(initial.prizeAr);
   const [prizeEn, setPrizeEn] = useState(initial.prizeEn);
@@ -88,14 +90,14 @@ export function GiveawayEditor({ initial, products, uploadsEnabled }: { initial:
         <h2 className="mb-3 text-base">{tr("الجائزة", "The prize")}</h2>
         <div className="grid gap-3 md:grid-cols-2">
           <L label={tr("منتج من المتجر (اختياري)", "A shop product (optional)")} className="md:col-span-2">
-            <select name="productId" value={productId} onChange={(e) => pickProduct(e.target.value)} className={inputClass}>
+            <Select name="productId" value={productId} onChange={(e) => pickProduct(e.target.value)} className={inputClass}>
               <option value="">{tr("— جائزة ماشي من المتجر —", "— Not a shop product —")}</option>
               {products.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.nameAr}
                 </option>
               ))}
-            </select>
+            </Select>
           </L>
           <L label={tr("سمية الجائزة بالعربية", "Prize name in Arabic")}>
             <input name="prizeAr" value={prizeAr} onChange={(e) => setPrizeAr(e.target.value)} required maxLength={120} className={inputClass} />
@@ -127,6 +129,12 @@ export function GiveawayEditor({ initial, products, uploadsEnabled }: { initial:
                 <input type="file" accept="image/*" className="sr-only" onChange={(e) => upload(e.target.files?.[0])} disabled={uploading} />
               </label>
             ) : null}
+            {image ? (
+              <button type="button" onClick={() => setImage("")} className={buttonClass({ variant: "outline", className: "w-fit cursor-pointer" })}>
+                <Trash2 className="size-4" aria-hidden="true" />
+                {tr("حيد الصورة", "Remove image")}
+              </button>
+            ) : null}
             {uploadError ? <p className="text-sm text-danger">{uploadError}</p> : null}
           </div>
         </div>
@@ -142,7 +150,7 @@ export function GiveawayEditor({ initial, products, uploadsEnabled }: { initial:
             <input name="titleEn" defaultValue={initial.titleEn} required maxLength={120} dir="ltr" placeholder="Win a Soundcore Q45" className={inputClass} />
           </L>
           <L label={tr("وقت السحب (بتوقيت المغرب) · التسجيل كيتسد فيه", "Draw time (Morocco time) · entries close then")}>
-            <input name="drawAt" type="datetime-local" defaultValue={initial.drawAt} required disabled={initial.drawn} className={inputClass} />
+            <DateField name="drawAt" time lang={lang} defaultValue={initial.drawAt} required disabled={initial.drawn} className={inputClass} />
             {initial.drawn ? <input type="hidden" name="drawAt" value={initial.drawAt} /> : null}
           </L>
           <L label={tr("رابط البث: حساب Instagram ولا TikTok (اختياري)", "Live link: Instagram or TikTok account (optional)")}>

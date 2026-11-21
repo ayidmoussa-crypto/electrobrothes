@@ -6,11 +6,14 @@ import { PageHeader, StatusBadge, tdClass, thClass } from "@/components/admin/ui
 import { buttonClass } from "@/components/ui/button";
 import { requireAdmin } from "@/lib/admin";
 import { adminTr, type AdminLang } from "@/lib/admin-lang";
-import { loadSalesComparison } from "@/lib/finance-data";
+import { salesComparison } from "@/lib/finance-stats";
 import { formatMAD } from "@/lib/money";
 import type { OrderStatus } from "@/lib/order-rules";
-import { periodLabel, resolvePeriod } from "@/lib/period";
+import { periodLabel, resolveAdminPeriod } from "@/lib/period";
 import { toMoroccanInput } from "@/lib/time";
+import { adminTitle } from "@/lib/admin-title";
+
+export const generateMetadata = () => adminTitle("أونلاين والمحل", "Online and shop");
 
 const card = "rounded-3xl bg-warm-50 p-4 ring-1 ring-warm-200 md:p-5";
 
@@ -65,10 +68,10 @@ function Latest({ title, empty, rows, lang, mad }: { title: string; empty: strin
 export default async function SalesPage({ searchParams }: PageProps<"/admin/sales">) {
   const [, { tr, lang }] = await Promise.all([requireAdmin(), adminTr()]);
   const mad = (v: number) => formatMAD(v, lang);
-  const period = resolvePeriod(await searchParams);
+  const period = resolveAdminPeriod(await searchParams);
   const span = periodLabel(period, lang);
   const today = toMoroccanInput(new Date(), 10);
-  const { online, shop, total, onlineShare, shopShare, latestOnline, latestShop } = await loadSalesComparison(period);
+  const { online, shop, total, onlineShare, shopShare, latestOnline, latestShop } = await salesComparison(period.from.getTime(), period.until.getTime());
 
   const count = (v: number) => String(v);
   const money = (v: number | null) => (v === null ? "—" : mad(v));

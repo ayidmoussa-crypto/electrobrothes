@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronDown, CircleAlert, LoaderCircle, RotateCcw, Sparkles, X } from "lucide-react";
+import { Check, ChevronDown, CircleAlert, LoaderCircle, RotateCcw, Brain, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createContext, useContext, useState, useTransition, type ReactNode } from "react";
 import { acceptAllSeoSuggestions, acceptSeoSuggestion, generateSeoSuggestions, rejectSeoSuggestion, undoSeoSuggestion, type SeoActionState } from "@/app/actions/admin-seo";
@@ -218,7 +218,7 @@ export function SeoPanel({ productId, score, missing, changes }: { productId: st
           {missing.length ? <ChevronDown className={`size-3.5 text-warm-600 transition-transform ${showMissing ? "rotate-180" : ""}`} aria-hidden="true" /> : null}
         </button>
         <button type="button" onClick={generate} disabled={pending} className={buttonClass({ className: "!min-h-10 !px-3 !text-sm" })}>
-          {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <Sparkles className="size-4" aria-hidden="true" />}
+          {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <Brain className="size-4" aria-hidden="true" />}
           {tr("توليد بالذكاء الاصطناعي", "Generate with AI")}
         </button>
       </div>

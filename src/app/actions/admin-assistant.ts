@@ -1,5 +1,6 @@
 "use server";
 
+import { expireAdminStats } from "@/lib/admin-stats-tag";
 import { revalidatePath, updateTag } from "next/cache";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/admin";
@@ -24,6 +25,7 @@ async function decide(fd: FormData, task: (id: string, admin: string) => Promise
   }
   if (slugs) {
     // updateTag: the next storefront visit already shows the new stock.
+    expireAdminStats();
     updateTag("products");
     for (const slug of slugs) updateTag(`product:${slug}`);
     revalidatePath("/admin/products");

@@ -2,6 +2,7 @@ import "server-only";
 import { revalidateTag } from "next/cache";
 import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
+import { expireAdminStats } from "./admin-stats-tag";
 import { db } from "./db";
 import { channelOfManualSource, SHOP_CHANNEL, type Touch } from "./attribution";
 import { manualTotals, type ManualOrderInput } from "./manual-order";
@@ -188,6 +189,7 @@ export async function placeOrder(
           select: { id: true, number: true },
         });
       });
+      expireAdminStats();
       return { ok: true, orderId: order.id, number: order.number } satisfies PlaceOrderResult;
     } catch (error) {
       if (error instanceof CouponUsedUp) return { ok: false, error: "coupon", couponError: "used_up" } satisfies PlaceOrderResult;
@@ -277,6 +279,7 @@ export async function createManualOrder(input: ManualOrderInput, actor: string, 
     }
   }
   if (!order) return { ok: false, error: "unavailable" };
+  expireAdminStats();
 
   if (input.startAs === "NEW") return { ok: true, orderId: order.id, number: order.number };
   try {
@@ -359,6 +362,8 @@ export async function changeOrderStatus(orderId: string, to: OrderStatus, actor:
     });
     return plan.stock !== null;
   });
+  // The dashboard and finance figures moved with the status (and the stock, when it moved).
+  expireAdminStats();
   // Stock shown on product pages changed.
   if (stockMoved) revalidateTag("products", "max");
 }
@@ -388,6 +393,7 @@ export async function deleteOrder(orderId: string, actor: string): Promise<"ok" 
     await tx.order.delete({ where: { id: orderId } });
     return order.stockDeducted ? ("ok-stock" as const) : ("ok" as const);
   });
+  if (result === "ok" || result === "ok-stock") expireAdminStats();
   if (result === "ok-stock") {
     revalidateTag("products", "max");
     return "ok";

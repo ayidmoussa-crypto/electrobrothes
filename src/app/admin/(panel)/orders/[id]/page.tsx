@@ -1,3 +1,4 @@
+import { Select } from "@/components/ui/Select";
 import { ArrowRight, MessageCircle, Phone, ShieldAlert, Truck } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -30,6 +31,9 @@ import { supportLink } from "@/lib/support/customer";
 import { supportWhatsappMessage } from "@/lib/support/rules";
 import { buttonClass } from "@/components/ui/button";
 import { TIME_ZONE } from "@/lib/time";
+import { adminTitle } from "@/lib/admin-title";
+
+export const generateMetadata = () => adminTitle("الطلب", "Order");
 
 const VARIANT: Record<OrderStatus, StatusOption["variant"]> = {
   NEW: "outline",
@@ -214,7 +218,7 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
                 <ActionForm action={saveShipment} submitLabel={tr("حفظ الشحنة", "Save shipment")} variant="dark" className="grid gap-3 sm:grid-cols-2">
                   <input type="hidden" name="orderId" value={order.id} />
                   <L label={tr("شركة التوصيل", "Delivery company")}>
-                    <select name="carrierId" defaultValue={carrier?.id ?? ""} className={inputClass}>
+                    <Select name="carrierId" defaultValue={carrier?.id ?? ""} className={inputClass}>
                       {/* A parcel with no company only moves by hand: no carrier's updates can reach it. */}
                       <option value="">{tr("— بلا شركة (الحالة كتبدلها بيدك) —", "— No company (status updated by hand) —")}</option>
                       {carriers.map((c) => (
@@ -222,7 +226,7 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
                           {c.name}
                         </option>
                       ))}
-                    </select>
+                    </Select>
                   </L>
                   <L label={tr("رقم التتبع", "Tracking number")}>
                     <input name="trackingNumber" dir="ltr" maxLength={60} defaultValue={order.trackingNumber ?? ""} className={`${inputClass} text-start`} />
@@ -236,13 +240,13 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
                 <ActionForm action={addShipmentEvent} submitLabel={tr("تسجيل الخطوة", "Record step")} className="mt-2 grid gap-3 sm:grid-cols-2">
                   <input type="hidden" name="orderId" value={order.id} />
                   <L label={tr("الخطوة", "Step")}>
-                    <select name="status" className={inputClass}>
+                    <Select name="status" className={inputClass}>
                       {CARRIER_STATUSES.map((s) => (
                         <option key={s} value={s}>
                           {CARRIER_LABEL[s][lang]}
                         </option>
                       ))}
-                    </select>
+                    </Select>
                   </L>
                   <L label={tr("ملاحظة (اختياري)", "Note (optional)")}>
                     <input name="note" maxLength={300} className={inputClass} />

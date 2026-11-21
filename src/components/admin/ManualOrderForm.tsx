@@ -1,5 +1,6 @@
 "use client";
 
+import { Select } from "@/components/ui/Select";
 import { LoaderCircle, Minus, Plus, Search, Store, Trash2, Truck, UserCheck } from "lucide-react";
 import { searchCustomers } from "@/app/actions/admin-customers";
 import { customerSearchTerms, type PastCustomer } from "@/lib/customer-search";
@@ -168,27 +169,27 @@ export function ManualOrderForm({
               </button>
             ) : null}
             <L label={tr("المدينة", "City")}>
-              <select name="cityId" required value={cityId} onChange={(e) => setCityId(e.target.value)} className={inputClass}>
+              <Select name="cityId" required value={cityId} onChange={(e) => setCityId(e.target.value)} className={inputClass}>
                 <option value="">{tr("اختر المدينة", "Pick the city")}</option>
                 {cities.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </L>
             {inShop ? (
               <input type="hidden" name="source" value="OTHER" />
             ) : (
               <>
                 <L label={tr("مصدر الطلب", "Order source")}>
-                  <select name="source" defaultValue="WHATSAPP" className={inputClass}>
+                  <Select name="source" defaultValue="WHATSAPP" className={inputClass}>
                     {Object.entries(lang === "en" ? MANUAL_SOURCES_EN : MANUAL_SOURCES).map(([k, label]) => (
                       <option key={k} value={k}>
                         {label}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </L>
                 <L label={tr("العنوان", "Address")} className="sm:col-span-2">
                   <input name="address" required maxLength={300} value={address} onChange={(e) => setAddress(e.target.value)} className={inputClass} />

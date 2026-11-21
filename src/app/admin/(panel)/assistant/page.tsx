@@ -7,6 +7,9 @@ import { adminTr } from "@/lib/admin-lang";
 import { adminLocale } from "@/lib/admin-tr";
 import { db } from "@/lib/db";
 import { TIME_ZONE } from "@/lib/time";
+import { adminTitle } from "@/lib/admin-title";
+
+export const generateMetadata = () => adminTitle("سجل المساعد", "Assistant log");
 
 
 const STATUS: Record<string, { label: [ar: string, en: string]; tone: BadgeTone }> = {

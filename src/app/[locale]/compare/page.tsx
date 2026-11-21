@@ -1,3 +1,4 @@
+import { Select } from "@/components/ui/Select";
 import { GitCompareArrows, X } from "lucide-react";
 import type { Metadata } from "next";
 import Image from "next/image";
@@ -54,7 +55,7 @@ async function Comparison({ locale, searchParams }: { locale: Locale; searchPara
         <label htmlFor="compare-add" className="sr-only">
           {t("add")}
         </label>
-        <select
+        <Select
           id="compare-add"
           name="p"
           required
@@ -75,7 +76,7 @@ async function Comparison({ locale, searchParams }: { locale: Locale; searchPara
               </optgroup>
             ) : null,
           )}
-        </select>
+        </Select>
         <button type="submit" className={buttonClass()}>
           {t("addButton")}
         </button>

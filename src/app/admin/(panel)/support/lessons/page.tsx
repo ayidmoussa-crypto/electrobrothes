@@ -8,6 +8,9 @@ import { requireAdmin } from "@/lib/admin";
 import { adminTr } from "@/lib/admin-lang";
 import { db } from "@/lib/db";
 import { SUPPORT_LESSON_MAX } from "@/lib/support/rules";
+import { adminTitle } from "@/lib/admin-title";
+
+export const generateMetadata = () => adminTitle("دروس الدعم", "Support lessons");
 
 /** What the owner taught the support assistant: rules it follows in every conversation, or for one product. */
 export default async function SupportLessonsPage() {

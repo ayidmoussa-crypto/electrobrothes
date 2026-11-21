@@ -11,6 +11,9 @@ import { adminTr } from "@/lib/admin-lang";
 import { db } from "@/lib/db";
 import { whatsappLink } from "@/lib/order-whatsapp";
 import { isActive, PROBLEM_CATEGORIES, STATUS_LABEL, STATUS_TONE, SUPPORT_LESSON_MAX, warrantyState, type ProblemCategory } from "@/lib/support/rules";
+import { adminTitle } from "@/lib/admin-title";
+
+export const generateMetadata = () => adminTitle("تذكرة الدعم", "Support ticket");
 
 export default async function SupportTicketPage({ params }: PageProps<"/admin/support/[id]">) {
   const [, { tr, lang }] = await Promise.all([requireAdmin(), adminTr()]);
