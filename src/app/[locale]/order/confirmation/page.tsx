@@ -111,7 +111,7 @@ async function Confirmation({ locale }: { locale: Locale }) {
               href={`https://wa.me/${whatsapp}?text=${waText}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-whatsapp px-5 font-bold text-ink transition-opacity hover:opacity-90 sm:flex-1"
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-whatsapp px-5 font-bold whitespace-nowrap text-white transition-opacity hover:opacity-90 sm:flex-1"
             >
               <MessageCircle className="size-5" aria-hidden="true" />
               {t("whatsapp")}
