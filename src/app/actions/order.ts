@@ -47,10 +47,10 @@ async function processOrder(raw: Record<string, string>): Promise<{ state: Order
   }
 
   const ip = await clientIp();
-  const fromIp = await hit(`order:ip:${ip}`, 3600);
+  // The limit counter and the captcha check are independent network calls: asked together, not one after the other.
+  const [fromIp, human] = await Promise.all([hit(`order:ip:${ip}`, 3600), verifyTurnstile(raw["cf-turnstile-response"] ?? null, ip)]);
   if (fromIp > MAX_ORDERS_PER_IP_HOUR) return { state: { error: "rate_limited", values } };
-
-  if (!(await verifyTurnstile(raw["cf-turnstile-response"] ?? null, ip))) return { state: { error: "captcha", values } };
+  if (!human) return { state: { error: "captcha", values } };
 
   const jar = await cookies();
   const result = await placeOrder(parsed.data, {

@@ -51,6 +51,12 @@ function remember(request: NextRequest, response: NextResponse) {
   return response;
 }
 
+// Products and categories found a moment ago: the check below is a request to our own API (a second function
+// call, and a database read), so a page that was just found to exist is not asked about again for a minute.
+// Only "exists" is remembered: a missing or moved page is always checked fresh.
+const FOUND_FOR_MS = 60_000;
+const found = new Map<string, number>();
+
 async function route(request: NextRequest) {
   const match = request.nextUrl.pathname.match(/^(\/en)?\/(products|category)\/([^/]+)$/);
   if (match) {
@@ -58,10 +64,16 @@ async function route(request: NextRequest) {
     const lookup = match[2] === "products" ? "product-redirect" : "category-exists";
     try {
       const slug = decodeURIComponent(match[3]);
+      const key = `${lookup}:${slug}`;
+      if ((found.get(key) ?? 0) > Date.now()) return intl(request);
       const res = await fetch(new URL(`/api/${lookup}?slug=${encodeURIComponent(slug)}`, request.nextUrl.origin), { signal: AbortSignal.timeout(5000) });
       const { exists, to } = (await res.json()) as { exists: boolean; to?: string | null };
       if (to) return NextResponse.redirect(new URL(movedProductPath(prefix, to), request.nextUrl.origin), 308);
       if (exists === false) return NextResponse.rewrite(new URL(missingPagePath(prefix), request.nextUrl.origin));
+      if (exists) {
+        if (found.size > 500) found.clear();
+        found.set(key, Date.now() + FOUND_FOR_MS);
+      }
     } catch {
       // The page itself still shows the 404 or redirects in the browser.
     }
