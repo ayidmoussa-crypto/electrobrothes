@@ -3,6 +3,9 @@ import { PageHeader } from "@/components/admin/ui";
 import { requireAdmin } from "@/lib/admin";
 import { adminTr } from "@/lib/admin-lang";
 import { editorOptions, emptyProduct } from "@/lib/admin-products";
+import { adminTitle } from "@/lib/admin-title";
+
+export const generateMetadata = () => adminTitle("إضافة منتج", "New product");
 
 export default async function NewProduct() {
   const [, { tr, lang }] = await Promise.all([requireAdmin(), adminTr()]);

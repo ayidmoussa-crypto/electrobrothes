@@ -4,6 +4,7 @@ import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
 import { Pixels } from "@/components/analytics/Pixels";
 import { VisitTracker } from "@/components/analytics/VisitTracker";
+import { Toaster } from "@/components/ui/Toaster";
 import { Footer } from "@/components/store/Footer";
 import { WhatsAppButton } from "@/components/store/WhatsAppButton";
 import { Header } from "@/components/store/Header";
@@ -36,7 +37,7 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
   const { locale } = await params;
   if (!hasLocale(routing.locales, locale)) notFound();
   setRequestLocale(locale);
-  const [t, a11y, messages] = await Promise.all([getTranslations("topbar"), getTranslations("a11y"), getMessages()]);
+  const [t, a11y, states, messages] = await Promise.all([getTranslations("topbar"), getTranslations("a11y"), getTranslations("states"), getMessages()]);
   // Only the namespaces client components read are serialized into the page (smaller HTML, faster hydration).
   const clientMessages = Object.fromEntries(CLIENT_NAMESPACES.map((ns) => [ns, messages[ns]]));
 
@@ -64,6 +65,7 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
           <WhatsAppButton locale={locale} />
           <Pixels />
           <VisitTracker />
+          <Toaster closeLabel={states("closeToast")} failed={states("requestFailed")} />
         </NextIntlClientProvider>
       </body>
     </html>

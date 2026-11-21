@@ -76,6 +76,21 @@ export function resolvePeriod(params: Params, now = new Date(), fallback: Preset
   return build(preset, today - (n - 1) * DAY, nowMs, query);
 }
 
+const SLOT = 2 * 60 * 1000;
+
+/**
+ * "Now" for the cached admin figures: the END of the 2-minute slot `ms` falls in (never past the end of today). It is
+ * the same for every request in the slot, so they share one cache entry, and it is never before `ms`, so an order
+ * placed a second ago is inside the period when the cache is refreshed after it.
+ */
+export const adminNow = (ms: number) => Math.min(Math.ceil((ms + 1) / SLOT) * SLOT, startOfDay(ms) + DAY - 1);
+
+/**
+ * resolvePeriod for the cached admin figures. Every date of the period (its end, and the start of the period before
+ * it, which moves with its end) is then the same for the whole slot: one cache entry per period per slot.
+ */
+export const resolveAdminPeriod = (params: Params, fallback: Preset = "30d") => resolvePeriod(params, new Date(adminNow(Date.now())), fallback);
+
 const short = new Intl.DateTimeFormat("fr-MA", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" });
 
 /** The words for a period inside a sentence or a title: "آخر 30 يوم", "this month", "أكتوبر 2026", "01/01/2024 – 13/11/2026". */

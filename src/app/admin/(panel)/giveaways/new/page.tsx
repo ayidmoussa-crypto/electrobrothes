@@ -4,6 +4,9 @@ import { requireAdmin } from "@/lib/admin";
 import { uploadsEnabled } from "@/lib/admin-bundles";
 import { giveawayProductOptions } from "@/lib/admin-giveaways";
 import { adminTr } from "@/lib/admin-lang";
+import { adminTitle } from "@/lib/admin-title";
+
+export const generateMetadata = () => adminTitle("سحب جديد", "New giveaway");
 
 export default async function NewGiveawayPage() {
   const [, { tr }] = await Promise.all([requireAdmin(), adminTr()]);

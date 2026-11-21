@@ -1,10 +1,17 @@
 import Link from "next/link";
 import { saveCity } from "@/app/actions/admin-catalog";
 import { ActionForm } from "@/components/admin/ActionForm";
+import { Pagination, pageHref } from "@/components/admin/Pagination";
 import { inputClass, L, PageHeader, Panel } from "@/components/admin/ui";
 import { adminTr, type Tr } from "@/lib/admin-lang";
 import { requireAdmin } from "@/lib/admin";
 import { db } from "@/lib/db";
+import { clampPage, parsePage } from "@/lib/pagination";
+import { adminTitle } from "@/lib/admin-title";
+
+export const generateMetadata = () => adminTitle("المدن والتوصيل", "Cities & delivery");
+
+const PAGE = 25;
 
 type City = { id?: string; nameAr: string; nameEn: string; shippingFee: number; deliveryDays: string; isActive: boolean; sortOrder: number };
 
@@ -35,9 +42,12 @@ function CityFields({ c, tr }: { c: City; tr: Tr }) {
   );
 }
 
-export default async function CitiesPage() {
+export default async function CitiesPage({ searchParams }: PageProps<"/admin/cities">) {
   const [, { tr }] = await Promise.all([requireAdmin(), adminTr()]);
-  const [cities, settings] = await Promise.all([db.city.findMany({ orderBy: { sortOrder: "asc" } }), db.settings.findUnique({ where: { id: 1 } })]);
+  const [total, settings] = await Promise.all([db.city.count(), db.settings.findUnique({ where: { id: 1 } })]);
+  const page = clampPage(parsePage((await searchParams).page), total, PAGE);
+  // The id breaks ties between cities with the same order number, so none shows on two pages or none.
+  const cities = await db.city.findMany({ orderBy: [{ sortOrder: "asc" }, { id: "asc" }], skip: (page - 1) * PAGE, take: PAGE });
 
   return (
     <>
@@ -52,7 +62,7 @@ export default async function CitiesPage() {
       />
       <Panel title={tr("مدينة جديدة", "New city")} className="mb-4">
         <ActionForm action={saveCity} submitLabel={tr("إضافة", "Add")}>
-          <CityFields tr={tr} c={{ nameAr: "", nameEn: "", shippingFee: 30, deliveryDays: "1-3", isActive: true, sortOrder: cities.length }} />
+          <CityFields tr={tr} c={{ nameAr: "", nameEn: "", shippingFee: 30, deliveryDays: "1-3", isActive: true, sortOrder: total }} />
         </ActionForm>
       </Panel>
       <ul className="flex flex-col gap-2">
@@ -64,6 +74,7 @@ export default async function CitiesPage() {
           </li>
         ))}
       </ul>
+      <Pagination page={page} total={total} size={PAGE} href={(n) => pageHref("/admin/cities", {}, n)} tr={tr} />
     </>
   );
 }

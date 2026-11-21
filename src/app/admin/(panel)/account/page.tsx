@@ -12,6 +12,9 @@ import { adminLocale } from "@/lib/admin-tr";
 import { db } from "@/lib/db";
 import { TIME_ZONE } from "@/lib/time";
 import { groupKey, openTotpSecret, otpauthUrl } from "@/lib/totp";
+import { adminTitle } from "@/lib/admin-title";
+
+export const generateMetadata = () => adminTitle("الحساب", "Account");
 
 const BAD = new Set(["login_failed", "login_blocked", "2fa_failed", "admin_denied"]);
 

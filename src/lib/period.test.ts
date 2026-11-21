@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { chartSlots, periodLabel, previousSlots, resolvePeriod } from "./period";
+import { chartSlots, periodLabel, previousSlots, resolvePeriod, adminNow } from "./period";
 import { smoothPath } from "./chart-path";
 
 test("the line before lines up slot for slot with the chosen period", () => {
@@ -109,4 +109,29 @@ test("a page can open on another period when none is asked; an asked one always 
   assert.equal(resolvePeriod({}, now, "month").preset, "month");
   assert.equal(resolvePeriod({}, now, "month").firstDay, "2026-11-01");
   assert.equal(resolvePeriod({ p: "30d" }, now, "month").preset, "30d");
+});
+
+test("the cached admin periods are the same for a whole 2-minute slot, and never end before now", () => {
+  const slot = Date.UTC(2026, 10, 20, 14, 30, 0, 0);
+  const inside = [slot, slot + 5_123, slot + 119_999];
+  const end = slot + 120_000;
+  for (const ms of inside) {
+    assert.equal(adminNow(ms), end);
+    assert.ok(adminNow(ms) > ms);
+  }
+  assert.equal(adminNow(end), end + 120_000);
+  // A new order a second ago must be inside a period refreshed after it.
+  assert.ok(adminNow(Date.UTC(2026, 10, 20, 14, 31, 59, 0)) >= Date.UTC(2026, 10, 20, 14, 31, 59, 0));
+  // Never into tomorrow: the last slot of the day ends with the day, so the period's last day stays today.
+  const night = Date.UTC(2026, 10, 20, 23, 59, 30, 0);
+  assert.equal(adminNow(night), Date.UTC(2026, 10, 20, 23, 59, 59, 999));
+  assert.equal(resolvePeriod({}, new Date(adminNow(night)), "month").lastDay, "2026-11-20");
+  // The start of the period before moves with the period's end, so a raw "now" would give every request its own key.
+  assert.notEqual(resolvePeriod({}, new Date(inside[0]), "month").prevFrom.getTime(), resolvePeriod({}, new Date(inside[2]), "month").prevFrom.getTime());
+  const key = (ms: number) => {
+    const p = resolvePeriod({}, new Date(adminNow(ms)), "month");
+    return [p.from, p.until, p.prevFrom].map(Number).join();
+  };
+  assert.equal(key(inside[0]), key(inside[2]));
+  assert.notEqual(key(inside[2]), key(end));
 });

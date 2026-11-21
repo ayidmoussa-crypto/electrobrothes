@@ -3,6 +3,9 @@ import { PageHeader, Panel } from "@/components/admin/ui";
 import { requireAdmin } from "@/lib/admin";
 import { adminTr } from "@/lib/admin-lang";
 import { db } from "@/lib/db";
+import { adminTitle } from "@/lib/admin-title";
+
+export const generateMetadata = () => adminTitle("صور العروض", "Campaign images");
 
 /** The shop's own photos: campaign photos used by offers, then every product photo. Uploading happens in an offer. */
 export default async function CampaignImages() {

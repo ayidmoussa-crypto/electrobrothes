@@ -1,16 +1,22 @@
 import { MessageCircle, Search, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { removeSubscriber } from "@/app/actions/admin-customers";
+import { Pagination, pageHref } from "@/components/admin/Pagination";
 import { PageHeader, tdClass, thClass } from "@/components/admin/ui";
 import { requireAdmin } from "@/lib/admin";
 import { adminTr } from "@/lib/admin-lang";
 import { adminLocale } from "@/lib/admin-tr";
 import { db } from "@/lib/db";
 import { formatMAD } from "@/lib/money";
+import { clampPage, parsePage } from "@/lib/pagination";
 import { formatMoroccanPhone } from "@/lib/phone";
 import { TIME_ZONE } from "@/lib/time";
+import { adminTitle } from "@/lib/admin-title";
 
-const LIMIT = 200;
+export const generateMetadata = () => adminTitle("الزبناء", "Customers");
+
+const PAGE = 25;
+const EMAIL_PAGE = 25;
 
 type Buyer = {
   phone: string;
@@ -28,9 +34,25 @@ export default async function CustomersPage({ searchParams }: PageProps<"/admin/
   const [, { tr, lang }] = await Promise.all([requireAdmin(), adminTr()]);
   const dateFmt = new Intl.DateTimeFormat(adminLocale(lang), { dateStyle: "medium", timeStyle: "short", timeZone: TIME_ZONE });
   const dayFmt = new Intl.DateTimeFormat(adminLocale(lang), { dateStyle: "medium", timeZone: TIME_ZONE });
-  const raw = (await searchParams).q;
-  const q = (typeof raw === "string" ? raw : "").trim().slice(0, 60);
+  const sp = await searchParams;
+  const q = (typeof sp.q === "string" ? sp.q : "").trim().slice(0, 60);
   const like = `%${q}%`;
+
+  // Every buyer matching the search, and how many of them bought more than once: counted in the database, whatever the page.
+  const [totals] = await db.$queryRaw<{ total: number; repeat: number }[]>`
+    SELECT count(*)::int AS total, count(*) FILTER (WHERE t.delivered >= 2)::int AS repeat
+    FROM (
+      SELECT count(*) FILTER (WHERE o."status" = 'DELIVERED') AS delivered
+      FROM "Order" o
+      GROUP BY o."phone"
+      HAVING ${q} = '' OR bool_or(o."customerName" ILIKE ${like} OR o."phone" ILIKE ${like} OR o."cityName" ILIKE ${like} OR o."address" ILIKE ${like})
+    ) t`;
+  const total = totals?.total ?? 0;
+  const repeat = totals?.repeat ?? 0;
+  const page = clampPage(parsePage(sp.page), total, PAGE);
+  // The email list pages on its own (?epage), so turning one list's page does not move the other.
+  const emailTotal = await db.emailSubscriber.count();
+  const emailPage = clampPage(parsePage(sp.epage), emailTotal, EMAIL_PAGE);
 
   // One row per phone number: a buyer is whoever ordered with it. Name, city and address are the latest ones they gave.
   const [buyers, emails] = await Promise.all([
@@ -47,12 +69,10 @@ export default async function CustomersPage({ searchParams }: PageProps<"/admin/
       FROM "Order" o
       GROUP BY o."phone"
       HAVING ${q} = '' OR bool_or(o."customerName" ILIKE ${like} OR o."phone" ILIKE ${like} OR o."cityName" ILIKE ${like} OR o."address" ILIKE ${like})
-      ORDER BY delivered DESC, last DESC
-      LIMIT ${LIMIT}`,
-    db.emailSubscriber.findMany({ orderBy: { createdAt: "desc" } }),
+      ORDER BY delivered DESC, last DESC, o."phone"
+      LIMIT ${PAGE} OFFSET ${(page - 1) * PAGE}`,
+    db.emailSubscriber.findMany({ orderBy: [{ createdAt: "desc" }, { id: "asc" }], skip: (emailPage - 1) * EMAIL_PAGE, take: EMAIL_PAGE }),
   ]);
-
-  const repeat = buyers.filter((b) => b.delivered >= 2).length;
 
   return (
     <>
@@ -60,9 +80,9 @@ export default async function CustomersPage({ searchParams }: PageProps<"/admin/
 
       <dl className="mb-5 grid grid-cols-3 gap-3">
         {[
-          [tr("زبون", "Customers"), buyers.length >= LIMIT ? `+${LIMIT}` : String(buyers.length)],
+          [tr("زبون", "Customers"), String(total)],
           [tr("شراو أكثر من مرة", "Bought more than once"), String(repeat)],
-          [tr("بريد إلكتروني", "Emails"), String(emails.length)],
+          [tr("بريد إلكتروني", "Emails"), String(emailTotal)],
         ].map(([label, value]) => (
           <div key={label} className="admin-card p-4">
             <dt className="text-xs font-semibold text-warm-600">{label}</dt>
@@ -154,7 +174,7 @@ export default async function CustomersPage({ searchParams }: PageProps<"/admin/
             </tbody>
           </table>
         </div>
-        {buyers.length >= LIMIT ? <p className="mt-2 text-xs text-warm-600">{tr(`كيبانو ${LIMIT} الأوائل. استعمل البحث باش تلقى زبون معيّن.`, `The first ${LIMIT} show. Use search to find a given customer.`)}</p> : null}
+        <Pagination page={page} total={total} size={PAGE} href={(n) => pageHref("/admin/customers", { q, epage: emailPage > 1 ? String(emailPage) : undefined }, n, { hash: "buyers" })} tr={tr} />
       </section>
 
       <section aria-labelledby="emails">
@@ -204,6 +224,7 @@ export default async function CustomersPage({ searchParams }: PageProps<"/admin/
             </tbody>
           </table>
         </div>
+        <Pagination page={emailPage} total={emailTotal} size={EMAIL_PAGE} href={(n) => pageHref("/admin/customers", { q, page: page > 1 ? String(page) : undefined }, n, { key: "epage", hash: "emails" })} tr={tr} />
       </section>
     </>
   );

@@ -3,6 +3,7 @@
 import { ArrowLeftRight, Check, ChevronDown, LoaderCircle } from "lucide-react";
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
+import { panelHost } from "@/components/ui/Popover";
 
 const LIST_WIDTH = 192; // w-48
 
@@ -38,6 +39,7 @@ export function PillMenu({
 }) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
+  const [host, setHost] = useState<Element | null>(null);
   const [pos, setPos] = useState<{ top: number; left: number; up: boolean }>({ top: 0, left: 0, up: false });
   const button = useRef<HTMLButtonElement>(null);
   const list = useRef<HTMLUListElement>(null);
@@ -66,6 +68,7 @@ export function PillMenu({
   };
 
   const show = () => {
+    setHost(panelHost(button.current));
     place();
     setActive(Math.max(0, all.findIndex((o) => o.value === current.value)));
     setOpen(true);
@@ -159,7 +162,7 @@ export function PillMenu({
           aria-activedescendant={`${id}-${active}`}
           onKeyDown={onKey}
           style={{ top: pos.top, left: pos.left, transform: `translate(-100%, ${pos.up ? "-100%" : "0"})` }}
-          className="fixed z-50 w-48 rounded-2xl bg-white p-1.5 shadow-xl shadow-ink/15 ring-1 ring-warm-200 outline-none"
+          className="fixed z-50 w-48 rounded-2xl bg-white p-1.5 shadow-xl shadow-deep/25 ring-1 ring-warm-200 outline-none"
         >
           {all.map((o, i) => (
             <li
@@ -180,7 +183,7 @@ export function PillMenu({
             </li>
           ))}
         </ul>,
-        document.body,
+        host ?? document.body,
       ) : null}
     </>
   );

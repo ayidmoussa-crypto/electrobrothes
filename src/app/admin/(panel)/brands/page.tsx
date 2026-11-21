@@ -4,6 +4,9 @@ import { inputClass, L, PageHeader, Panel } from "@/components/admin/ui";
 import { adminTr } from "@/lib/admin-lang";
 import { requireAdmin } from "@/lib/admin";
 import { db } from "@/lib/db";
+import { adminTitle } from "@/lib/admin-title";
+
+export const generateMetadata = () => adminTitle("الماركات", "Brands");
 
 export default async function BrandsPage() {
   const [, { tr }] = await Promise.all([requireAdmin(), adminTr()]);

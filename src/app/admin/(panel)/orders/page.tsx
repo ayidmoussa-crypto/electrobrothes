@@ -1,3 +1,5 @@
+import { DateField } from "@/components/ui/DateField";
+import { Select } from "@/components/ui/Select";
 import { Columns3, Download, Plus, Rows3, Search, ShieldAlert, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -5,6 +7,7 @@ import { CarrierLogo } from "@/components/admin/CarrierLogo";
 import { PaymentMenu, StatusMenu, WhatsAppConfirm } from "@/components/admin/OrderRowMenus";
 import { AllCheck, OrderSelectionProvider, RowCheck, SelectionBar } from "@/components/admin/OrderSelection";
 import { orderWhatsappHref } from "@/lib/order-whatsapp-href";
+import { Pagination } from "@/components/admin/Pagination";
 import { PageHeader, tdClass, thClass } from "@/components/admin/ui";
 import { buttonClass } from "@/components/ui/button";
 import { Badge } from "@/components/ui/Badge";
@@ -22,6 +25,9 @@ import { deleteBlock, ORDER_STATUSES, type OrderStatus } from "@/lib/order-rules
 import { formatMoroccanPhone } from "@/lib/phone";
 import { statusLabel } from "@/components/admin/ui";
 import { TIME_ZONE } from "@/lib/time";
+import { adminTitle } from "@/lib/admin-title";
+
+export const generateMetadata = () => adminTitle("الطلبات", "Orders");
 
 const PAGE = 30;
 /** Columns of the board, in the order an order travels; cancelled last. */
@@ -152,7 +158,6 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
   // Every order on screen that can be ticked: the board's cards, or the list's rows (desktop only; phones have no ticks).
   const shown = board ? board.lists.flat() : orders;
   const trackingLink =(url: string | null, tracking: string | null) => (url && tracking ? url.replace("{tracking}", encodeURIComponent(tracking)) : null);
-  const pages = Math.max(1, Math.ceil(total / PAGE));
   const input = "min-h-11 admin-field rounded-lg px-3 text-sm text-warm-800";
 
   return (
@@ -203,23 +208,23 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
         {/* On the board each status is a column already. */}
         <label className={`flex shrink-0 flex-col gap-1 text-xs text-warm-600 ${board ? "lg:hidden" : ""}`}>
           <span className="max-lg:sr-only">{tr("الحالة", "Status")}</span>
-          <select name="status" defaultValue={f.status ?? ""} className={`${input} max-lg:max-w-28`}>
+          <Select name="status" defaultValue={f.status ?? ""} className={`${input} max-lg:max-w-28`}>
             <option value="">{tr("الكل", "All")}</option>
             {ORDER_STATUSES.map((s) => (
               <option key={s} value={s}>
                 {statusLabel(s, lang)}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         {/* Hidden on phones, but a date chosen on desktop still travels with the search. */}
         <label className="flex flex-col gap-1 text-xs text-warm-600 max-lg:hidden">
           {tr("من", "From")}
-          <input type="date" name="from" defaultValue={f.from} className={input} />
+          <DateField name="from" defaultValue={f.from} className={input} lang={lang} />
         </label>
         <label className="flex flex-col gap-1 text-xs text-warm-600 max-lg:hidden">
           {tr("إلى", "To")}
-          <input type="date" name="to" defaultValue={f.to} className={input} />
+          <DateField name="to" defaultValue={f.to} className={input} lang={lang} />
         </label>
         <label className="flex min-h-11 items-center gap-2 text-sm text-warm-800 max-lg:hidden">
           <input type="checkbox" name="risky" value="1" defaultChecked={f.risky} className="size-5 accent-ink" />
@@ -407,20 +412,7 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
       )}
       </OrderSelectionProvider>
 
-      {pages > 1 ? (
-        <nav aria-label={tr("الصفحات", "Pages")} className={`mt-4 flex flex-wrap gap-1 ${board ? "lg:hidden" : ""}`}>
-          {Array.from({ length: pages }, (_, i) => i + 1).map((n) => (
-            <Link
-              key={n}
-              href={`/admin/orders${filterQuery({ ...f, page: n })}`}
-              aria-current={n === f.page ? "page" : undefined}
-              className={buttonClass({ variant: n === f.page ? "dark" : "ghost", size: "icon" })}
-            >
-              {n}
-            </Link>
-          ))}
-        </nav>
-      ) : null}
+      <Pagination page={f.page} total={total} size={PAGE} href={(n) => `/admin/orders${filterQuery({ ...f, page: n })}`} tr={tr} className={board ? "lg:hidden" : ""} />
     </>
   );
 }

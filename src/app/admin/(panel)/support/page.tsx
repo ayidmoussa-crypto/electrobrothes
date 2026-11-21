@@ -1,16 +1,22 @@
 import { buttonClass } from "@/components/ui/button";
 import { Bot, CheckCircle2, ChevronLeft, Droplets, GraduationCap, LifeBuoy, RefreshCw, UserRound } from "lucide-react";
 import Link from "next/link";
+import { Pagination, pageHref } from "@/components/admin/Pagination";
 import { PeriodPicker } from "@/components/admin/PeriodPicker";
 import { PageHeader, Panel, Stat, tdClass, thClass } from "@/components/admin/ui";
 import { Badge } from "@/components/ui/Badge";
 import { requireAdmin } from "@/lib/admin";
 import { adminTr } from "@/lib/admin-lang";
 import { db } from "@/lib/db";
+import { clampPage, parsePage } from "@/lib/pagination";
 import { periodLabel, resolvePeriod } from "@/lib/period";
 import { PROBLEM_CATEGORIES, STATUS_LABEL, STATUS_TONE, supportStats, type ProblemCategory, type SupportStatusKey } from "@/lib/support/rules";
 import { toMoroccanInput } from "@/lib/time";
+import { adminTitle } from "@/lib/admin-title";
 
+export const generateMetadata = () => adminTitle("الدعم التقني", "Technical support");
+
+const PAGE = 20;
 const FILTERS: (SupportStatusKey | "all")[] = ["all", "ESCALATED", "OPEN", "SOLVED", "REPLACED", "UNSOLVED"];
 
 export default async function SupportAdminPage({ searchParams }: PageProps<"/admin/support">) {
@@ -22,15 +28,19 @@ export default async function SupportAdminPage({ searchParams }: PageProps<"/adm
   const raw = Array.isArray(params.status) ? params.status[0] : params.status;
   const filter = FILTERS.includes(raw as SupportStatusKey) ? (raw as SupportStatusKey) : "all";
   const inPeriod = { createdAt: { gte: period.from, lte: period.until } };
+  const ticketWhere = filter === "all" ? inPeriod : filter === "ESCALATED" ? { status: "ESCALATED" as const } : { ...inPeriod, status: filter };
+  const ticketTotal = await db.supportTicket.count({ where: ticketWhere });
+  const page = clampPage(parsePage(params.page), ticketTotal, PAGE);
 
   const [rows, waiting, tickets, lessonCount] = await Promise.all([
     db.supportTicket.findMany({ where: inPeriod, select: { status: true, solvedByAi: true, verdict: true, category: true, productId: true, productName: true } }),
     // Whatever the period: these need the owner now.
     db.supportTicket.count({ where: { status: "ESCALATED" } }),
     db.supportTicket.findMany({
-      where: filter === "all" ? inPeriod : filter === "ESCALATED" ? { status: "ESCALATED" } : { ...inPeriod, status: filter },
-      orderBy: [{ updatedAt: "desc" }],
-      take: 100,
+      where: ticketWhere,
+      orderBy: [{ updatedAt: "desc" }, { id: "asc" }],
+      skip: (page - 1) * PAGE,
+      take: PAGE,
       select: { id: true, status: true, verdict: true, category: true, productName: true, summary: true, solvedByAi: true, updatedAt: true, order: { select: { number: true, customerName: true } }, _count: { select: { messages: true } } },
     }),
     db.supportLesson.count({ where: { isActive: true } }),
@@ -172,6 +182,7 @@ export default async function SupportAdminPage({ searchParams }: PageProps<"/adm
         ) : (
           <p className="text-sm text-warm-600">{tr("ما كاينة حتى محادثة هنا.", "No conversations here.")}</p>
         )}
+        <Pagination page={page} total={ticketTotal} size={PAGE} href={(n) => pageHref("/admin/support", { ...Object.fromEntries(new URLSearchParams(period.query)), status: filter === "all" ? undefined : filter }, n)} tr={tr} />
         <p className="mt-4 text-xs text-warm-500">
           {tr(
             "الزبون كيدخل من رابط خاص (زر «رابط الدعم» فصفحة الطلب) ولا من صفحة «الدعم التقني» فالمتجر برقم الطلب والهاتف. غير الطلبات اللي وصلات.",

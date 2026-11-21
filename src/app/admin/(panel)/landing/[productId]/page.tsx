@@ -5,6 +5,9 @@ import { requireAdmin } from "@/lib/admin";
 import { adminTr } from "@/lib/admin-lang";
 import { db } from "@/lib/db";
 import { draftOf } from "@/lib/landing-data";
+import { adminTitle } from "@/lib/admin-title";
+
+export const generateMetadata = () => adminTitle("صفحة الهبوط", "Landing page");
 
 export default async function LandingEditPage({ params }: PageProps<"/admin/landing/[productId]">) {
   const [{ productId }, , { tr, lang }] = await Promise.all([params, requireAdmin(), adminTr()]);

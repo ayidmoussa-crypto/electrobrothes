@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath, updateTag } from "next/cache";
+import { ADMIN_STATS_TAG } from "@/lib/admin-stats-tag";
 import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import { requireAdmin } from "@/lib/admin";
@@ -105,7 +106,8 @@ export async function saveCity(_: State, fd: FormData) {
       else await db.city.create({ data });
     },
     ["/admin/cities"],
-    ["settings"],
+    // A city's delivery fee is part of the profit figures.
+    ["settings", ADMIN_STATS_TAG],
     (await adminTr()).tr("تم الحفظ.", "Saved."),
   );
 }

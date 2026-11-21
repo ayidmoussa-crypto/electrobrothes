@@ -1,5 +1,6 @@
 "use server";
 
+import { expireAdminStats } from "@/lib/admin-stats-tag";
 import { revalidatePath, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -16,6 +17,8 @@ export type ProductFormState = { ok?: boolean; message?: string; errors?: string
 
 // updateTag (not revalidateTag): the very next storefront visit already shows the edit.
 function refreshStorefront(slug?: string) {
+  // The stock, the purchase prices and what is shown feed the dashboard and finance figures too.
+  expireAdminStats();
   updateTag("products");
   if (slug) updateTag(`product:${slug}`);
   revalidatePath("/admin/products");

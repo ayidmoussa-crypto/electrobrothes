@@ -22,7 +22,7 @@ import {
   Plus,
   Settings,
   ShoppingCart,
-  Sparkles,
+  TrendingUp,
   Star,
   Store,
   Sun,
@@ -87,7 +87,7 @@ const items: Item[] = [
     ],
   },
   { href: "/admin/finance", label: ["المالية", "Finance"], icon: Landmark },
-  { href: "/admin/seo", label: ["السيو", "SEO"], icon: Sparkles },
+  { href: "/admin/seo", label: ["السيو", "SEO"], icon: TrendingUp },
   {
     href: "/admin/settings",
     label: ["الإعدادات", "Settings"],

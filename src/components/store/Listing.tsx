@@ -1,7 +1,8 @@
-import { ChevronLeft, ChevronRight, PackageOpen, SlidersHorizontal, X } from "lucide-react";
+import { PackageOpen, SlidersHorizontal, X } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { buttonClass } from "@/components/ui/button";
+import { Pagination } from "@/components/ui/Pagination";
 import { StatePanel } from "@/components/ui/States";
 import { getPathname, Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
@@ -131,8 +132,6 @@ export async function Listing({
     </form>
   );
 
-  const Prev = locale === "ar" ? ChevronRight : ChevronLeft;
-  const Next = locale === "ar" ? ChevronLeft : ChevronRight;
 
   return (
     <div className="grid gap-6 lg:grid-cols-[16rem_1fr]">
@@ -198,31 +197,14 @@ export async function Listing({
           (empty ?? <EmptyListing locale={locale} clearHref={chips.length ? `${basePath}${listingQuery({ q })}` : undefined} />)
         )}
 
-        {result.pages > 1 ? (
-          <nav aria-label={t("pagination")} className="mt-8 flex items-center justify-center gap-1">
-            {result.page > 1 ? (
-              <Link href={href({ page: result.page - 1 })} rel="prev" aria-label={t("previous")} className={buttonClass({ variant: "outline", size: "icon" })}>
-                <Prev className="size-5" aria-hidden="true" />
-              </Link>
-            ) : null}
-            {Array.from({ length: result.pages }, (_, i) => i + 1).map((n) => (
-              <Link
-                key={n}
-                href={href({ page: n })}
-                aria-current={n === result.page ? "page" : undefined}
-                aria-label={t("pageOf", { page: n, pages: result.pages })}
-                className={buttonClass({ variant: n === result.page ? "dark" : "ghost", size: "icon" })}
-              >
-                {n}
-              </Link>
-            ))}
-            {result.page < result.pages ? (
-              <Link href={href({ page: result.page + 1 })} rel="next" aria-label={t("next")} className={buttonClass({ variant: "outline", size: "icon" })}>
-                <Next className="size-5" aria-hidden="true" />
-              </Link>
-            ) : null}
-          </nav>
-        ) : null}
+        <Pagination
+          page={result.page}
+          pages={result.pages}
+          href={(n) => href({ page: n })}
+          link={Link}
+          className="mt-8"
+          labels={{ nav: t("pagination"), previous: t("previous"), next: t("next"), page: (n) => t("pageOf", { page: n, pages: result.pages }) }}
+        />
       </div>
     </div>
   );

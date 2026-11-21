@@ -18,21 +18,22 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import type { Prisma } from "@/generated/prisma/client";
 import { AreaChart } from "@/components/admin/AreaChart";
 import { STATUS_LABEL } from "@/components/admin/ui";
 import { buttonClass } from "@/components/ui/button";
 import { requireAdmin } from "@/lib/admin";
 import { adminLang, type AdminLang } from "@/lib/admin-lang";
-import { db } from "@/lib/db";
 import { changePct } from "@/lib/finance";
-import { loadProfit } from "@/lib/finance-data";
+import { dashboardData, type DashboardOrder, type ProductRow } from "@/lib/dashboard-data";
 import { formatMAD } from "@/lib/money";
 import { ORDER_STATUSES, type OrderStatus } from "@/lib/order-rules";
-import { chartSlots, periodLabel, previousSlots, resolvePeriod } from "@/lib/period";
+import { chartSlots, periodLabel, previousSlots, resolveAdminPeriod } from "@/lib/period";
 import { codRates } from "@/lib/stats";
 import { PeriodPicker } from "@/components/admin/PeriodPicker";
 import { TIME_ZONE } from "@/lib/time";
+import { adminTitle } from "@/lib/admin-title";
+
+export const generateMetadata = () => adminTitle("الإحصائيات", "Overview");
 
 const TZ = TIME_ZONE;
 
@@ -192,19 +193,6 @@ const T = {
 };
 type Words = (typeof T)["ar"];
 
-const orderSelect = {
-  id: true,
-  number: true,
-  status: true,
-  customerName: true,
-  cityName: true,
-  total: true,
-  _count: { select: { items: true } },
-  items: {
-    take: 1,
-    select: { nameAr: true, nameEn: true, variant: { select: { product: { select: { images: { orderBy: { sortOrder: "asc" }, take: 1, select: { url: true } } } } } } },
-  },
-} as const;
 
 export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
   const admin = await requireAdmin();
@@ -212,78 +200,15 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
   const t = T[lang];
   const ar = lang === "ar";
   // The dashboard opens on the current month; the other pages keep the last 30 days.
-  const period = resolvePeriod(await searchParams, new Date(), "month");
+  const period = resolveAdminPeriod(await searchParams, "month");
   const span = periodLabel(period, lang);
   const { from: since, until, prevFrom } = period;
-  const inPeriod = { gte: since, lte: until };
 
-  // perDay covers the period before too, for the chart's dashed line.
-  const [profit, byStatus, perDay, products, cities, todayByStatus, before, confirmedIds] = await Promise.all([
-    loadProfit(since, until),
-    db.order.groupBy({ by: ["status"], where: { createdAt: inPeriod }, _count: true }),
-    db.$queryRaw<{ day: string; count: number }[]>`
-      SELECT to_char(("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE ${TZ}, 'YYYY-MM-DD') AS day, count(*)::int AS count
-      FROM "Order" WHERE "createdAt" >= ${prevFrom} AND "createdAt" <= ${until} GROUP BY 1`,
-    // Best products of the period: units delivered and sent back, money in, purchase cost of what was delivered.
-    db.$queryRaw<ProductRow[]>`
-      SELECT p."id", p."nameAr", p."nameEn",
-        (SELECT pi."url" FROM "ProductImage" pi WHERE pi."productId" = p."id" ORDER BY pi."sortOrder" LIMIT 1) AS image,
-        COALESCE(round(avg(oi."unitPrice") FILTER (WHERE o."status" = 'DELIVERED')), round(avg(oi."unitPrice")))::int AS price,
-        COALESCE(sum(oi."quantity") FILTER (WHERE o."status" = 'DELIVERED'), 0)::int AS delivered,
-        COALESCE(sum(oi."quantity") FILTER (WHERE o."status" IN ('RETURNING', 'RETURNED')), 0)::int AS returned,
-        COALESCE(sum(oi."unitPrice" * oi."quantity") FILTER (WHERE o."status" = 'DELIVERED'), 0)::int AS revenue,
-        COALESCE(sum(COALESCE(oi."unitCost", 0) * oi."quantity") FILTER (WHERE o."status" = 'DELIVERED'), 0)::int AS cost,
-        COALESCE(bool_or(oi."unitCost" IS NULL) FILTER (WHERE o."status" = 'DELIVERED'), false) AS "missingCost"
-      FROM "OrderItem" oi
-      JOIN "Order" o ON o."id" = oi."orderId"
-      JOIN "Variant" v ON v."id" = oi."variantId"
-      JOIN "Product" p ON p."id" = v."productId"
-      WHERE o."createdAt" >= ${since} AND o."createdAt" <= ${until} AND o."status" IN ('DELIVERED', 'RETURNING', 'RETURNED')
-      GROUP BY p."id"
-      ORDER BY delivered DESC, revenue DESC
-      LIMIT 5`,
-    // Where the orders of the period go.
-    db.$queryRaw<{ id: string; nameAr: string; nameEn: string; count: number }[]>`
-      SELECT c."id", c."nameAr", c."nameEn", count(*)::int AS count
-      FROM "Order" o JOIN "City" c ON c."id" = o."cityId"
-      WHERE o."createdAt" >= ${since} AND o."createdAt" <= ${until}
-      GROUP BY c."id"
-      ORDER BY count DESC
-      LIMIT 8`,
-    // Orders that came in today (shop's time zone), by where they stand now.
-    db.$queryRaw<{ status: OrderStatus; count: number }[]>`
-      SELECT "status", count(*)::int AS count FROM "Order"
-      WHERE (("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE ${TZ})::date = (now() AT TIME ZONE ${TZ})::date
-      GROUP BY 1`,
-    // The same length of time just before, for the change badge.
-    db.order.count({ where: { createdAt: { gte: prevFrom, lt: since } } }),
-    // Confirmed today, whenever the order came in (a call today can confirm yesterday's order).
-    db.$queryRaw<{ id: string }[]>`
-      SELECT DISTINCT "orderId" AS id FROM "OrderStatusLog"
-      WHERE "toStatus" = 'CONFIRMED' AND (("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE ${TZ})::date = (now() AT TIME ZONE ${TZ})::date`,
-  ]);
-  // Newest confirmation first; an order cancelled since then no longer counts.
-  const confirmed = await db.order.findMany({
-    where: { id: { in: confirmedIds.map((r) => r.id) }, status: { not: "CANCELLED" } },
-    orderBy: { updatedAt: "desc" },
-    select: orderSelect,
-  });
-  // Ready to ship = confirmed and still waiting for the carrier, whatever day they were confirmed.
-  const [ready, readyTotal] = await Promise.all([
-    db.order.findMany({ where: { status: "CONFIRMED" }, orderBy: { updatedAt: "desc" }, take: 4, select: orderSelect }),
-    db.order.count({ where: { status: "CONFIRMED" } }),
-  ]);
+  // Cached for two minutes, expired by any order, stock or money change. The period's dates are fixed for the whole 2-minute slot (resolveAdminPeriod), so they are the cache key.
+  const { profit, byStatus, perDay, products, cities, todayByStatus, before, confirmed, ready, readyTotal, earlier } = await dashboardData(since.getTime(), until.getTime(), prevFrom.getTime());
   const today = Object.fromEntries(todayByStatus.map((s) => [s.status, s.count])) as Partial<Record<OrderStatus, number>>;
   const todayTotal = todayByStatus.reduce((s, r) => s + r.count, 0);
 
-  // The same products in the period just before: the trend arrow next to each name.
-  const earlier = products.length
-    ? await db.$queryRaw<{ id: string; delivered: number }[]>`
-        SELECT v."productId" AS id, sum(oi."quantity")::int AS delivered
-        FROM "OrderItem" oi JOIN "Order" o ON o."id" = oi."orderId" JOIN "Variant" v ON v."id" = oi."variantId"
-        WHERE o."status" = 'DELIVERED' AND o."createdAt" >= ${prevFrom} AND o."createdAt" < ${since} AND v."productId" = ANY(${products.map((p) => p.id)})
-        GROUP BY 1`
-    : [];
   const deliveredBefore = new Map(earlier.map((r) => [r.id, r.delivered]));
 
   const counts = Object.fromEntries(byStatus.map((s) => [s.status, s._count])) as Partial<Record<OrderStatus, number>>;
@@ -436,7 +361,7 @@ function Cost({ icon: Icon, label, value, note }: { icon: LucideIcon; label: str
 }
 
 
-type TodayOrder = Prisma.OrderGetPayload<{ select: typeof orderSelect }>;
+type TodayOrder = DashboardOrder;
 
 // The ring's circle: r = 52 in a 128 box.
 const RING = 2 * Math.PI * 52;
@@ -638,18 +563,6 @@ function Today({
     </section>
   );
 }
-type ProductRow = {
-  id: string;
-  nameAr: string;
-  nameEn: string;
-  image: string | null;
-  price: number;
-  delivered: number;
-  returned: number;
-  revenue: number;
-  cost: number;
-  missingCost: boolean;
-};
 
 /** Where the period's orders go: one bar per city, the leader in brand yellow. */
 function TopCities({ t, lang, cities, total, span }: { t: Words; lang: AdminLang; cities: { id: string; nameAr: string; nameEn: string; count: number }[]; total: number; span: string }) {

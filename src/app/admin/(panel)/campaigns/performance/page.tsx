@@ -5,6 +5,9 @@ import { adminTr } from "@/lib/admin-lang";
 import { campaignStats, type CampaignRow } from "@/lib/campaign-stats";
 import { formatMAD } from "@/lib/money";
 import { campaignRates } from "@/lib/offers";
+import { adminTitle } from "@/lib/admin-title";
+
+export const generateMetadata = () => adminTitle("أداء العروض", "Campaign performance");
 
 /** Clicks and orders per home offer and per offer page template, last 30 days. Delivered orders are the main figure. */
 export default async function CampaignPerformance() {

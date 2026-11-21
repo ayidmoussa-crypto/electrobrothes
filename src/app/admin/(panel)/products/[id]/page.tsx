@@ -17,6 +17,9 @@ import { db } from "@/lib/db";
 import { isStaleRating } from "@/lib/reviews/rules";
 import { seoProductDetail } from "@/lib/seo-content/service";
 import { TIME_ZONE } from "@/lib/time";
+import { adminTitle } from "@/lib/admin-title";
+
+export const generateMetadata = () => adminTitle("تعديل المنتج", "Edit product");
 
 
 export default async function EditProduct({ params, searchParams }: PageProps<"/admin/products/[id]">) {

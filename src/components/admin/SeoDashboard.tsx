@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Circle, CircleAlert, ExternalLink, LoaderCircle, Monitor, Smartphone, Sparkles, TriangleAlert, X } from "lucide-react";
+import { Check, Circle, CircleAlert, ExternalLink, LoaderCircle, Monitor, Smartphone, Brain, TriangleAlert, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -295,7 +295,7 @@ export function SeoDrawerBody({ detail, reload }: { detail: SeoDetail; reload: (
               {tr("حفظ الكلمات", "Save keywords")}
             </button>
             <button type="button" disabled={generating} onClick={() => run(startGenerate, () => generateSeoSuggestions(detail.id))} className={buttonClass({ className: "!min-h-9 !px-3 !text-sm" })}>
-              {generating ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <Sparkles className="size-4" aria-hidden="true" />}
+              {generating ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <Brain className="size-4" aria-hidden="true" />}
               {tr("توليد بالذكاء الاصطناعي", "Generate with AI")}
             </button>
           </div>
@@ -436,7 +436,8 @@ export function SeoDrawer({ productId, initialDetail, onClose }: { productId: st
         </div>
       </aside>
     </div>,
-    document.body,
+    // Drawn inside the panel's themed root, so night mode reaches it (at document.body it stayed white).
+    document.querySelector(".admin-theme") ?? document.body,
   );
 }
 

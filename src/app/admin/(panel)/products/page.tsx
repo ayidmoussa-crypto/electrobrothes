@@ -1,6 +1,8 @@
+import { Select } from "@/components/ui/Select";
 import { Plus } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { Pagination, pageHref } from "@/components/admin/Pagination";
 import { ScoreBadge } from "@/components/admin/SeoSuggestions";
 import { PageHeader, tdClass, thClass } from "@/components/admin/ui";
 import { StockBadge, stockMessageKey } from "@/components/store/StockBadge";
@@ -10,9 +12,14 @@ import { requireAdmin } from "@/lib/admin";
 import { adminTr } from "@/lib/admin-lang";
 import { db } from "@/lib/db";
 import { formatMAD } from "@/lib/money";
+import { clampPage, parsePage } from "@/lib/pagination";
 import { WEAK_SCORE } from "@/lib/seo-content/rules";
 import { ensureScored } from "@/lib/seo-content/score";
+import { adminTitle } from "@/lib/admin-title";
 
+export const generateMetadata = () => adminTitle("المنتجات", "Products");
+
+const PAGE = 20;
 
 export default async function ProductsPage({ searchParams }: PageProps<"/admin/products">) {
   const [, { tr, lang, ar }] = await Promise.all([requireAdmin(), adminTr()]);
@@ -24,22 +31,28 @@ export default async function ProductsPage({ searchParams }: PageProps<"/admin/p
   const weakOnly = sp.weak === "1";
 
   await ensureScored();
+  const where = {
+    ...(weakOnly ? { seoScore: { lt: WEAK_SCORE } } : {}),
+    ...(category ? { categoryId: category } : {}),
+    ...(q
+      ? { OR: [{ nameAr: { contains: q, mode: "insensitive" as const } }, { nameEn: { contains: q, mode: "insensitive" as const } }, { variants: { some: { sku: { contains: q.toUpperCase() } } } }] }
+      : {}),
+  };
+  const total = await db.product.count({ where });
+  const page = clampPage(parsePage(sp.page), total, PAGE);
   const [products, categories] = await Promise.all([
     db.product.findMany({
-      where: {
-        ...(weakOnly ? { seoScore: { lt: WEAK_SCORE } } : {}),
-        ...(category ? { categoryId: category } : {}),
-        ...(q
-          ? { OR: [{ nameAr: { contains: q, mode: "insensitive" } }, { nameEn: { contains: q, mode: "insensitive" } }, { variants: { some: { sku: { contains: q.toUpperCase() } } } }] }
-          : {}),
-      },
+      where,
       include: {
         category: { select: { nameAr: true, nameEn: true } },
         brand: { select: { name: true } },
         images: { take: 1, orderBy: { sortOrder: "asc" } },
         variants: { select: { price: true, stock: true } },
       },
-      orderBy: weakOnly ? { seoScore: "asc" } : { updatedAt: "desc" },
+      // The id breaks ties, so a product never shows on two pages or none.
+      orderBy: [weakOnly ? { seoScore: "asc" } : { updatedAt: "desc" }, { id: "asc" }],
+      skip: (page - 1) * PAGE,
+      take: PAGE,
     }),
     db.category.findMany({ select: { id: true, nameAr: true, nameEn: true }, orderBy: { sortOrder: "asc" } }),
   ]);
@@ -49,7 +62,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/admin/p
     <>
       <PageHeader
         title={tr("المنتجات", "Products")}
-        description={tr(`${products.length} منتج`, `${products.length} products`)}
+        description={tr(`${total} منتج`, `${total} products`)}
         actions={
           <Link href="/admin/products/new" className={buttonClass()}>
             <Plus className="size-4" aria-hidden="true" />
@@ -64,14 +77,14 @@ export default async function ProductsPage({ searchParams }: PageProps<"/admin/p
         </label>
         <label className="flex flex-col gap-1 text-xs text-warm-600">
           {tr("القسم", "Category")}
-          <select name="category" defaultValue={category} className={input}>
+          <Select name="category" defaultValue={category} className={input}>
             <option value="">{tr("كل الأقسام", "All categories")}</option>
             {categories.map((c) => (
               <option key={c.id} value={c.id}>
                 {ar ? c.nameAr : c.nameEn}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-semibold text-warm-800">
           <input type="checkbox" name="weak" value="1" defaultChecked={weakOnly} className="size-4" />
@@ -135,6 +148,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/admin/p
           </tbody>
         </table>
       </div>
+      <Pagination page={page} total={total} size={PAGE} href={(n) => pageHref("/admin/products", { q, category, weak: weakOnly ? "1" : undefined }, n)} tr={tr} />
     </>
   );
 }

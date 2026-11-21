@@ -2,6 +2,7 @@ import createMiddleware from "next-intl/middleware";
 import { NextResponse, type NextRequest } from "next/server";
 import { routing } from "./i18n/routing";
 import { CHANNEL_COOKIE, CHANNEL_MAX_AGE, decodeTouch, detectTouch, encodeTouch, nextTouch } from "./lib/attribution";
+import { SESSION_COOKIE } from "./lib/session";
 import { missingPagePath, movedProductPath } from "./lib/seo-content/slug";
 
 const intl = createMiddleware(routing);
@@ -9,7 +10,22 @@ const intl = createMiddleware(routing);
 // Search engines need a real 404 and a real permanent redirect, and a streamed page can send neither:
 // its 200 is already out when it learns the product or category is missing. So the answer is decided here.
 export default async function proxy(request: NextRequest) {
+  if (request.nextUrl.pathname === "/admin" || request.nextUrl.pathname.startsWith("/admin/")) return adminGate(request);
   return remember(request, await route(request));
+}
+
+/**
+ * A signed-out visit to an admin page gets a real 302 to the login. The page itself can only redirect after its
+ * 200 has started streaming, so the answer is decided here. Only "is there a session cookie" is checked: whether it
+ * is valid is still decided by the page and every action, so this never lets anyone in.
+ */
+function adminGate(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  const open = pathname === "/admin/login" || pathname.startsWith("/admin/login/");
+  // Only page loads: a server action (POST) answers for itself.
+  const read = request.method === "GET" || request.method === "HEAD";
+  if (open || !read || request.cookies.get(SESSION_COOKIE)?.value) return NextResponse.next();
+  return NextResponse.redirect(new URL("/admin/login", request.nextUrl.origin), 302);
 }
 
 /**
@@ -54,6 +70,6 @@ async function route(request: NextRequest) {
 }
 
 export const config = {
-  // Skip API routes, the (Arabic-only) admin, Next internals and any file with an extension.
-  matcher: "/((?!api|admin|_next|_vercel|.*\\..*).*)",
+  // Skip API routes, Next internals and any file with an extension. The admin is let in only to be gated above.
+  matcher: "/((?!api|_next|_vercel|.*\\..*).*)",
 };

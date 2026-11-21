@@ -9,6 +9,9 @@ import { requireAdmin } from "@/lib/admin";
 import { adminTr } from "@/lib/admin-lang";
 import { bundleProductOptions, uploadsEnabled } from "@/lib/admin-bundles";
 import { db } from "@/lib/db";
+import { adminTitle } from "@/lib/admin-title";
+
+export const generateMetadata = () => adminTitle("تعديل الباك", "Edit bundle");
 
 export default async function EditBundlePage({ params, searchParams }: PageProps<"/admin/bundles/[id]">) {
   const [, { tr, ar }] = await Promise.all([requireAdmin(), adminTr()]);

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, useMemo, type ReactNode } from "react";
 import { tr, type AdminLang } from "@/lib/admin-tr";
 
 const Lang = createContext<AdminLang>("ar");
@@ -13,5 +13,6 @@ export function AdminLangProvider({ lang, children }: { lang: AdminLang; childre
 /** Client components' picker: const { tr } = useAdminTr(); tr("حفظ", "Save"). */
 export function useAdminTr() {
   const lang = useContext(Lang);
-  return { lang, ar: lang === "ar", tr: tr(lang) };
+  // Memoised: effects list `tr` as a dependency, and a new function every render made them run again and again.
+  return useMemo(() => ({ lang, ar: lang === "ar", tr: tr(lang) }), [lang]);
 }

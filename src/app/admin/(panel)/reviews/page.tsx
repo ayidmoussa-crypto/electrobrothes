@@ -1,5 +1,6 @@
 import { TriangleAlert } from "lucide-react";
 import Link from "next/link";
+import { Pagination, pageHref } from "@/components/admin/Pagination";
 import { ReviewCard } from "@/components/admin/ReviewCard";
 import { PageHeader, Panel } from "@/components/admin/ui";
 import type { Prisma } from "@/generated/prisma/client";
@@ -7,8 +8,12 @@ import { requireAdmin } from "@/lib/admin";
 import { adminTr } from "@/lib/admin-lang";
 import { adminLocale } from "@/lib/admin-tr";
 import { db } from "@/lib/db";
+import { clampPage, parsePage } from "@/lib/pagination";
 import { isNegativeReview, isStaleRating } from "@/lib/reviews/rules";
 import { TIME_ZONE } from "@/lib/time";
+import { adminTitle } from "@/lib/admin-title";
+
+export const generateMetadata = () => adminTitle("التقييمات", "Reviews");
 
 const TABS = [
   { id: "pending", text: ["كيتسناو", "Waiting"] },
@@ -16,6 +21,7 @@ const TABS = [
   { id: "rejected", text: ["مرفوضين", "Rejected"] },
 ] as const;
 type Tab = (typeof TABS)[number]["id"];
+const PAGE = 20;
 
 // Reviews without an order are the demo data from the seed: they are never shown in the store.
 const WHERE: Record<Tab, Prisma.ReviewWhereInput> = {
@@ -27,13 +33,17 @@ const WHERE: Record<Tab, Prisma.ReviewWhereInput> = {
 export default async function ReviewsPage({ searchParams }: PageProps<"/admin/reviews">) {
   const [, { tr, lang, ar }] = await Promise.all([requireAdmin(), adminTr()]);
   const when = new Intl.DateTimeFormat(adminLocale(lang), { dateStyle: "medium", timeZone: TIME_ZONE });
-  const raw = (await searchParams).tab;
+  const sp = await searchParams;
+  const raw = sp.tab;
   const tab: Tab = raw === "approved" || raw === "rejected" ? raw : "pending";
+  const tabTotal = await db.review.count({ where: WHERE[tab] });
+  const page = clampPage(parsePage(sp.page), tabTotal, PAGE);
   const [rows, pending, externalApproved, externalPending] = await Promise.all([
     db.review.findMany({
       where: WHERE[tab],
-      orderBy: [{ rating: "asc" }, { createdAt: "desc" }],
-      take: 100,
+      orderBy: [{ rating: "asc" }, { createdAt: "desc" }, { id: "asc" }],
+      skip: (page - 1) * PAGE,
+      take: PAGE,
       select: {
         id: true,
         productId: true,
@@ -123,6 +133,7 @@ export default async function ReviewsPage({ searchParams }: PageProps<"/admin/re
           <p className="text-sm text-warm-600">{tr("ما كاين حتى تقييم هنا. الزبون كيقيّم من الرابط الخاص بعد ما يتوصل بالطلب.", "No reviews here. A customer reviews from their own link once the order arrives.")}</p>
         </Panel>
       )}
+      <Pagination page={page} total={tabTotal} size={PAGE} href={(n) => pageHref("/admin/reviews", { tab: tab === "pending" ? undefined : tab }, n)} tr={tr} />
     </>
   );
 }

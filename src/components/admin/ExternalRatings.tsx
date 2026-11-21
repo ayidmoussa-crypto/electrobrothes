@@ -1,6 +1,7 @@
 "use client";
 
-import { ExternalLink, LoaderCircle, Sparkles, TriangleAlert } from "lucide-react";
+import { Select } from "@/components/ui/Select";
+import { ExternalLink, LoaderCircle, Search, TriangleAlert } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useActionState, useState, useTransition } from "react";
 import { findExternalRatings, rejectExternalRating, saveExternalRating, type ReviewActionState } from "@/app/actions/admin-reviews";
@@ -55,11 +56,11 @@ function RatingForm({ productId, row, onDone }: { productId: string; row?: Exter
           <input name="rating" type="number" step="0.1" min={0} max={100} required defaultValue={row?.rating} dir="ltr" className={inputClass} />
         </L>
         <L label={tr("من", "Out of")}>
-          <select name="ratingMax" defaultValue={row?.ratingMax ?? 5} className={inputClass}>
+          <Select name="ratingMax" defaultValue={row?.ratingMax ?? 5} className={inputClass}>
             <option value={5}>5</option>
             <option value={10}>10</option>
             <option value={100}>100</option>
-          </select>
+          </Select>
         </L>
         <L label={tr("عدد التقييمات", "Number of ratings")}>
           <input name="ratingCount" type="number" min={0} defaultValue={row?.ratingCount ?? ""} dir="ltr" className={inputClass} />
@@ -162,7 +163,7 @@ export function ExternalRatings({ productId, rows }: { productId: string; rows: 
     <Panel title={tr("تقييمات خارجية", "External ratings")}>
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" onClick={search} disabled={searching} className={buttonClass({ className: "!min-h-10 !px-3 !text-sm" })}>
-          {searching ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <Sparkles className="size-4" aria-hidden="true" />}{tr("قلب على التقييمات", "Search for ratings")}
+          {searching ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <Search className="size-4" aria-hidden="true" />}{tr("قلب على التقييمات", "Search for ratings")}
         </button>
         <button type="button" onClick={() => setAdding((a) => !a)} aria-expanded={adding} className={buttonClass({ variant: "outline", className: "!min-h-10 !px-3 !text-sm" })}>
           {tr("زيد مصدر بيدك", "Add a source by hand")}

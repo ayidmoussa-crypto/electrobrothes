@@ -1,5 +1,7 @@
 "use client";
 
+import { DateField } from "@/components/ui/DateField";
+import { Select } from "@/components/ui/Select";
 import { ArrowDown, ArrowUp, CircleAlert, ImagePlus, LoaderCircle, Plus, Trash2 } from "lucide-react";
 import Image from "next/image";
 import { useActionState, useState } from "react";
@@ -157,25 +159,25 @@ export function ProductEditor({
           </label>
           <label className={labelCls}>
             {tr("القسم", "Category")}
-            <select className={input} value={p.categoryId} onChange={(e) => set("categoryId", e.target.value)} required>
+            <Select className={input} value={p.categoryId} onChange={(e) => set("categoryId", e.target.value)} required>
               <option value="">{tr("اختر…", "Choose…")}</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.label}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <label className={labelCls}>
             {tr("الماركة", "Brand")}
-            <select className={input} value={p.brandId} onChange={(e) => set("brandId", e.target.value)} required>
+            <Select className={input} value={p.brandId} onChange={(e) => set("brandId", e.target.value)} required>
               <option value="">{tr("اختر…", "Choose…")}</option>
               {brands.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.label}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <label className={`${labelCls} md:col-span-2`}>
             {tr("الوصف بالعربية", "Description in Arabic")}
@@ -202,7 +204,7 @@ export function ProductEditor({
           </fieldset>
           <label className={labelCls}>
             {tr("نهاية العرض المحدود (اختياري)", "Limited deal ends (optional)")}
-            <input className={input} type="datetime-local" value={p.dealEndsAt ?? ""} onChange={(e) => set("dealEndsAt", e.target.value)} />
+            <DateField className={input} time lang={lang} value={p.dealEndsAt ?? ""} onChange={(e) => set("dealEndsAt", e.target.value)} />
             <span className="text-xs font-normal text-warm-600">{tr("يظهر عداد تنازلي في الصفحة الرئيسية حتى هذا التاريخ.", "A countdown shows on the home page until this date.")}</span>
           </label>
         </section>

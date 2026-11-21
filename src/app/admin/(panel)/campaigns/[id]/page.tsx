@@ -5,6 +5,9 @@ import { requireAdmin } from "@/lib/admin";
 import { adminTr } from "@/lib/admin-lang";
 import { isOfferStyle } from "@/lib/offers";
 import { offerInitial, offerProductOptions } from "@/lib/offers-admin";
+import { adminTitle } from "@/lib/admin-title";
+
+export const generateMetadata = () => adminTitle("العرض", "Campaign");
 
 /** /admin/campaigns/new, or one saved offer. */
 export default async function OfferPage({ params, searchParams }: PageProps<"/admin/campaigns/[id]">) {

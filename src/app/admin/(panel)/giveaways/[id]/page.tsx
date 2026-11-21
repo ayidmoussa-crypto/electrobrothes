@@ -16,6 +16,9 @@ import { db } from "@/lib/db";
 import { giveawayPhase } from "@/lib/giveaway-rules";
 import { formatMoroccanPhone, whatsappDigits } from "@/lib/phone";
 import { TIME_ZONE, toMoroccanInput } from "@/lib/time";
+import { adminTitle } from "@/lib/admin-title";
+
+export const generateMetadata = () => adminTitle("تعديل السحب", "Edit giveaway");
 
 const SHOWN = 300;
 

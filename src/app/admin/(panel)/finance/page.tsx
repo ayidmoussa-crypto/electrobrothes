@@ -1,3 +1,5 @@
+import { DateField } from "@/components/ui/DateField";
+import { Select } from "@/components/ui/Select";
 import type { LucideIcon } from "lucide-react";
 import {
   AlertTriangle,
@@ -27,15 +29,18 @@ import { ActionForm } from "@/components/admin/ActionForm";
 import { PeriodPicker } from "@/components/admin/PeriodPicker";
 import { TrendChart } from "@/components/admin/finance/TrendChart";
 import { requireAdmin } from "@/lib/admin";
-import { db } from "@/lib/db";
 import { BUSINESS_CATEGORIES, BUSINESS_CATEGORIES_EN, categoryLabel, changePct, expectedFromCarrier, PERSONAL_CATEGORIES, PERSONAL_CATEGORIES_EN } from "@/lib/finance";
-import { feeFields, loadCapital, loadPeriod, toFeeOrder } from "@/lib/finance-data";
+import { toFeeOrder } from "@/lib/finance-data";
+import { financeCapital, financeLists, financePeriod } from "@/lib/finance-stats";
 import { channelLabel } from "@/lib/attribution";
 import { formatMAD } from "@/lib/money";
-import { periodLabel, resolvePeriod } from "@/lib/period";
+import { periodLabel, resolveAdminPeriod } from "@/lib/period";
 import { adminTr, type AdminLang, type Tr } from "@/lib/admin-lang";
 import { adminLocale } from "@/lib/admin-tr";
 import { TIME_ZONE, toMoroccanInput } from "@/lib/time";
+import { adminTitle } from "@/lib/admin-title";
+
+export const generateMetadata = () => adminTitle("المالية", "Finance");
 
 const shortFmt = new Intl.DateTimeFormat("fr-MA", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: TIME_ZONE });
 /** The page's language helpers, handed to the small components below. */
@@ -253,26 +258,14 @@ export default async function FinancePage({ searchParams }: PageProps<"/admin/fi
   const mad = (v: number) => formatMAD(v, lang);
   const l: L = { tr, lang, mad };
   const dayFmt = new Intl.DateTimeFormat(adminLocale(lang), { dateStyle: "medium", timeZone: TIME_ZONE });
-  const period = resolvePeriod(await searchParams);
+  const period = resolveAdminPeriod(await searchParams);
   const span = periodLabel(period, lang);
 
-  const [{ profit: p, trend, sources, before }, c, uncollected, expenses, capitalEntries, received] = await Promise.all([
-    loadPeriod(period),
-    loadCapital(),
-    db.order.findMany({
-      where: { status: "DELIVERED", codReceivedAt: null },
-      orderBy: { deliveredAt: "asc" },
-      take: 100,
-      select: { id: true, number: true, customerName: true, deliveredAt: true, ...feeFields },
-    }),
-    db.expense.findMany({ orderBy: { spentOn: "desc" }, take: 40 }),
-    db.capitalEntry.findMany({ orderBy: { occurredOn: "desc" }, take: 20 }),
-    db.order.findMany({
-      where: { codReceivedAt: { not: null } },
-      orderBy: { codReceivedAt: "desc" },
-      take: 8,
-      select: { id: true, number: true, codReceivedAt: true, codReceivedAmount: true },
-    }),
+  // Cached for two minutes and expired by any order, stock or money change (lib/finance-stats.ts).
+  const [{ profit: p, trend, sources, before }, c, { uncollected, expenses, capitalEntries, received }] = await Promise.all([
+    financePeriod(period.from.getTime(), period.until.getTime(), period.days, period.prevFrom.getTime()),
+    financeCapital(),
+    financeLists(),
   ]);
 
   const today = toMoroccanInput(new Date(), 10);
@@ -583,19 +576,19 @@ export default async function FinancePage({ searchParams }: PageProps<"/admin/fi
             <ActionForm action={addExpense} submitLabel={tr("إضافة", "Add")}>
               <input type="hidden" name="scope" value={f.scope} />
               <Field label={tr("النوع", "Type")}>
-                <select name="category" className={field}>
+                <Select name="category" className={field}>
                   {Object.entries(f.categories).map(([k, label]) => (
                     <option key={k} value={k}>
                       {label}
                     </option>
                   ))}
-                </select>
+                </Select>
               </Field>
               <Field label={tr("المبلغ (درهم)", "Amount (MAD)")}>
                 <input name="amount" type="number" min={1} required className={field} />
               </Field>
               <Field label={tr("التاريخ", "Date")}>
-                <input name="spentOn" type="date" required defaultValue={today} className={field} />
+                <DateField name="spentOn" required defaultValue={today} className={field} lang={lang} />
               </Field>
               <Field label={tr("ملاحظة", "Note")}>
                 <input name="note" maxLength={200} className={field} />
@@ -609,16 +602,16 @@ export default async function FinancePage({ searchParams }: PageProps<"/admin/fi
           <h2 className="mb-3 text-base text-ink">{tr("حركة رأس المال", "Capital move")}</h2>
           <ActionForm action={addCapital} submitLabel={tr("إضافة", "Add")}>
             <Field label={tr("النوع", "Type")}>
-              <select name="type" className={field}>
+              <Select name="type" className={field}>
                 <option value="INJECTION">{tr("دخلت فلوس للمشروع", "Money put into the business")}</option>
                 <option value="WITHDRAWAL">{tr("سحبت فلوس من المشروع", "Money taken out of the business")}</option>
-              </select>
+              </Select>
             </Field>
             <Field label={tr("المبلغ (درهم)", "Amount (MAD)")}>
               <input name="amount" type="number" min={1} required className={field} />
             </Field>
             <Field label={tr("التاريخ", "Date")}>
-              <input name="occurredOn" type="date" required defaultValue={today} className={field} />
+              <DateField name="occurredOn" required defaultValue={today} className={field} lang={lang} />
             </Field>
             <Field label={tr("ملاحظة", "Note")}>
               <input name="note" maxLength={200} className={field} />

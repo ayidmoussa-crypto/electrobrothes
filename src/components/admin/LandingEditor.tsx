@@ -1,5 +1,6 @@
 "use client";
 
+import { Select } from "@/components/ui/Select";
 import { ArrowDown, ArrowUp, CircleAlert, Eye, EyeOff, LoaderCircle, Lock, Plus, Trash2 } from "lucide-react";
 import { useState, useTransition } from "react";
 import { aiLandingPage, aiLandingSection } from "@/app/actions/admin-campaign-ai";
@@ -185,13 +186,13 @@ export function LandingEditor({ productId, slug, initial, publishedAt: initialPu
                   {counter(f.text, 15)}
                 </L>
                 <L label={tr("الأيقونة", "Icon")}>
-                  <select value={f.icon} onChange={(e) => set("features", content.features.map((x, j) => (j === i ? { ...x, icon: e.target.value as LandingIcon } : x)))} className={inputClass}>
+                  <Select value={f.icon} onChange={(e) => set("features", content.features.map((x, j) => (j === i ? { ...x, icon: e.target.value as LandingIcon } : x)))} className={inputClass}>
                     {LANDING_ICONS.map((icon) => (
                       <option key={icon} value={icon}>
                         {icon}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </L>
                 <button type="button" onClick={() => set("features", content.features.filter((_, j) => j !== i))} aria-label={tr(`حذف الميزة ${i + 1}`, `Remove feature ${i + 1}`)} className={buttonClass({ variant: "ghost", size: "icon", className: "mb-5" })}>
                   <Trash2 className="size-4" aria-hidden="true" />

@@ -1,19 +1,27 @@
 import { Trash2 } from "lucide-react";
 import { addToBlacklist, removeFromBlacklist } from "@/app/actions/admin-orders";
 import { ActionForm } from "@/components/admin/ActionForm";
+import { Pagination, pageHref } from "@/components/admin/Pagination";
 import { inputClass, L, PageHeader, Panel, tdClass, thClass } from "@/components/admin/ui";
 import { adminTr } from "@/lib/admin-lang";
 import { adminLocale } from "@/lib/admin-tr";
 import { requireAdmin } from "@/lib/admin";
 import { db } from "@/lib/db";
+import { clampPage, parsePage } from "@/lib/pagination";
 import { formatMoroccanPhone } from "@/lib/phone";
 import { TIME_ZONE } from "@/lib/time";
+import { adminTitle } from "@/lib/admin-title";
 
+export const generateMetadata = () => adminTitle("القائمة السوداء", "Blacklist");
 
-export default async function BlacklistPage() {
+const PAGE = 25;
+
+export default async function BlacklistPage({ searchParams }: PageProps<"/admin/blacklist">) {
   const [, { tr, lang }] = await Promise.all([requireAdmin(), adminTr()]);
   const dateFmt = new Intl.DateTimeFormat(adminLocale(lang), { dateStyle: "medium", timeZone: TIME_ZONE });
-  const entries = await db.blacklist.findMany({ orderBy: { createdAt: "desc" } });
+  const total = await db.blacklist.count();
+  const page = clampPage(parsePage((await searchParams).page), total, PAGE);
+  const entries = await db.blacklist.findMany({ orderBy: [{ createdAt: "desc" }, { id: "asc" }], skip: (page - 1) * PAGE, take: PAGE });
 
   return (
     <>
@@ -68,6 +76,7 @@ export default async function BlacklistPage() {
           </tbody>
         </table>
       </div>
+      <Pagination page={page} total={total} size={PAGE} href={(n) => pageHref("/admin/blacklist", {}, n)} tr={tr} />
     </>
   );
 }

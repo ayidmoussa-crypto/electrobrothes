@@ -1,4 +1,4 @@
-import { Battery, Bluetooth, Cable, Droplets, Gauge, Headphones, Heart, Mic, Plug, ShieldCheck, Smartphone, Sparkles, Sun, Timer, Volume2, Watch, Wifi, Zap, type LucideIcon } from "lucide-react";
+import { Battery, Bluetooth, Cable, Droplets, Gauge, Headphones, Heart, Mic, Plug, ShieldCheck, Smartphone, Gem, Sun, Timer, Volume2, Watch, Wifi, Zap, type LucideIcon } from "lucide-react";
 import type { LandingIcon } from "@/lib/landing";
 
 const ICONS: Record<LandingIcon, LucideIcon> = {
@@ -14,7 +14,7 @@ const ICONS: Record<LandingIcon, LucideIcon> = {
   shield: ShieldCheck,
   droplets: Droplets,
   timer: Timer,
-  sparkles: Sparkles,
+  sparkles: Gem,
   gauge: Gauge,
   plug: Plug,
   cable: Cable,
@@ -23,6 +23,6 @@ const ICONS: Record<LandingIcon, LucideIcon> = {
 };
 
 export function FeatureIcon({ name, className }: { name: LandingIcon; className?: string }) {
-  const Icon = ICONS[name] ?? Sparkles;
+  const Icon = ICONS[name] ?? Gem;
   return <Icon className={className} aria-hidden="true" />;
 }

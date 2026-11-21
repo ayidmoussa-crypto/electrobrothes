@@ -12,6 +12,9 @@ import { formatMAD } from "@/lib/money";
 import { handledOrders, loadBalances, recentPayments } from "@/lib/staff";
 import { agentStats, monthRange } from "@/lib/staff-rules";
 import { TIME_ZONE } from "@/lib/time";
+import { adminTitle } from "@/lib/admin-title";
+
+export const generateMetadata = () => adminTitle("إحصائياتي", "My figures");
 
 /** A confirmation agent's month: what they answered, confirmed, got delivered, and earned. */
 export default async function MyFigures({ searchParams }: PageProps<"/admin/me">) {
