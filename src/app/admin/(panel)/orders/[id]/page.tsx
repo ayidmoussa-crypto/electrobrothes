@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { setCodReceived } from "@/app/actions/admin-finance";
 import { addShipmentEvent, addToBlacklist, saveShipment } from "@/app/actions/admin-orders";
 import { ActionForm } from "@/components/admin/ActionForm";
+import { EditOrderInfo } from "@/components/admin/EditOrderInfo";
 import { PaymentMenu, StatusMenu, WhatsAppConfirm } from "@/components/admin/OrderRowMenus";
 import { orderWhatsappHref } from "@/lib/order-whatsapp-href";
 import { StatusButtons, type StatusOption } from "@/components/admin/StatusButtons";
@@ -57,13 +58,15 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
     include: { items: true, logs: { orderBy: { createdAt: "asc" } }, events: { orderBy: { occurredAt: "desc" } }, city: { select: { shippingFee: true } } },
   });
   if (!order) notFound();
-  const [blacklisted, otherOrders, reviewed, query, carriers] = await Promise.all([
+  const [blacklisted, otherOrders, reviewed, query, carriers, cityRows] = await Promise.all([
     db.blacklist.findUnique({ where: { phone: order.phone } }),
     db.order.count({ where: { phone: order.phone, id: { not: order.id } } }),
     db.review.count({ where: { orderItem: { orderId: order.id } } }),
     searchParams,
     db.carrier.findMany({ where: { isActive: true }, orderBy: [{ isDefault: "desc" }, { name: "asc" }], select: { id: true, name: true, trackingUrl: true, lastEventAt: true, isDefault: true } }),
+    db.city.findMany({ where: { OR: [{ isActive: true }, { id: order.cityId }] }, orderBy: [{ sortOrder: "asc" }, { nameAr: "asc" }], select: { id: true, nameAr: true, nameEn: true } }),
   ]);
+  const editable = (order.status === "NEW" || order.status === "CONFIRMED") && !order.trackingNumber;
   // The order's company, else the default one for a parcel not sent yet.
   const carrier = carriers.find((c) => c.id === order.carrier) ?? (order.trackingNumber ? null : carriers[0]) ?? null;
   const trackUrl = trackingLink(carrier?.trackingUrl, order.trackingNumber);
@@ -84,7 +87,7 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
         title={tr(`الطلب ${order.number}`, `Order ${order.number}`)}
         description={`${dateFmt.format(order.createdAt)} · ${tr("المصدر", "Source")}: ${orderSourceLabel(order, lang)} · ${tr("جا من", "Came from")}: ${channelLabel(order.channel, lang)}${order.channelDetail ? ` (${order.channelDetail})` : ""}`}
         actions={
-          <div className="flex flex-wrap items-start gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {agent ? null : <PaymentMenu orderId={order.id} number={order.number} status={order.status} prepaid={prepaid} collected={order.codReceivedAt !== null} />}
             <StatusMenu orderId={order.id} number={order.number} status={order.status} waiting={order.confirmSentAt !== null} agent={agent} />
             {/* Shown only when it can go (new, confirmed without a parcel, cancelled; no review): the server checks again. */}
@@ -151,6 +154,13 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
                 {tr("اتصال", "Call")}
               </a>
               <WhatsAppConfirm orderId={order.id} status={order.status} href={orderWhatsappHref(order)} />
+            {editable ? (
+              <EditOrderInfo
+                key={order.updatedAt.getTime()}
+                order={{ id: order.id, customerName: order.customerName, phone: order.phone, cityId: order.cityId, address: order.address, notes: order.notes }}
+                cities={cityRows.map((c) => ({ id: c.id, name: lang === "en" ? c.nameEn : c.nameAr }))}
+              />
+            ) : null}
             </div>
           </Panel>
 
