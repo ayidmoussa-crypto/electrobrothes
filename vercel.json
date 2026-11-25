@@ -1,6 +1,7 @@
 {
   "regions": ["fra1"],
   "crons": [
-    { "path": "/api/cron/seo", "schedule": "0 2 * * *" }
+    { "path": "/api/cron/seo", "schedule": "0 2 * * *" },
+    { "path": "/api/cron/carrier-sync", "schedule": "0 7 * * *" }
   ]
 }

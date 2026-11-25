@@ -2,7 +2,7 @@
 
 import { DateField } from "@/components/ui/DateField";
 import { Select } from "@/components/ui/Select";
-import { ArrowDown, ArrowUp, CircleAlert, ImagePlus, LoaderCircle, Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, CircleAlert, ImagePlus, LoaderCircle, Plus, Save, Trash2 } from "lucide-react";
 import Image from "next/image";
 import { useActionState, useState } from "react";
 import { deleteProduct, saveProduct, type ProductFormState } from "@/app/actions/admin-products";
@@ -487,9 +487,9 @@ export function ProductEditor({
           <p className="mt-2 text-xs text-warm-600">{tr("الذاكرة والتخزين والشاشة والمعالج كيبانو كفلاتر فصفحات الأقسام: عمّر ليهم رقم الفلتر (8، 256، 6.1…).", "RAM, storage, screen and CPU show as filters on category pages: give them a filter number (8, 256, 6.1…).")}</p>
         </section>
 
-        <div className="glass-light sticky bottom-24 z-10 flex flex-wrap items-center gap-3 rounded-2xl border p-3 lg:bottom-3">
-          <button type="submit" disabled={pending} className={buttonClass({ size: "lg" })}>
-            {pending ? <LoaderCircle className="size-5 animate-spin" aria-hidden="true" /> : null}
+        <div className="admin-card sticky bottom-24 z-10 flex flex-wrap items-center gap-3 p-3 shadow-xl shadow-ink/30 lg:bottom-3">
+          <button type="submit" disabled={pending} className={buttonClass({ size: "lg", className: "min-w-48 shadow-md shadow-yellow-500/30" })}>
+            {pending ? <LoaderCircle className="size-5 animate-spin" aria-hidden="true" /> : <Save className="size-5" aria-hidden="true" />}
             {tr("حفظ المنتج", "Save product")}
           </button>
           {!state.errors?.length ? <FormMessage state={state} /> : null}
