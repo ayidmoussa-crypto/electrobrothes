@@ -4,7 +4,6 @@ import { LoaderCircle, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { deleteOrders } from "@/app/actions/admin-orders";
-import { buttonClass } from "@/components/ui/button";
 import { useAdminTr } from "./AdminLang";
 import { useConfirm } from "./ConfirmDialog";
 
@@ -68,7 +67,7 @@ export function DeleteOrders({ ids, label, variant, onDone }: { ids: string[]; l
           {text}
         </button>
       ) : (
-        <button type="button" onClick={run} disabled={pending} className={buttonClass({ variant: "outline", className: "text-danger! hover:border-danger! hover:bg-danger-soft!" })}>
+        <button type="button" onClick={run} disabled={pending} className="inline-flex min-h-8 cursor-pointer items-center gap-1.5 rounded-full border border-danger/40 px-3 text-xs font-bold text-danger transition-colors hover:bg-danger-soft disabled:opacity-50 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-yellow-300">
           {icon}
           {text}
         </button>

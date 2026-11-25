@@ -232,6 +232,42 @@ export async function createOrderByHand(_prev: ActionState, formData: FormData):
   redirect(`/admin/orders/${result.orderId}${result.confirmError ? "?unconfirmed=1" : ""}`);
 }
 
+// ───────── Change the customer's details ─────────
+
+const infoInput = z.object({
+  orderId: z.string().min(1).max(40),
+  customerName: z.string().trim().min(2).max(100),
+  phone: z.string().trim().min(8).max(20),
+  cityId: z.string().min(1).max(40),
+  address: z.string().trim().min(3).max(300),
+  notes: z.string().trim().max(500).optional().transform((v) => v || null),
+});
+
+/** Fix the name, phone, city, address or notes of an order that has not been handed to a carrier. Totals stay as they are. */
+export async function updateOrderInfo(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const user = await requireStaff();
+  const { tr } = await adminTr();
+  const parsed = infoInput.safeParse(Object.fromEntries([...formData].filter(([, v]) => typeof v === "string")));
+  if (!parsed.success) return { ok: false, message: tr("تحقق من الحقول.", "Check the fields.") };
+  const { orderId, cityId, ...rest } = parsed.data;
+  const phone = normalizeMoroccanPhone(rest.phone);
+  if (!phone) return { ok: false, message: tr("رقم هاتف مغربي غير صالح.", "Not a valid Moroccan phone number.") };
+  const city = await db.city.findUnique({ where: { id: cityId }, select: { id: true, nameEn: true } });
+  if (!city) return { ok: false, message: tr("المدينة غير موجودة.", "City not found.") };
+  const locked = tr("ما يمكنش تبدل طلب خرج لشركة التوصيل.", "An order already with a carrier cannot be changed.");
+  // The status and tracking conditions are in the write too, in case the order moved meanwhile.
+  const updated = await db.order.updateMany({
+    where: { id: orderId, status: { in: ["NEW", "CONFIRMED"] }, trackingNumber: null },
+    data: { customerName: rest.customerName, phone, cityId: city.id, cityName: city.nameEn, address: rest.address, notes: rest.notes },
+  });
+  if (!updated.count) return { ok: false, message: locked };
+  const order = await db.order.findUnique({ where: { id: orderId }, select: { status: true } });
+  if (order) await db.orderStatusLog.create({ data: { orderId, fromStatus: order.status, toStatus: order.status, actor: user.email, note: "تبدلات معلومات الزبون" } });
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${orderId}`);
+  return { ok: true, message: tr("تم حفظ المعلومات.", "Details saved.") };
+}
+
 // ───────── Shipment ─────────
 
 const shipmentInput = z.object({
