@@ -1,6 +1,6 @@
 "use client";
 
-import { BadgeCheck, Banknote, CircleAlert, LoaderCircle, Lock, ShieldCheck, Truck } from "lucide-react";
+import { Banknote, CircleAlert, LoaderCircle, Lock } from "lucide-react";
 import Image from "next/image";
 import Script from "next/script";
 import { useTranslations } from "next-intl";
@@ -22,14 +22,6 @@ import type { CheckoutConfig } from "@/lib/store-config";
 import { packSaving } from "./useCartLines";
 
 export type OrderLine = { variantId: string; productId: string; name: string; label: string | null; price: number; qty: number; image?: string | null };
-
-/** "Why buy from us", beside the order: the shop's four promises. */
-const WHY = [
-  { icon: ShieldCheck, key: "warranty" },
-  { icon: BadgeCheck, key: "genuine" },
-  { icon: Banknote, key: "cod" },
-  { icon: Truck, key: "delivery" },
-] as const;
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 export const CLEAR_CART_FLAG = "eb_clear_cart";
@@ -56,7 +48,6 @@ export function OrderForm({
   title: string;
 }) {
   const t = useTranslations("checkout");
-  const tt = useTranslations("trust");
   const tc = useTranslations("cart");
   const [state, action, pending] = useActionState<OrderFormState, FormData>(submitOrder, {});
   const [cityId, setCityId] = useState(state.values?.cityId ?? "");
@@ -273,20 +264,6 @@ export function OrderForm({
         {city ? <p className="mt-1 text-xs text-warm-600">{t("deliveryIn", { days: city.deliveryDays })}</p> : null}
         <FreeDeliveryRail spent={totals.subtotal - totals.discount} threshold={config.freeShippingThreshold} locale={locale} />
       </div>
-
-        <ul className="flex flex-col gap-2.5 border-t border-warm-200 pt-4">
-          {WHY.map(({ icon: Icon, key }) => (
-            <li key={key} className="flex items-center gap-3 text-sm">
-              <span className="grid size-8 shrink-0 place-items-center rounded-full bg-ink">
-                <Icon className="size-4 text-yellow-500" aria-hidden="true" />
-              </span>
-              <span>
-                <b className="block text-ink">{tt(`${key}Title`)}</b>
-                <span className="text-xs text-warm-600">{tt(`${key}Text`)}</span>
-              </span>
-            </li>
-          ))}
-        </ul>
       </aside>
 
       <div className="flex flex-col gap-5 lg:col-start-1 lg:row-start-2">

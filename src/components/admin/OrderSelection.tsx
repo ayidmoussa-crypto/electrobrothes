@@ -1,6 +1,6 @@
 "use client";
 
-import { CircleCheck, CircleMinus, Download, LoaderCircle, Send, Truck, X } from "lucide-react";
+import { CircleCheck, CircleMinus, Download, LoaderCircle, Truck, X } from "lucide-react";
 import { createContext, use, useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { assignCarrier, type CarrierAssignResult } from "@/app/actions/admin-orders";
 import { buttonClass } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { CarrierLogo } from "./CarrierLogo";
 import { DeleteOrders } from "./DeleteOrders";
 
 export type SelectableOrder = { id: string; number: string; customerName: string; cityName: string; status: OrderStatus; trackingNumber: string | null };
-export type CarrierChoice = { id: string; name: string; logoUrl: string | null; isDefault: boolean };
+export type CarrierChoice = { id: string; name: string; logoUrl: string | null; isDefault: boolean; connected: boolean };
 
 type Selection = { ids: string[]; picked: Set<string>; toggle: (id: string) => void; setAll: (on: boolean) => void; clear: () => void };
 const SelectionContext = createContext<Selection | null>(null);
@@ -172,10 +172,15 @@ function CarrierDialog({ orders, carriers, onClose, onDone }: { orders: Selectab
           </ol>
 
           <p className="mt-4 rounded-xl bg-warm-100 p-3 text-xs leading-relaxed text-warm-700">
-            {tr(
-              "الإرسال المباشر للشركة (رقم التتبع كيرجع بوحدو) كيتفعّل ملي توصلنا وثائق الـ API والدخول ديال الشركة. دابا: «ربط» كيحط الشركة على الطلبات المؤكَّدة باش يبان اللوغو ديالها، و CSV كتصيفطو ليهم.",
-              "Direct sending (the tracking number comes back on its own) switches on once we have the company's API documents and login. For now, “Assign” puts the company on the confirmed orders so its logo shows, and the CSV is what you send them.",
-            )}
+            {carrier?.connected
+              ? tr(
+                  "هاد الشركة مربوطة: «إرسال» كيصيفط الطلبات ليها وكيجيب رقم التتبع بوحدو. الحالات كتتحدّث بـ «تحديث الحالات».",
+                  "This company is connected: “Send” creates each order at the company and brings back the tracking number on its own. Statuses update with “Refresh statuses”.",
+                )
+              : tr(
+                  "الإرسال المباشر للشركة (رقم التتبع كيرجع بوحدو) كيتفعّل ملي توصلنا وثائق الـ API والدخول ديال الشركة. دابا: «ربط» كيحط الشركة على الطلبات المؤكَّدة باش يبان اللوغو ديالها، و CSV كتصيفطو ليهم.",
+                  "Direct sending (the tracking number comes back on its own) switches on once we have the company's API documents and login. For now, “Assign” puts the company on the confirmed orders so its logo shows, and the CSV is what you send them.",
+                )}
           </p>
           {result?.message ? (
             <p role="alert" className="mt-3 text-sm font-semibold text-danger">
@@ -194,10 +199,6 @@ function CarrierDialog({ orders, carriers, onClose, onDone }: { orders: Selectab
               {tr(`CSV ديال ${ready.length}`, `CSV of ${ready.length}`)}
             </a>
           ) : null}
-          <button type="button" disabled title={tr("كيتفعّل ملي يتربط الـ API ديال الشركة", "Switches on once the company's API is connected")} className={buttonClass({ variant: "dark" })}>
-            <Send className="size-4" aria-hidden="true" />
-            {tr("إرسال مباشر", "Send directly")}
-          </button>
           {!result?.ok && carrier ? (
             <button
               type="button"
@@ -206,7 +207,9 @@ function CarrierDialog({ orders, carriers, onClose, onDone }: { orders: Selectab
               className={buttonClass()}
             >
               {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <Truck className="size-4" aria-hidden="true" />}
-              {tr(`ربط ${ready.length} بـ ${carrier?.name ?? ""}`, `Assign ${ready.length} to ${carrier?.name ?? ""}`)}
+              {carrier.connected
+                ? tr(`إرسال ${ready.length} لـ ${carrier.name}`, `Send ${ready.length} to ${carrier.name}`)
+                : tr(`ربط ${ready.length} بـ ${carrier?.name ?? ""}`, `Assign ${ready.length} to ${carrier?.name ?? ""}`)}
             </button>
           ) : null}
         </div>

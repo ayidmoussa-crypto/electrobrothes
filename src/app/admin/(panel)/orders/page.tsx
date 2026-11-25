@@ -1,3 +1,4 @@
+import { erEnvOf } from "@/lib/carrier/expressrelais-send";
 import { DateField } from "@/components/ui/DateField";
 import { Select } from "@/components/ui/Select";
 import { Columns3, Download, Plus, Rows3, Search, ShieldAlert, X } from "lucide-react";
@@ -8,6 +9,7 @@ import { PaymentMenu, StatusMenu, WhatsAppConfirm } from "@/components/admin/Ord
 import { AllCheck, OrderSelectionProvider, RowCheck, SelectionBar } from "@/components/admin/OrderSelection";
 import { orderWhatsappHref } from "@/lib/order-whatsapp-href";
 import { Pagination } from "@/components/admin/Pagination";
+import { RefreshStatuses } from "@/components/admin/RefreshStatuses";
 import { PageHeader, tdClass, thClass } from "@/components/admin/ui";
 import { buttonClass } from "@/components/ui/button";
 import { Badge } from "@/components/ui/Badge";
@@ -92,7 +94,7 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
     }),
     db.order.count({ where }),
     // All of them, to show the logo of a company even after it was switched off.
-    db.carrier.findMany({ orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }], select: { id: true, name: true, logoUrl: true, isDefault: true, isActive: true, trackingUrl: true } }),
+    db.carrier.findMany({ orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }], select: { id: true, name: true, logoUrl: true, isDefault: true, isActive: true, trackingUrl: true, apiBaseUrl: true } }),
   ]);
   const carrierById = new Map(carriers.map((c) => [c.id, c]));
 
@@ -189,6 +191,7 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
               <Plus className="size-4" aria-hidden="true" />
               {tr("إضافة طلب", "New order")}
             </Link>
+            {!agent && carriers.some((c) => c.isActive && erEnvOf(c.apiBaseUrl)) ? <RefreshStatuses /> : null}
             {/* The carrier's CSV is a desk job: desktop only. */}
             {agent ? null : <a href={`/admin/orders/export${filterQuery({ ...f, page: 1 })}`} className={buttonClass({ variant: "dark", className: "max-lg:hidden" })}>
               <Download className="size-4" aria-hidden="true" />
@@ -407,7 +410,7 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
       {agent ? null : (
         <SelectionBar
           orders={shown.map((o) => ({ id: o.id, number: o.number, customerName: o.customerName, cityName: o.cityName, status: o.status, trackingNumber: o.trackingNumber }))}
-          carriers={carriers.filter((c) => c.isActive).map(({ id, name, logoUrl, isDefault }) => ({ id, name, logoUrl, isDefault }))}
+          carriers={carriers.filter((c) => c.isActive).map(({ id, name, logoUrl, isDefault, apiBaseUrl }) => ({ id, name, logoUrl, isDefault, connected: erEnvOf(apiBaseUrl) !== null }))}
         />
       )}
       </OrderSelectionProvider>

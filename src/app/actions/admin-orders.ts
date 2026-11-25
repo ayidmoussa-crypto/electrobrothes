@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireAdmin, requireStaff } from "@/lib/admin";
 import { adminTr, type Tr } from "@/lib/admin-lang";
+import { erEnvOf, sendToExpressRelais, syncExpressRelais } from "@/lib/carrier/expressrelais-send";
 import { CARRIER_STATUSES } from "@/lib/carrier/status";
 import { db } from "@/lib/db";
 import { manualError, manualOrderInput } from "@/lib/manual-order";
@@ -89,7 +90,7 @@ export async function assignCarrier(input: { orderIds: string[]; carrierId: stri
   const { tr } = await adminTr();
   const parsed = z.object({ orderIds: z.array(z.string().min(1).max(40)).min(1).max(200), carrierId: z.string().min(1).max(40) }).safeParse(input);
   if (!parsed.success) return { ok: false, message: tr("طلب غير صالح.", "Invalid request."), results: [] };
-  const carrier = await db.carrier.findFirst({ where: { id: parsed.data.carrierId, isActive: true }, select: { id: true } });
+  const carrier = await db.carrier.findFirst({ where: { id: parsed.data.carrierId, isActive: true }, select: { id: true, apiBaseUrl: true, credentials: true } });
   if (!carrier) return { ok: false, message: tr("هاد الشركة ما بقاتش ولا متوقفة.", "This company no longer exists or is off."), results: [] };
 
   const orders = await db.order.findMany({ where: { id: { in: parsed.data.orderIds } }, select: { id: true, status: true, trackingNumber: true } });
@@ -101,8 +102,48 @@ export async function assignCarrier(input: { orderIds: string[]; carrierId: stri
     return block ? { id, ok: false, reason: why[block] } : { id, ok: true };
   });
   const ready = results.filter((r) => r.ok).map((r) => r.id);
-  // The status and the parcel number are checked again in the write, in case one changed meanwhile.
-  if (ready.length) await db.order.updateMany({ where: { id: { in: ready }, status: "CONFIRMED", trackingNumber: null }, data: { carrier: carrier.id } });
+  if (erEnvOf(carrier.apiBaseUrl) && ready.length) {
+    // Express Relais is connected: each order is created there, and its parcel number saved here.
+    const rows = await db.order.findMany({ where: { id: { in: ready } }, include: { items: true } });
+    const sent = await sendToExpressRelais(
+      carrier,
+      rows.map((r) => {
+        const first = r.items[0];
+        const count = r.items.reduce((s, i) => s + i.quantity, 0);
+        return {
+          number: r.number,
+          customerName: r.customerName,
+          phone: r.phone,
+          cityName: r.cityName,
+          address: r.address,
+          notes: r.notes,
+          cod: r.prepaidAt ? 0 : r.total,
+          productName: first ? `${first.nameEn}${first.variantLabel ? ` ${first.variantLabel}` : ""}${count > 1 ? ` (+${count - 1})` : ""}` : "Order",
+        };
+      }),
+    );
+    for (const r of rows) {
+      const outcome = sent.get(r.number);
+      const slot = results.find((x) => x.id === r.id)!;
+      if (outcome?.ok && outcome.draft) {
+        // A draft at Express Relais is not billed or collected: the order must not look shipped here.
+        slot.ok = false;
+        slot.reason = tr("مسودة عند الشركة (وضع التجربة): ما تسجّلش كمرسل", "Draft at the company (test mode): not marked as sent");
+      } else if (outcome?.ok) {
+        const saved = await db.order.updateMany({ where: { id: r.id, status: "CONFIRMED", trackingNumber: null }, data: { carrier: carrier.id, trackingNumber: outcome.tracking } });
+        if (!saved.count) {
+          slot.ok = false;
+          slot.reason = tr("تبدّلات الحالة، شوف الطلب", "Order changed meanwhile, check it");
+        }
+      } else {
+        slot.ok = false;
+        slot.reason = outcome?.reason ?? "?";
+      }
+    }
+  } else if (ready.length) {
+    // The status and the parcel number are checked again in the write, in case one changed meanwhile.
+    await db.order.updateMany({ where: { id: { in: ready }, status: "CONFIRMED", trackingNumber: null }, data: { carrier: carrier.id } });
+  }
   revalidatePath("/admin/orders");
   return { ok: true, results };
 }
@@ -260,4 +301,24 @@ export async function removeFromBlacklist(formData: FormData) {
   if (!id.success) return;
   await db.blacklist.delete({ where: { id: id.data } }).catch(() => null);
   revalidatePath("/admin/blacklist");
+}
+
+/** Asks the connected delivery companies where the open parcels are, and updates the orders. */
+export async function refreshCarrierStatuses(): Promise<ActionState> {
+  // The owner only: every press uses requests from the proxy plan.
+  await requireAdmin();
+  const { tr } = await adminTr();
+  const carriers = (await db.carrier.findMany({ where: { isActive: true }, select: { id: true, name: true, apiBaseUrl: true, credentials: true } })).filter((c) => erEnvOf(c.apiBaseUrl));
+  if (!carriers.length) return { ok: false, message: tr("ما كاينة حتى شركة مربوطة بالـ API.", "No company is connected through its API.") };
+  let updated = 0;
+  const problems: string[] = [];
+  for (const c of carriers) {
+    const r = await syncExpressRelais(c);
+    updated += r.updated;
+    problems.push(...r.problems);
+  }
+  revalidatePath("/admin/orders");
+  revalidatePath("/admin");
+  if (problems.length) return { ok: false, message: tr(`تحدّثو ${updated}. مشكل: ${problems[0]}`, `${updated} updated. Problem: ${problems[0]}`) };
+  return { ok: true, message: tr(`تحدّثو ${updated} طلب.`, `${updated} orders updated.`) };
 }

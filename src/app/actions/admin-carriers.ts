@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/admin";
 import { adminTr } from "@/lib/admin-lang";
@@ -68,6 +68,8 @@ export async function saveCarrier(_prev: State, fd: FormData): Promise<State> {
     if (id) await tx.carrier.update({ where: { id }, data: { ...data, credentials, statusMap, unknownStatuses } });
     else await tx.carrier.create({ data: { ...data, credentials, statusMap, webhookToken: newWebhookToken(), unknownStatuses: [] } });
   });
+  // The remembered Express Relais city list may belong to the old API address or login.
+  updateTag("er-localities");
   revalidatePath("/admin/carriers");
   revalidatePath("/admin/orders", "layout");
   return { ok: true, message: tr("تسجلات الشركة.", "Company saved.") };
