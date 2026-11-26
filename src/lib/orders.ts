@@ -9,6 +9,7 @@ import { manualTotals, type ManualOrderInput } from "./manual-order";
 import { bundleDiscount } from "./bundles";
 import { bundleRulesFor } from "./bundles-data";
 import { assessRisk, cashToCollect, couponUseChange, deleteBlock, deliveredByHand, holdsCouponUse, orderNumberAfter, transitionPlan, undoesDelivery, type OrderStatus } from "./order-rules";
+import { keptBundleDiscount, stockChanges, type OrderEditInput } from "./order-edit";
 import { normalizeMoroccanPhone } from "./phone";
 import { computeTotals } from "./pricing";
 import { agentMayMove, handledUpdate } from "./staff-rules";
@@ -291,6 +292,103 @@ export async function createManualOrder(input: ManualOrderInput, actor: string, 
     // Someone else took the last piece in between: the order exists, unconfirmed, and the owner is told.
     if (e instanceof OrderTransitionError) return { ok: true, orderId: order.id, number: order.number, confirmError: e.sku ?? e.reason };
     throw e;
+  }
+}
+
+// ───────────────────────── Change the products of an order ─────────────────────────
+
+export type EditItemsResult = { ok: true; total: number } | { ok: false; error: "locked" | "unavailable" | "out_of_stock" | "discount" | "lost_line"; sku?: string };
+
+/**
+ * New lines, prices, discount and delivery fee for an order not yet with a carrier. A confirmed order already holds
+ * its stock: only the difference moves (pieces let go come back first, then the new ones are taken), each with a
+ * ledger line. Lines kept keep their purchase price; new ones take today's. Row-locked like a status change.
+ */
+export async function editOrderItems(input: OrderEditInput, actor: string): Promise<EditItemsResult> {
+  const ids = input.items.map((l) => l.variantId);
+  const result = await db.$transaction(async (tx): Promise<EditItemsResult & { stockMoved?: boolean }> => {
+    const [order] = await tx.$queryRaw<{ status: OrderStatus; stockDeducted: boolean; number: string; trackingNumber: string | null; total: number; bundleDiscount: number }[]>`
+      SELECT "status", "stockDeducted", "number", "trackingNumber", "total", "bundleDiscount" FROM "Order" WHERE "id" = ${input.orderId} FOR UPDATE`;
+    if (!order || !(order.status === "NEW" || order.status === "CONFIRMED") || order.trackingNumber) return { ok: false, error: "locked" };
+
+    const before = await tx.orderItem.findMany({ where: { orderId: input.orderId } });
+    // A colour deleted since the order came in cannot be counted back: the owner fixes that line by hand first.
+    if (before.some((b) => !b.variantId)) return { ok: false, error: "lost_line" };
+    const variants = await tx.variant.findMany({ where: { id: { in: ids } }, include: { product: { select: { nameAr: true, nameEn: true, costPrice: true } } } });
+    if (variants.length !== ids.length) return { ok: false, error: "unavailable" };
+    const totals = manualTotals(input.items, input.shippingFee, input.discount);
+    if (totals.total === null) return { ok: false, error: "discount" };
+
+    const change = stockChanges(before.map((b) => ({ variantId: b.variantId!, quantity: b.quantity })), input.items);
+    const byId = new Map(variants.map((v) => [v.id, v]));
+    if (order.stockDeducted) {
+      // Given back first, so a colour swap within the same product never fails for want of its own pieces.
+      const moves = [...change].sort((a, b) => a[1] - b[1]);
+      for (const [variantId, d] of moves) {
+        try {
+          await moveStock(tx, { variantId, delta: -d, reason: d > 0 ? "ORDER_CONFIRMED" : "ORDER_CANCELLED", actor, note: "تعديل الطلب", order: { id: input.orderId, number: order.number } });
+        } catch (e) {
+          if (e instanceof InsufficientStockError) throw new EditRefused({ ok: false, error: "out_of_stock", sku: e.sku });
+          throw e;
+        }
+      }
+    } else {
+      // A new order holds nothing yet: it only has to fit in what is there, like a new one typed in.
+      const short = input.items.find((l) => (change.get(l.variantId) ?? 0) > 0 && byId.get(l.variantId)!.stock < l.qty);
+      if (short) return { ok: false, error: "out_of_stock", sku: byId.get(short.variantId)!.sku };
+    }
+
+    const kept = new Map(before.map((b) => [b.variantId!, b]));
+    await tx.orderItem.deleteMany({ where: { orderId: input.orderId, variantId: { notIn: ids } } });
+    for (const l of input.items) {
+      const old = kept.get(l.variantId);
+      if (old) {
+        if (old.quantity !== l.qty || old.unitPrice !== l.unitPrice) await tx.orderItem.update({ where: { id: old.id }, data: { quantity: l.qty, unitPrice: l.unitPrice } });
+        continue;
+      }
+      const v = byId.get(l.variantId)!;
+      await tx.orderItem.create({
+        data: {
+          orderId: input.orderId,
+          variantId: v.id,
+          sku: v.sku,
+          nameAr: v.product.nameAr,
+          nameEn: v.product.nameEn,
+          variantLabel: [v.colorAr, v.storage].filter(Boolean).join(" · ") || null,
+          unitPrice: l.unitPrice,
+          unitCost: effectiveCost(v.costPrice, v.product.costPrice),
+          quantity: l.qty,
+        },
+      });
+    }
+
+    const summary = input.items.map((l) => `${l.qty}× ${byId.get(l.variantId)!.sku}`).join("، ");
+    await tx.order.update({
+      where: { id: input.orderId },
+      data: {
+        subtotal: totals.subtotal,
+        shippingFee: totals.shippingFee,
+        discount: totals.discount,
+        bundleDiscount: keptBundleDiscount(order.bundleDiscount, totals.discount),
+        total: totals.total,
+        logs: { create: { fromStatus: order.status, toStatus: order.status, actor, note: `تبدلات المنتجات: ${summary}. المبلغ ${order.total} ← ${totals.total}`.slice(0, 500) } },
+      },
+    });
+    return { ok: true, total: totals.total, stockMoved: order.stockDeducted && change.size > 0 };
+  }).catch((e) => {
+    if (e instanceof EditRefused) return e.result;
+    throw e;
+  });
+  if (!result.ok) return result;
+  expireAdminStats();
+  if (result.stockMoved) revalidateTag("products", "max");
+  return { ok: true, total: result.total };
+}
+
+/** Rolls the whole change back (stock already moved included) and says why. */
+class EditRefused extends Error {
+  constructor(public result: EditItemsResult & { ok: false }) {
+    super(result.error);
   }
 }
 

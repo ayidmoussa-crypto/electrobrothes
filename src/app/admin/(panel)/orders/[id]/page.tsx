@@ -6,6 +6,8 @@ import { setCodReceived } from "@/app/actions/admin-finance";
 import { addShipmentEvent, addToBlacklist, saveShipment } from "@/app/actions/admin-orders";
 import { ActionForm } from "@/components/admin/ActionForm";
 import { EditOrderInfo } from "@/components/admin/EditOrderInfo";
+import { EditOrderItems } from "@/components/admin/EditOrderItems";
+import { colorLabel } from "@/lib/stock";
 import { PaymentMenu, StatusMenu, WhatsAppConfirm } from "@/components/admin/OrderRowMenus";
 import { orderWhatsappHref } from "@/lib/order-whatsapp-href";
 import { StatusButtons, type StatusOption } from "@/components/admin/StatusButtons";
@@ -66,7 +68,16 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
     db.carrier.findMany({ where: { isActive: true }, orderBy: [{ isDefault: "desc" }, { name: "asc" }], select: { id: true, name: true, trackingUrl: true, lastEventAt: true, isDefault: true } }),
     db.city.findMany({ where: { OR: [{ isActive: true }, { id: order.cityId }] }, orderBy: [{ sortOrder: "asc" }, { nameAr: "asc" }], select: { id: true, nameAr: true, nameEn: true } }),
   ]);
-  const editable = (order.status === "NEW" || order.status === "CONFIRMED") && !order.trackingNumber;
+  const open = order.status === "NEW" || order.status === "CONFIRMED";
+  const editable = open && !order.trackingNumber;
+  // Only loaded when the products can change: every colour of the active products, plus the ones in this order.
+  const pickable = editable
+    ? await db.variant.findMany({
+        where: { OR: [{ product: { isActive: true } }, { id: { in: order.items.flatMap((i) => (i.variantId ? [i.variantId] : [])) } }] },
+        select: { id: true, sku: true, price: true, stock: true, colorAr: true, colorHex: true, storage: true, productId: true, product: { select: { nameAr: true, nameEn: true, images: { orderBy: { sortOrder: "asc" }, take: 1, select: { url: true } } } } },
+        orderBy: [{ product: { nameAr: "asc" } }, { sortOrder: "asc" }],
+      })
+    : [];
   // The order's company, else the default one for a parcel not sent yet.
   const carrier = carriers.find((c) => c.id === order.carrier) ?? (order.trackingNumber ? null : carriers[0]) ?? null;
   const trackUrl = trackingLink(carrier?.trackingUrl, order.trackingNumber);
@@ -164,7 +175,8 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
             </div>
           </Panel>
 
-          <Panel title={tr("المنتجات", "Products")}>
+          {/* Above the next card: glass cards each make their own layer, which would cover the product search results. */}
+          <Panel title={tr("المنتجات", "Products")} className="relative z-10">
             <ul className="flex flex-col gap-2 text-sm">
               {order.items.map((i) => (
                 <li key={i.id} className="flex justify-between gap-3 border-b border-warm-200 pb-2 last:border-0">
@@ -219,6 +231,31 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
                 </div>
               )}
             </dl>
+            {editable && order.items.every((i) => i.variantId) ? (
+              <EditOrderItems
+                key={order.updatedAt.getTime()}
+                orderId={order.id}
+                variants={pickable.map((v) => ({
+                  id: v.id,
+                  productId: v.productId,
+                  name: lang === "en" ? v.product.nameEn : v.product.nameAr,
+                  label: colorLabel(v),
+                  colorHex: v.colorHex,
+                  sku: v.sku,
+                  price: v.price,
+                  stock: v.stock,
+                  image: v.product.images[0]?.url ?? null,
+                }))}
+                lines={order.items.map((i) => ({ variantId: i.variantId!, qty: i.quantity, unitPrice: i.unitPrice }))}
+                held={order.stockDeducted ? Object.fromEntries(order.items.map((i) => [i.variantId!, i.quantity])) : {}}
+                shippingFee={order.shippingFee}
+                discount={order.discount}
+              />
+            ) : open && order.trackingNumber ? (
+              <p className="mt-3 rounded-lg bg-warm-100 p-3 text-xs text-warm-600">
+                {tr("هاد الطلب تصيفط لشركة التوصيل: المعلومات والمنتجات ما بقاوش كيتبدلو من هنا. بدّلهم عند الشركة.", "This order went to the delivery company: its details and products no longer change here. Change them at the company.")}
+              </p>
+            ) : null}
           </Panel>
 
           {agent ? null : (

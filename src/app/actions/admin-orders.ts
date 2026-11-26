@@ -11,7 +11,8 @@ import { CARRIER_STATUSES } from "@/lib/carrier/status";
 import { db } from "@/lib/db";
 import { manualError, manualOrderInput } from "@/lib/manual-order";
 import { canSetPrepaid, ORDER_STATUSES, shipBlock } from "@/lib/order-rules";
-import { changeOrderStatus, createManualOrder, deleteOrder, OrderTransitionError } from "@/lib/orders";
+import { orderEditInput } from "@/lib/order-edit";
+import { changeOrderStatus, createManualOrder, deleteOrder, editOrderItems, OrderTransitionError } from "@/lib/orders";
 import { normalizeMoroccanPhone } from "@/lib/phone";
 import { recordShipmentEvent } from "@/lib/shipments";
 
@@ -266,6 +267,31 @@ export async function updateOrderInfo(_prev: ActionState, formData: FormData): P
   revalidatePath("/admin/orders");
   revalidatePath(`/admin/orders/${orderId}`);
   return { ok: true, message: tr("تم حفظ المعلومات.", "Details saved.") };
+}
+
+// ───────── Change the products ─────────
+
+/** Products, prices, discount and delivery fee of an order not yet with a carrier; the stock follows (lib/orders editOrderItems). */
+export async function updateOrderItems(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const user = await requireStaff();
+  const { tr } = await adminTr();
+  const parsed = orderEditInput.safeParse(Object.fromEntries([...formData].filter(([, v]) => typeof v === "string")));
+  if (!parsed.success) return { ok: false, message: tr("زيد منتج واحد على الأقل، وتحقق من الأثمنة.", "Add at least one product and check the prices.") };
+  const r = await editOrderItems(parsed.data, user.email);
+  if (!r.ok) {
+    const message = {
+      locked: tr("ما يمكنش تبدل طلب خرج لشركة التوصيل.", "An order already with a carrier cannot be changed."),
+      unavailable: tr("منتج ما بقاش موجود. حدّث الصفحة.", "A product no longer exists. Refresh the page."),
+      out_of_stock: `${tr("المخزون غير كافٍ", "Not enough stock")}${r.sku ? ` (${r.sku})` : ""}.`,
+      discount: tr("الخصم أكبر من ثمن المنتجات.", "The discount is larger than the products' price."),
+      lost_line: tr("فهاد الطلب منتج تحذف من المتجر: ما يمكنش يتحسب المخزون ديالو.", "This order has a product deleted from the shop: its stock cannot be counted."),
+    }[r.error];
+    return { ok: false, message };
+  }
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${parsed.data.orderId}`);
+  revalidatePath("/admin");
+  return { ok: true, message: tr("تم حفظ المنتجات.", "Products saved.") };
 }
 
 // ───────── Shipment ─────────
