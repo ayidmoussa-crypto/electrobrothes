@@ -8,7 +8,7 @@ import { moroccanDate } from "./time";
  * `view: "board"` shows the orders as columns by status (desktop) instead of the table. `reviewAsk`: delivered orders
  * still waiting for their review request (lib/reviews/ask.ts), oldest delivery first.
  */
-export type OrderFilters = { status?: OrderStatus; q?: string; risky?: boolean; reviewAsk?: boolean; from?: string; to?: string; page: number; view?: "board" };
+export type OrderFilters = { status?: OrderStatus; q?: string; city?: string; risky?: boolean; reviewAsk?: boolean; from?: string; to?: string; page: number; view?: "board" };
 
 type Raw = Record<string, string | string[] | undefined>;
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v)?.trim() || undefined;
@@ -19,6 +19,8 @@ export function parseOrderFilters(raw: Raw): OrderFilters {
   return {
     status: status && ORDER_STATUSES.includes(status) ? status : undefined,
     q: one(raw.q)?.slice(0, 80),
+    // A city's id: anything longer than an id is ignored.
+    city: one(raw.city)?.slice(0, 40),
     risky: raw.risky === "1",
     reviewAsk: raw.review === "ask",
     from: isoDate(one(raw.from)),
@@ -41,6 +43,7 @@ export function orderWhere(f: OrderFilters, now = new Date()): Prisma.OrderWhere
   const phone = f.q ? normalizeMoroccanPhone(f.q) : null;
   return {
     ...(f.status ? { status: f.status } : {}),
+    ...(f.city ? { cityId: f.city } : {}),
     ...(f.risky ? { riskScore: { gte: 30 } } : {}),
     ...(f.reviewAsk ? awaitingReviewAskWhere(now) : {}),
     ...(f.from || f.to
@@ -78,6 +81,7 @@ export function filterQuery(f: Partial<OrderFilters>) {
   const s = new URLSearchParams();
   if (f.status) s.set("status", f.status);
   if (f.q) s.set("q", f.q);
+  if (f.city) s.set("city", f.city);
   if (f.risky) s.set("risky", "1");
   if (f.reviewAsk) s.set("review", "ask");
   if (f.from) s.set("from", f.from);

@@ -83,7 +83,7 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
   const dateFmt = new Intl.DateTimeFormat(adminLocale(lang), { dateStyle: "short", timeStyle: "short", timeZone: TIME_ZONE });
   const f = parseOrderFilters(await searchParams);
   const where = orderWhere(f);
-  const [orders, total, carriers] = await Promise.all([
+  const [orders, total, carriers, cityCounts] = await Promise.all([
     db.order.findMany({
       where,
       // Waiting for a review request: the oldest delivery first, the one closest to dropping off the list.
@@ -95,7 +95,12 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
     db.order.count({ where }),
     // All of them, to show the logo of a company even after it was switched off.
     db.carrier.findMany({ orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }], select: { id: true, name: true, logoUrl: true, isDefault: true, isActive: true, trackingUrl: true, apiBaseUrl: true } }),
+    // The cities that have orders, the busiest first: the city filter lists only these.
+    db.order.groupBy({ by: ["cityId"], _count: true, orderBy: { _count: { cityId: "desc" } } }),
   ]);
+  const cityNames = await db.city.findMany({ where: { id: { in: cityCounts.map((c) => c.cityId) } }, select: { id: true, nameAr: true, nameEn: true } });
+  const cityName = new Map(cityNames.map((c) => [c.id, lang === "en" ? c.nameEn : c.nameAr]));
+  const cityOptions = cityCounts.flatMap((c) => (cityName.has(c.cityId) ? [{ id: c.cityId, name: cityName.get(c.cityId)!, count: c._count }] : []));
   const carrierById = new Map(carriers.map((c) => [c.id, c]));
 
   // Board (desktop, ?view=board): the latest orders of each status, with every column's count and money.
@@ -201,21 +206,32 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
         }
       />
 
-      {/* Phones: one slim row (search, status, a search button); the dates and "suspicious only" are on desktop. */}
-      <form method="get" className="mb-4 flex items-end gap-2 admin-card p-2 lg:flex-wrap lg:p-3">
+      {/* Phones: the search on its own row, then status, city and a search button; the dates and "suspicious only" are on desktop. */}
+      <form method="get" className="mb-4 flex flex-wrap items-end gap-2 admin-card p-2 lg:p-3">
         {f.view ? <input type="hidden" name="view" value={f.view} /> : null}
-        <label className="flex min-w-0 flex-col gap-1 text-xs text-warm-600 max-lg:flex-1">
+        <label className="flex min-w-0 flex-col gap-1 text-xs text-warm-600 max-lg:basis-full">
           <span className="max-lg:sr-only">{tr("بحث", "Search")}</span>
           <input name="q" type="search" defaultValue={f.q} placeholder={tr("رقم الطلب، التتبع، الاسم أو الهاتف", "Order number, tracking, name or phone")} className={`${input} w-56 max-lg:w-full`} />
         </label>
         {/* On the board each status is a column already. */}
-        <label className={`flex shrink-0 flex-col gap-1 text-xs text-warm-600 ${board ? "lg:hidden" : ""}`}>
+        <label className={`flex min-w-0 flex-col gap-1 text-xs text-warm-600 max-lg:flex-1 ${board ? "lg:hidden" : ""}`}>
           <span className="max-lg:sr-only">{tr("الحالة", "Status")}</span>
-          <Select name="status" defaultValue={f.status ?? ""} className={`${input} max-lg:max-w-28`}>
+          <Select name="status" defaultValue={f.status ?? ""} className={`${input} max-lg:w-full`}>
             <option value="">{tr("الكل", "All")}</option>
             {ORDER_STATUSES.map((s) => (
               <option key={s} value={s}>
                 {statusLabel(s, lang)}
+              </option>
+            ))}
+          </Select>
+        </label>
+        <label className="flex min-w-0 flex-col gap-1 text-xs text-warm-600 max-lg:flex-1">
+          <span className="max-lg:sr-only">{tr("المدينة", "City")}</span>
+          <Select name="city" defaultValue={f.city ?? ""} className={`${input} max-lg:w-full lg:max-w-48`}>
+            <option value="">{tr("كل المدن", "All cities")}</option>
+            {cityOptions.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name} ({c.count})
               </option>
             ))}
           </Select>
@@ -245,7 +261,7 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
         <Link
           href={`/admin/orders${filterQuery({ page: 1, view: f.view })}`}
           aria-label={tr("مسح", "Clear")}
-          className={buttonClass({ variant: "ghost", className: `shrink-0 max-lg:size-11! max-lg:px-0! ${f.q || f.status || f.from || f.to || f.risky || f.reviewAsk ? "" : "max-lg:hidden"}` })}
+          className={buttonClass({ variant: "ghost", className: `shrink-0 max-lg:size-11! max-lg:px-0! ${f.q || f.status || f.city || f.from || f.to || f.risky || f.reviewAsk ? "" : "max-lg:hidden"}` })}
         >
           <X className="size-4.5 lg:hidden" aria-hidden="true" />
           <span className="max-lg:hidden">{tr("مسح", "Clear")}</span>
