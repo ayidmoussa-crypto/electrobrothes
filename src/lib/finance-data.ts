@@ -15,7 +15,17 @@ export const toFeeOrder = <T extends { carrierFee: number | null; shippingFee: n
   prepaid: o.prepaidAt !== null,
 });
 
-const orderFields = { ...feeFields, items: { select: { unitCost: true, quantity: true } } } as const;
+/** The purchase price known now: the colour's own, else the product's. */
+const costNowFields = { costPrice: true, product: { select: { costPrice: true } } } as const;
+type CostNow = { costPrice: number | null; product: { costPrice: number | null } } | null;
+// A line or a stock entry saved before its purchase price was typed in counts at the price known now, so filling the
+// price in later fixes the figures (and the warning) instead of leaving them at 0 for good.
+const costNow = (saved: number | null, v: CostNow) => saved ?? (v ? effectiveCost(v.costPrice, v.product.costPrice) : null);
+
+const orderFields = { ...feeFields, items: { select: { unitCost: true, quantity: true, variant: { select: costNowFields } } } } as const;
+
+const toCostedOrder = <T extends Parameters<typeof toFeeOrder>[0] & { items: { unitCost: number | null; quantity: number; variant: CostNow }[] }>(o: T) =>
+  toFeeOrder({ ...o, items: o.items.map((i) => ({ unitCost: costNow(i.unitCost, i.variant), quantity: i.quantity })) });
 
 /** Profit of a period: a sale counts on the day it was delivered, a return on the day it came back. */
 export async function loadProfit(since: Date, until = new Date()) {
@@ -27,8 +37,8 @@ export async function loadProfit(since: Date, until = new Date()) {
     db.stockMovement.findMany({ where: { reason: "ADJUSTMENT", createdAt: range }, select: { delta: true, unitCost: true } }),
   ]);
   return computeProfit({
-    delivered: delivered.map(toFeeOrder),
-    returned: returned.map(toFeeOrder),
+    delivered: delivered.map(toCostedOrder),
+    returned: returned.map(toCostedOrder),
     expenses,
     stockAdjustmentValue: adjustments.reduce((s, m) => s + m.delta * (m.unitCost ?? 0), 0),
   });
@@ -48,8 +58,8 @@ export async function loadPeriod({ from: since, until: now, days, prevFrom }: Pi
     db.stockMovement.findMany({ where: { reason: "ADJUSTMENT", createdAt: range }, select: { delta: true, unitCost: true, createdAt: true } }),
     loadProfit(prevFrom, new Date(since.getTime() - 1)),
   ]);
-  const d = delivered.map((o) => ({ ...toFeeOrder(o), at: o.deliveredAt ?? now }));
-  const r = returned.map((o) => ({ ...toFeeOrder(o), at: o.returnedAt ?? now }));
+  const d = delivered.map((o) => ({ ...toCostedOrder(o), at: o.deliveredAt ?? now }));
+  const r = returned.map((o) => ({ ...toCostedOrder(o), at: o.returnedAt ?? now }));
   const e = expenses.map((x) => ({ ...x, at: x.spentOn }));
   const a = adjustments.map((m) => ({ value: m.delta * (m.unitCost ?? 0), at: m.createdAt }));
 
@@ -78,7 +88,7 @@ export async function loadSalesComparison({ from, until }: Pick<Period, "from" |
     // Orders from before tracking have no channel: `not` alone would skip them.
     db.order.findMany({ where: { OR: [{ channel: null }, { channel: { not: SHOP_CHANNEL } }] }, orderBy: { createdAt: "desc" }, take: 6, select: row }),
   ]);
-  return { ...compareSales(delivered.map(toFeeOrder), returned.map(toFeeOrder)), latestShop, latestOnline };
+  return { ...compareSales(delivered.map(toCostedOrder), returned.map(toCostedOrder)), latestShop, latestOnline };
 }
 
 /** Where all the money is today, since the very beginning. */
@@ -89,11 +99,11 @@ export async function loadCapital() {
     // Products hidden from the shop (the old demo catalogue) stay out of the money; a deleted product's moves stay in.
     db.stockMovement.findMany({
       where: { reason: { in: ["OPENING", "STOCK_IN", "CORRECTION"] }, OR: [{ productId: null }, { product: { isActive: true } }] },
-      select: { reason: true, delta: true, unitCost: true, variantId: true, createdAt: true },
+      select: { reason: true, delta: true, unitCost: true, variantId: true, productId: true, sku: true, createdAt: true, variant: { select: costNowFields }, product: { select: { costPrice: true } } },
     }),
     db.order.aggregate({ _sum: { codReceivedAmount: true } }),
     db.variant.findMany({ where: { stock: { gt: 0 } }, select: { stock: true, costPrice: true, product: { select: { costPrice: true, isActive: true } } } }),
-    db.orderItem.findMany({ where: { order: { status: { in: ["CONFIRMED", "SHIPPING", "RETURNING"] }, stockDeducted: true } }, select: { unitCost: true, quantity: true, order: { select: { status: true } } } }),
+    db.orderItem.findMany({ where: { order: { status: { in: ["CONFIRMED", "SHIPPING", "RETURNING"] }, stockDeducted: true } }, select: { unitCost: true, quantity: true, variant: { select: costNowFields }, order: { select: { status: true } } } }),
     db.order.findMany({ where: { status: "DELIVERED", codReceivedAt: null }, select: feeFields }),
     // A cancelled or refused prepaid order (returning or returned) is taken as refunded.
     db.order.aggregate({ where: { prepaidAt: { not: null }, status: { in: ["NEW", "CONFIRMED", "SHIPPING", "DELIVERED"] } }, _sum: { total: true } }),
@@ -101,12 +111,20 @@ export async function loadCapital() {
 
   const sum = (type: string) => capital.find((c) => c.type === type)?._sum.amount ?? 0;
   const spent = (scope: string) => expenses.find((e) => e.scope === scope)?._sum.amount ?? 0;
+  // A colour deleted since keeps its moves without a link: its code still ties them together. A deleted product's
+  // moves have no price to fill in any more, so they stay out of the warning (they count 0 either way).
+  const entries = movements.map((m) => ({
+    variantId: m.variantId ?? `sku:${m.sku}`,
+    reason: m.reason as "OPENING" | "STOCK_IN" | "CORRECTION",
+    delta: m.delta,
+    unitCost: m.unitCost ?? (m.variant ? costNow(null, m.variant) : (m.product?.costPrice ?? null)),
+    at: m.createdAt,
+    gone: m.productId === null,
+  }));
   let movesWithoutCost = 0;
-  for (const m of movements) if (m.reason !== "CORRECTION" && m.delta > 0 && m.unitCost === null) movesWithoutCost += m.delta;
+  for (const m of entries) if (m.reason !== "CORRECTION" && m.delta > 0 && m.unitCost === null && !m.gone) movesWithoutCost += m.delta;
   // Corrections cancel the value of stock entered by mistake (never a loss, never in the profit).
-  const { opening: openingStockValue, purchases } = entryValues(
-    movements.map((m) => ({ variantId: m.variantId, reason: m.reason as "OPENING" | "STOCK_IN" | "CORRECTION", delta: m.delta, unitCost: m.unitCost, at: m.createdAt })),
-  );
+  const { opening: openingStockValue, purchases } = entryValues(entries);
   let inventoryValue = 0;
   let unitsWithoutCost = 0;
   let hiddenUnits = 0;
@@ -119,7 +137,7 @@ export async function loadCapital() {
     if (cost === null) unitsWithoutCost += v.stock;
     else inventoryValue += cost * v.stock;
   }
-  const { total: goodsInTransit, returning: goodsReturning } = goodsOnTheRoad(inTransit.map((i) => ({ unitCost: i.unitCost, quantity: i.quantity, status: i.order.status })));
+  const { total: goodsInTransit, returning: goodsReturning } = goodsOnTheRoad(inTransit.map((i) => ({ unitCost: costNow(i.unitCost, i.variant), quantity: i.quantity, status: i.order.status })));
   const owedByCarrier = owed.reduce((s, o) => s + expectedFromCarrier(toFeeOrder(o)), 0);
 
   const input = {
