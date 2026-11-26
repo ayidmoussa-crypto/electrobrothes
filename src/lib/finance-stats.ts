@@ -38,7 +38,8 @@ export async function financeLists() {
     db.expense.findMany({ orderBy: { spentOn: "desc" }, take: 40 }),
     db.capitalEntry.findMany({ orderBy: { occurredOn: "desc" }, take: 20 }),
     db.order.findMany({
-      where: { codReceivedAt: { not: null } },
+      // Orders brought over from the old platform are settled with no amount: their cash is outside these books.
+      where: { codReceivedAt: { not: null }, codReceivedAmount: { not: null } },
       orderBy: { codReceivedAt: "desc" },
       take: 8,
       select: { id: true, number: true, codReceivedAt: true, codReceivedAmount: true },
