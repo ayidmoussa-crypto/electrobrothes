@@ -373,10 +373,25 @@ export async function changeOrderStatus(orderId: string, to: OrderStatus, actor:
  * back with a ledger line and its coupon use is given back. Lines, history and parcel events go with it (cascade);
  * the stock ledger keeps its number. Row-locked like a status change.
  */
+/**
+ * "Repeat order, same number" was set when the later order came in. Once the earlier one is deleted nothing repeats
+ * any more, so the flag and its 40 points come off.
+ */
+async function clearStaleDuplicateFlag(tx: Pick<typeof db, "order">, phone: string) {
+  const flagged = await tx.order.findMany({ where: { phone, riskFlags: { has: "duplicate_phone" } }, select: { id: true, createdAt: true, riskScore: true, riskFlags: true } });
+  for (const o of flagged) {
+    const earlier = await tx.order.count({
+      where: { phone, id: { not: o.id }, createdAt: { gt: new Date(o.createdAt.getTime() - 24 * 3600 * 1000), lt: o.createdAt }, status: { in: ["NEW", "CONFIRMED"] } },
+    });
+    if (earlier) continue;
+    await tx.order.update({ where: { id: o.id }, data: { riskScore: Math.max(0, o.riskScore - 40), riskFlags: o.riskFlags.filter((f) => f !== "duplicate_phone") } });
+  }
+}
+
 export async function deleteOrder(orderId: string, actor: string): Promise<"ok" | "not_found" | NonNullable<ReturnType<typeof deleteBlock>>> {
   const result = await db.$transaction(async (tx) => {
-    const [order] = await tx.$queryRaw<{ status: OrderStatus; stockDeducted: boolean; number: string; trackingNumber: string | null; couponCode: string | null }[]>`
-      SELECT "status", "stockDeducted", "number", "trackingNumber", "couponCode" FROM "Order" WHERE "id" = ${orderId} FOR UPDATE`;
+    const [order] = await tx.$queryRaw<{ status: OrderStatus; stockDeducted: boolean; number: string; trackingNumber: string | null; couponCode: string | null; phone: string }[]>`
+      SELECT "status", "stockDeducted", "number", "trackingNumber", "couponCode", "phone" FROM "Order" WHERE "id" = ${orderId} FOR UPDATE`;
     if (!order) return "not_found" as const;
     const reviews = await tx.review.count({ where: { orderItem: { orderId } } });
     const block = deleteBlock(order.status, order.trackingNumber, reviews);
@@ -391,6 +406,7 @@ export async function deleteOrder(orderId: string, actor: string): Promise<"ok" 
     // A cancelled or returned order already gave its use back.
     if (order.couponCode && holdsCouponUse(order.status)) await tx.coupon.updateMany({ where: { code: order.couponCode, usedCount: { gt: 0 } }, data: { usedCount: { decrement: 1 } } });
     await tx.order.delete({ where: { id: orderId } });
+    await clearStaleDuplicateFlag(tx, order.phone);
     return order.stockDeducted ? ("ok-stock" as const) : ("ok" as const);
   });
   if (result === "ok" || result === "ok-stock") expireAdminStats();
