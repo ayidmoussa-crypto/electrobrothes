@@ -5,6 +5,12 @@ import { createPortal } from "react-dom";
 
 type Place = { top?: number; bottom?: number; left: number; width: number; maxHeight: number };
 
+/** plain: the white list under a Select or a date field. glass: the frosted panel of the dashboard's bars. */
+const SURFACE = {
+  plain: "rounded-2xl bg-white shadow-xl shadow-deep/25 ring-1 ring-warm-200",
+  glass: "glass-frost rounded-3xl border shadow-xl shadow-ink/15",
+} as const;
+
 /**
  * Where a panel opens: inside the admin's themed root when there is one (so night mode reaches it), else the page root.
  * Called from the click that opens the panel.
@@ -23,6 +29,7 @@ export function Popover({
   host,
   minWidth = 0,
   estimate = 280,
+  surface = "plain",
   children,
   className = "",
   ...rest
@@ -36,6 +43,7 @@ export function Popover({
   minWidth?: number;
   /** About how tall the panel wants to be: decides between opening below or above. */
   estimate?: number;
+  surface?: keyof typeof SURFACE;
   children: ReactNode;
 } & Omit<HTMLAttributes<HTMLDivElement>, "children">) {
   const panel = useRef<HTMLDivElement>(null);
@@ -69,6 +77,9 @@ export function Popover({
     const outside = (e: PointerEvent) => {
       const t = e.target as Node;
       if (panel.current?.contains(t) || anchor.current?.contains(t)) return;
+      // A list opened from inside this panel (a Select in it) is drawn after it at the page root: not "outside".
+      const other = t instanceof Element ? t.closest("[data-popover]") : null;
+      if (other && panel.current && panel.current.compareDocumentPosition(other) & Node.DOCUMENT_POSITION_FOLLOWING) return;
       onClose();
     };
     const follow = () => {
@@ -92,7 +103,7 @@ export function Popover({
       // Placed the moment it mounts, before the browser paints; hidden until then.
       ref={attach}
       style={place ? { top: place.top, bottom: place.bottom, left: place.left, width: place.width, maxHeight: place.maxHeight } : { visibility: "hidden" }}
-      className={`fixed z-[70] overflow-auto overscroll-contain rounded-2xl bg-white shadow-xl shadow-deep/25 ring-1 ring-warm-200 ${className}`}
+      className={`fixed z-[70] overflow-auto overscroll-contain ${SURFACE[surface]} ${className}`}
     >
       {children}
     </div>,

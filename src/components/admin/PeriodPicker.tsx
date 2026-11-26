@@ -1,5 +1,6 @@
 "use client";
 
+import { Popover, panelHost } from "@/components/ui/Popover";
 import { Select } from "@/components/ui/Select";
 import {
   CalendarRange,
@@ -43,23 +44,15 @@ export function PeriodPicker({
 }) {
   const ar = lang === "ar";
   const [open, setOpen] = useState(false);
-  const box = useRef<HTMLElement>(null);
+  const [host, setHost] = useState<Element | null>(null);
+  const button = useRef<HTMLButtonElement>(null);
 
-  // A tap outside or Escape closes the panel.
+  // A tap outside is handled by the Popover; Escape closes the panel too.
   useEffect(() => {
     if (!open) return;
-    // A month or year list opened inside the panel is drawn elsewhere on the page: it is not "outside".
-    const away = (e: PointerEvent) =>
-      !box.current?.contains(e.target as Node) &&
-      !(e.target as Element).closest("[data-popover]") &&
-      setOpen(false);
     const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    document.addEventListener("pointerdown", away);
     document.addEventListener("keydown", esc);
-    return () => {
-      document.removeEventListener("pointerdown", away);
-      document.removeEventListener("keydown", esc);
-    };
+    return () => document.removeEventListener("keydown", esc);
   }, [open]);
 
   const pill = (on: boolean) =>
@@ -77,7 +70,6 @@ export function PeriodPicker({
 
   return (
     <nav
-      ref={box}
       aria-label={label}
       className="relative flex flex-wrap items-center gap-1 rounded-3xl bg-warm-100 p-1"
     >
@@ -92,11 +84,15 @@ export function PeriodPicker({
           {presetName(p, lang)}
         </Link>
       ))}
-      {/* On wide screens the panel hangs from this button; on phones it spans the whole bar. */}
-      <div className="sm:relative">
+      {/* The panel hangs from this button and is kept inside the screen (Popover), wherever the button lands. */}
+      <div>
         <button
+          ref={button}
           type="button"
-          onClick={() => setOpen(!open)}
+          onClick={() => {
+            setHost(panelHost(button.current));
+            setOpen(!open);
+          }}
           aria-expanded={open}
           className={pill(inPanel || open)}
         >
@@ -107,9 +103,8 @@ export function PeriodPicker({
             aria-hidden="true"
           />
         </button>
-        {open ? (
-          // Above the assistant's floating button (z-40), which would cover "Show" on phones.
-          <div className="glass-frost absolute inset-x-0 top-full z-50 mt-2 rounded-3xl border p-3 shadow-xl shadow-ink/15 sm:inset-x-auto sm:start-0 sm:w-[22rem]">
+        {/* 22rem wide (less on a narrow phone); drawn above the assistant's floating button, which would cover "Show". */}
+        <Popover anchor={button} host={host} open={open} onClose={() => setOpen(false)} minWidth={352} estimate={500} surface="glass" className="p-3">
             <p className="px-1 text-xs font-bold text-warm-600">
               {ar ? "فترات جاهزة" : "Ready spans"}
             </p>
@@ -136,8 +131,7 @@ export function PeriodPicker({
               today={today}
               lang={lang}
             />
-          </div>
-        ) : null}
+        </Popover>
       </div>
     </nav>
   );
