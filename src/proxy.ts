@@ -1,7 +1,7 @@
 import createMiddleware from "next-intl/middleware";
 import { NextResponse, type NextRequest } from "next/server";
 import { routing } from "./i18n/routing";
-import { CHANNEL_COOKIE, CHANNEL_MAX_AGE, decodeTouch, detectTouch, encodeTouch, nextTouch } from "./lib/attribution";
+import { CHANNEL_COOKIE, CHANNEL_MAX_AGE, decodeTouch, detectTouch, encodeTouch, nextTouch, shortLinkTouch, type Touch } from "./lib/attribution";
 import { SESSION_COOKIE } from "./lib/session";
 import { missingPagePath, movedProductPath } from "./lib/seo-content/slug";
 
@@ -11,7 +11,26 @@ const intl = createMiddleware(routing);
 // its 200 is already out when it learns the product or category is missing. So the answer is decided here.
 export default async function proxy(request: NextRequest) {
   if (request.nextUrl.pathname === "/admin" || request.nextUrl.pathname.startsWith("/admin/")) return adminGate(request);
+  const short = shortLinkTouch(request.nextUrl.pathname);
+  if (short) return shortLink(request, short);
   return remember(request, await route(request));
+}
+
+/** electrobrothers.com/ig: remember Instagram, then open the home page with a clean address. */
+function shortLink(request: NextRequest, touch: Touch) {
+  const response = NextResponse.redirect(new URL("/", request.nextUrl.origin), 307);
+  if (request.method === "GET") setTouch(response, touch);
+  return response;
+}
+
+function setTouch(response: NextResponse, touch: Touch) {
+  response.cookies.set(CHANNEL_COOKIE, encodeTouch(touch), {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    maxAge: CHANNEL_MAX_AGE,
+    path: "/",
+  });
 }
 
 /**
@@ -39,15 +58,7 @@ function remember(request: NextRequest, response: NextResponse) {
   if (request.method !== "GET" || (dest && dest !== "document")) return response;
   const visit = detectTouch(request.nextUrl, request.headers.get("referer"), request.headers.get("host")?.split(":")[0] ?? request.nextUrl.hostname);
   const next = nextTouch(decodeTouch(request.cookies.get(CHANNEL_COOKIE)?.value), visit);
-  if (next) {
-    response.cookies.set(CHANNEL_COOKIE, encodeTouch(next), {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      maxAge: CHANNEL_MAX_AGE,
-      path: "/",
-    });
-  }
+  if (next) setTouch(response, next);
   return response;
 }
 

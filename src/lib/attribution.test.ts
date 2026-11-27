@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { channelOfManualSource, decodeTouch, detectTouch, encodeTouch, nextTouch, trackingLinks } from "./attribution";
+import { channelOfManualSource, decodeTouch, detectTouch, encodeTouch, nextTouch, shortLinkTouch, trackingLinks } from "./attribution";
 
 const own = "electrobrothers.ma";
 const visit = (path: string, referrer: string | null = null) => detectTouch(new URL(`https://electrobrothers.ma${path}`), referrer, own);
@@ -70,8 +70,19 @@ test("manual orders take the app of the conversation", () => {
 
 test("ready links are read back as their own channel", () => {
   for (const l of trackingLinks("https://electrobrothers.ma")) {
-    const t = detectTouch(new URL(l.url), null, own);
+    const url = new URL(l.url.startsWith("http") ? l.url : `https://${l.url}`);
+    const t = shortLinkTouch(url.pathname) ?? detectTouch(url, null, own);
     assert.notEqual(t?.channel, "DIRECT");
     assert.notEqual(t?.channel, "REFERRAL");
   }
+});
+
+test("short links name their app, and nothing else is one", () => {
+  assert.deepEqual(shortLinkTouch("/ig"), { channel: "INSTAGRAM", detail: null });
+  assert.deepEqual(shortLinkTouch("/TT/"), { channel: "TIKTOK", detail: null });
+  assert.equal(shortLinkTouch("/wa")?.channel, "WHATSAPP");
+  assert.equal(shortLinkTouch("/"), null);
+  assert.equal(shortLinkTouch("/igx"), null);
+  assert.equal(shortLinkTouch("/toString"), null);
+  assert.equal(shortLinkTouch("/products/ig"), null);
 });

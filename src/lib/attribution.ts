@@ -138,16 +138,28 @@ export function channelOfManualSource(source: string): Channel {
   return source === "WHATSAPP" || source === "PHONE" || source === "INSTAGRAM" || source === "FACEBOOK" || source === "TIKTOK" ? source : "OTHER";
 }
 
+/**
+ * Short links for bios and stories, where a long link looks untidy: /ig counts the visit as Instagram, then
+ * opens the home page with a clean address. The proxy reads them; ads keep their full utm links.
+ */
+export const SHORT_LINKS: Record<string, Channel> = { ig: "INSTAGRAM", tt: "TIKTOK", fb: "FACEBOOK", wa: "WHATSAPP" };
+
+/** The channel of a short link path like "/ig" (any case, with or without a trailing slash), else null. */
+export function shortLinkTouch(pathname: string): Touch | null {
+  const key = pathname.toLowerCase().replace(/^\/|\/$/g, "");
+  return Object.hasOwn(SHORT_LINKS, key) ? { channel: SHORT_LINKS[key], detail: null } : null;
+}
+
 /** Ready links for each place the shop is shared; the owner pastes them as they are. */
 export function trackingLinks(site: string, lang: "ar" | "en" = "ar") {
   const tr = (ar: string, en: string) => (lang === "en" ? en : ar);
   const u = (source: string, medium: string, campaign?: string) => `${site}/?utm_source=${source}&utm_medium=${medium}${campaign ? `&utm_campaign=${campaign}` : ""}`;
+  const short = (key: string) => `${site.replace(/^https?:\/\//, "")}/${key}`;
   return [
-    { where: tr("البيو ديال إنستغرام", "Instagram bio"), url: u("instagram", "bio") },
-    { where: tr("الستوريات والبوستات ديال إنستغرام", "Instagram stories and posts"), url: u("instagram", "story") },
-    { where: tr("البيو ديال تيك توك", "TikTok bio"), url: u("tiktok", "bio") },
-    { where: tr("صفحة فيسبوك", "Facebook page"), url: u("facebook", "page") },
-    { where: tr("الستاتو ديال واتساب", "WhatsApp status"), url: u("whatsapp", "status") },
+    { where: tr("البيو والستوريات ديال إنستغرام", "Instagram bio and stories"), url: short("ig") },
+    { where: tr("البيو ديال تيك توك", "TikTok bio"), url: short("tt") },
+    { where: tr("صفحة فيسبوك", "Facebook page"), url: short("fb") },
+    { where: tr("الستاتو ديال واتساب", "WhatsApp status"), url: short("wa") },
     { where: tr("إعلانات Meta (فيسبوك وإنستغرام)", "Meta ads (Facebook and Instagram)"), url: u("facebook", "paid", "smiyat-l-i3lan") },
     { where: tr("إعلانات تيك توك", "TikTok ads"), url: u("tiktok", "paid", "smiyat-l-i3lan") },
   ];
