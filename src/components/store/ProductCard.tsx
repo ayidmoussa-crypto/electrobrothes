@@ -26,14 +26,10 @@ export async function ProductCard({
   const soldOut = p.stock <= 0;
   const low = !soldOut && p.stock <= LOW_STOCK;
 
-  // At most two badges, by priority: sold out > discount > limited deal > best seller.
+  // The discount has its own corner; the start corner shows one label, by priority: sold out > limited deal > best
+  // seller. Two badges never stack on the photo.
   const badges = [
     soldOut && <Badge key="out" tone="ink">{t("outOfStock")}</Badge>,
-    off > 0 && (
-      <Badge key="off" tone="danger" className="text-sm">
-        <bdi dir="ltr">{`−${off}%`}</bdi>
-      </Badge>
-    ),
     p.dealEndsAt && <Badge key="deal" tone="accent">{t("limitedDeal")}</Badge>,
     p.isBestSeller && (
       <Badge key="best" tone="ink" icon={<Flame className="size-3.5 text-yellow-500" aria-hidden="true" />}>
@@ -42,7 +38,7 @@ export async function ProductCard({
     ),
   ]
     .filter(Boolean)
-    .slice(0, 2);
+    .slice(0, 1);
 
   return (
     // h-full: every card in a row ends on the same line, whatever the length of its name.
@@ -59,7 +55,12 @@ export async function ProductCard({
             className={`object-contain p-5 mix-blend-multiply transition-transform duration-300 group-hover:scale-105 motion-reduce:transition-none sm:p-6 ${soldOut ? "opacity-50" : ""}`}
           />
         ) : null}
-        {badges.length ? <div className="absolute start-2.5 top-2.5 flex flex-col items-start gap-1">{badges}</div> : null}
+        {badges.length ? <div className="absolute start-2.5 top-2.5">{badges}</div> : null}
+        {off > 0 ? (
+          <Badge tone="danger" className="absolute end-2.5 top-2.5 text-sm">
+            <bdi dir="ltr">{`−${off}%`}</bdi>
+          </Badge>
+        ) : null}
       </div>
 
       <div className="flex flex-1 flex-col gap-1.5 p-3 sm:p-4">
@@ -75,7 +76,8 @@ export async function ProductCard({
         {p.rating !== null ? <Rating value={p.rating} count={p.reviewCount} locale={locale} variant="compact" /> : null}
 
         <div className="mt-auto flex flex-col gap-3 pt-2">
-          <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+          {/* Price, then the stock on its own line: the same layout on every card, sale or not. */}
+          <div className="flex flex-col items-start gap-1">
             <Price price={p.minPrice} compareAtPrice={p.compareAtPrice} from={p.maxPrice > p.minPrice} locale={locale} />
             {soldOut ? null : (
               // Dot + words, never colour alone.
