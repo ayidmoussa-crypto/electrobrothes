@@ -16,7 +16,7 @@ const cardSelect = {
   createdAt: true,
   brand: { select: { name: true, slug: true } },
   images: { select: { url: true, altAr: true, altEn: true }, orderBy: { sortOrder: "asc" }, take: 1 },
-  variants: { select: { price: true, compareAtPrice: true, stock: true, storage: true }, orderBy: { sortOrder: "asc" } },
+  variants: { select: { id: true, price: true, compareAtPrice: true, stock: true, storage: true }, orderBy: { sortOrder: "asc" } },
   reviews: { select: { rating: true }, where: { isApproved: true, verified: true } },
   specs: { select: { key: true, valueEn: true, numericValue: true }, where: { key: { in: ["ram", "storage", "screen", "cpu"] } } },
 } satisfies Prisma.ProductSelect;
@@ -53,6 +53,9 @@ function toCard(p: CardRow) {
     maxPrice: Math.max(...prices),
     compareAtPrice: cheapest?.compareAtPrice ?? null,
     stock: p.variants.reduce((sum, v) => sum + v.stock, 0),
+    // A product with one variant goes straight into the cart from its card; with colours or sizes the buyer
+    // chooses on the product page first.
+    quickAddId: p.variants.length === 1 ? p.variants[0].id : null,
     rating: ratings.length ? ratings.reduce((a, b) => a + b, 0) / ratings.length : null,
     reviewCount: ratings.length,
     isBestSeller: p.isBestSeller,

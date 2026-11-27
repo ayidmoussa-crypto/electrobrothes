@@ -6,13 +6,14 @@ export function Skeleton({ className = "" }: { className?: string }) {
 /** Same footprint as <ProductCard> so the grid does not jump when data arrives (CLS). */
 export function ProductCardSkeleton() {
   return (
-    <div aria-hidden="true" className="flex flex-col overflow-hidden rounded-xl border border-warm-200 bg-white">
+    <div aria-hidden="true" className="flex flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-warm-200">
       <Skeleton className="aspect-square rounded-none" />
       <div className="flex flex-col gap-2 p-3 sm:p-4">
         <Skeleton className="h-3 w-16" />
         <Skeleton className="h-4 w-full" />
         <Skeleton className="h-4 w-2/3" />
         <Skeleton className="mt-2 h-6 w-24" />
+        <Skeleton className="mt-1 h-11 w-full rounded-full" />
       </div>
     </div>
   );
