@@ -3,6 +3,9 @@ import { absoluteUrl, SITE_NAME, siteUrl } from "./seo";
 
 // Schema.org builders. They only describe what the page visibly shows (price, stock, reviews).
 
+// The ways people type the name, so a search for any of them is matched to this site.
+const BRAND_ALIASES = ["إلكترو براذرز", "Electro Brothers", "electrobrothers.com"];
+
 const abs = (url: string) => (url.startsWith("http") ? url : `${siteUrl()}${url}`);
 
 export function organizationLd(locale: Locale) {
@@ -13,6 +16,7 @@ export function organizationLd(locale: Locale) {
         "@type": "OnlineStore",
         "@id": `${siteUrl()}/#store`,
         name: SITE_NAME,
+        alternateName: BRAND_ALIASES,
         url: absoluteUrl(locale, "/"),
         logo: `${siteUrl()}/brand/logo.svg`,
         areaServed: { "@type": "Country", name: "Morocco" },
@@ -23,6 +27,8 @@ export function organizationLd(locale: Locale) {
         "@type": "WebSite",
         "@id": `${siteUrl()}/#website`,
         name: SITE_NAME,
+        alternateName: BRAND_ALIASES,
+        publisher: { "@id": `${siteUrl()}/#store` },
         url: absoluteUrl(locale, "/"),
         inLanguage: locale === "ar" ? "ar-MA" : "en",
         potentialAction: {

@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 import { contentSecurityPolicy } from "./src/lib/csp";
+import { legacyRedirects } from "./src/lib/legacy-redirects";
 
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
@@ -23,6 +24,9 @@ const nextConfig: NextConfig = {
       // The back office is never cached by shared caches or indexed.
       { source: "/admin/:path*", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }, { key: "Cache-Control", value: "private, no-store" }] },
     ];
+  },
+  async redirects() {
+    return legacyRedirects();
   },
   partialPrefetching: true,
   images: {
